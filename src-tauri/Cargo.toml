@@ -3,7 +3,7 @@ name = "sidepage"
 version = "0.1.0"
 description = "Read books, documents and slides with your notes alongside"
 authors = ["cLLeB"]
-license = "AGPL-3.0-or-later"
+license = "GPL-3.0-or-later"
 edition = "2024"
 rust-version = "1.90"
 

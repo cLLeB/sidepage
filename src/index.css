@@ -97,6 +97,8 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   overflow-wrap: break-word;
 }
 .slide-list { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.djvu-page { background: #fff; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.djvu-page canvas { display: block; width: 100%; height: 100%; }
 .slide-list img { width: 100%; border: 1px solid var(--border); border-radius: 4px; background: #fff; }
 .text-host { background: var(--panel); margin: 0; }
 .plain-text { padding: 24px 32px; white-space: pre-wrap; font: 15px/1.6 Georgia, 'Times New Roman', serif; }

@@ -9,6 +9,7 @@ const PdfView = lazy(() => import('./viewers/PdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
 const OfficeView = lazy(() => import('./viewers/OfficeView'))
 const SlidesView = lazy(() => import('./viewers/SlidesView'))
+const DjvuView = lazy(() => import('./viewers/DjvuView'))
 const TextView = lazy(() => import('./viewers/TextView'))
 const WrittenNote = lazy(() => import('./notes/WrittenNote'))
 const CanvasNote = lazy(() => import('./notes/CanvasNote'))
@@ -30,6 +31,7 @@ function viewerFor(name: string) {
   if (['epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt'].includes(ext)) return BookView
   if (['docx', 'rtf', 'odt'].includes(ext)) return OfficeView
   if (ext === 'pptx') return SlidesView
+  if (ext === 'djvu' || ext === 'djv') return DjvuView
   if (['txt', 'md', 'markdown', 'html', 'htm'].includes(ext)) return TextView
   return null
 }
@@ -179,7 +181,7 @@ export default function App() {
             <h1>Read on one side, think on the other.</h1>
             <p>Open a book, a document or a slide deck, or drop one here. Your notes open beside it.</p>
             <button className="primary" onClick={browse}>Open book</button>
-            <p className="hint">PDF · EPUB · MOBI · AZW3 · FB2 · CBZ · DOCX · PPTX · TXT · Markdown · HTML</p>
+            <p className="hint">PDF · EPUB · MOBI · AZW3 · FB2 · DJVU · CBZ · CBR · DOCX · RTF · ODT · PPTX · TXT · Markdown · HTML</p>
           </div>
         )}
       </main>

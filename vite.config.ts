@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'excalidraw/**/*', 'libarchive/*'],
+      includeAssets: ['favicon.svg', 'excalidraw/**/*', 'libarchive/*', 'djvu/*'],
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2,wasm}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,

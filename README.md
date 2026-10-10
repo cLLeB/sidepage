@@ -9,6 +9,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | --- | --- | --- |
 | EPUB, MOBI, AZW3, FB2, CBZ reader | [foliate-js](https://github.com/johnfactotum/foliate-js) | MIT |
 | PDF reader | [PDF.js](https://github.com/mozilla/pdf.js) | Apache-2.0 |
+| DjVu books | [DjVu.js](https://github.com/RussCoder/djvujs) (vendored in `public/djvu`) | GPL-2.0 |
 | Word documents | [docx-preview](https://github.com/VolodymyrBaydalka/docxjs) | Apache-2.0 |
 | PowerPoint slides | [PptxViewJS](https://github.com/gptsci/pptxviewjs) | MIT |
 | Page-turn effect | [StPageFlip](https://github.com/Nodlik/StPageFlip) | MIT |
@@ -24,7 +25,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 
 ## What it does
 
-- Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, CBZ, CBR, CB7, CBT, DOCX, RTF, ODT, PPTX, TXT, Markdown and HTML.
+- Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, DJVU, CBZ, CBR, CB7, CBT, DOCX, RTF, ODT, PPTX, TXT, Markdown and HTML.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots.
@@ -56,4 +57,8 @@ every sample format opens (it reads the samples from the dev server, so keep `np
 
 ## Not there yet
 
-DJVU, CHM, and the old binary Office formats (.doc, .ppt).
+CHM and the old binary Office formats (.doc, .ppt).
+
+## Licence
+
+Sidepage's own glue code is GPL-3.0-or-later. Each bundled project keeps its own licence, listed above.
