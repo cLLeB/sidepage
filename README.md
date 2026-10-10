@@ -37,7 +37,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   columns and hands the pages to StPageFlip (this part is Sidepage's own, in `src/viewers/CurlBook.tsx`).
   The choice is remembered, and no scrollbars are shown anywhere.
 - Search inside a book or PDF; each match leads to its place.
-- Light, sepia and dark themes for the whole workspace.
+- Light, sepia and dark themes for the whole workspace. On dark PDF and document pages the text turns
+  light-on-dark while photographs keep their real colours.
+- Stylus friendly: touch the canvas or a PDF page with a pencil and the pen tool is picked up for you.
 - Link one book's notes to another's, see which notes link back ("Linked from"), and view all of it as a graph.
 - Highlight and draw on PDF pages, and save a copy with the marks in it.
 - "Quote" copies the selected passage into your notes with its source.
@@ -65,6 +67,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 npm install
 npm run dev
 ```
+
+`node scripts/check-in-edge.mjs <url> <snippet.js>` runs a snippet inside the app in a headless Microsoft Edge,
+for checks that need real rendering (page turns, PDF pages).
 
 `node scripts/verify-desktop.mjs <path to sidepage.exe> [book]` starts the built desktop app and checks that
 every sample format opens (it reads the samples from the dev server, so keep `npm run dev` running).

@@ -2,11 +2,13 @@ import { useEffect, useRef } from 'react'
 import { PageFlip } from 'page-flip'
 
 // Page-turn view (StPageFlip). `pages` are image URLs, `ratio` is page height / width.
-export default function FlipBook({ pages, ratio, startPage = 0, onFlip }: {
+// `tinted` marks pages that are plain pictures (scans, slides), which the theme can only shade as a whole.
+export default function FlipBook({ pages, ratio, startPage = 0, onFlip, tinted = false }: {
   pages: string[]
   ratio: number
   startPage?: number
   onFlip?: (page: number) => void
+  tinted?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
 
@@ -42,5 +44,5 @@ export default function FlipBook({ pages, ratio, startPage = 0, onFlip }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pages, ratio])
 
-  return <div ref={host} className="flipbook" tabIndex={0} />
+  return <div ref={host} className={tinted ? 'flipbook tinted' : 'flipbook'} tabIndex={0} />
 }

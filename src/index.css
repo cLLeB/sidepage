@@ -76,9 +76,23 @@
   --crepe-color-inline-area: var(--border);
 }
 
-/* Pages that are pictures (PDF, DjVu, slides, Word pages) are tinted rather than re-coloured. */
-:root[data-theme='sepia'] :is(.pdfViewer .page, .djvu-page, .slide-list img, .office-host section.docx, .office-host .sheet, .ppt-host, .flipbook:not(.curl-book) canvas) { filter: sepia(0.35) brightness(0.97); }
-:root[data-theme='dark'] :is(.pdfViewer .page, .djvu-page, .slide-list img, .office-host section.docx, .office-host .sheet, .ppt-host, .flipbook:not(.curl-book) canvas) { filter: invert(0.9) hue-rotate(180deg); }
+/* PDF pages: dark turns the drawn page light-on-dark, and each picture on it is turned back to its real colours
+   by a patch laid exactly over it (PdfView marks where the pictures are). */
+:root[data-theme='sepia'] .pdfViewer .page canvas { filter: sepia(0.35) brightness(0.97); }
+:root[data-theme='dark'] .pdfViewer .page canvas { filter: invert(1) hue-rotate(180deg); }
+.picture-keep { position: absolute; pointer-events: none; }
+:root[data-theme='dark'] .picture-keep { backdrop-filter: invert(1) hue-rotate(180deg); }
+
+/* Pages that are plain pictures (scans, rendered slides) can only be shaded as a whole: warmed in sepia,
+   dimmed in dark. They are not inverted, so photographs keep their real colours. */
+:root[data-theme='sepia'] :is(.djvu-page, .slide-list img, .flipbook.tinted canvas) { filter: sepia(0.35) brightness(0.97); }
+:root[data-theme='dark'] :is(.djvu-page, .slide-list img, .flipbook.tinted canvas) { filter: brightness(0.78); }
+
+/* Pages made of real text and shapes (Word, RTF, ODT, .doc, .ppt): in dark the page is inverted to light-on-dark
+   and every picture inside it is inverted back, which returns it to its real colours. */
+:root[data-theme='sepia'] :is(.office-host section.docx, .office-host .sheet, .ppt-host) { filter: sepia(0.35) brightness(0.97); }
+:root[data-theme='dark'] :is(.office-host section.docx, .office-host .sheet, .ppt-host) { filter: invert(1) hue-rotate(180deg); }
+:root[data-theme='dark'] :is(.office-host section.docx, .office-host .sheet, .ppt-host) :is(img, image, video, canvas) { filter: invert(1) hue-rotate(180deg); }
 
 * { box-sizing: border-box; scrollbar-width: none; }
 /* No scrollbars anywhere: pages scroll and swipe without them. */

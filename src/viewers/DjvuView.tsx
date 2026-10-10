@@ -123,7 +123,7 @@ export default function DjvuView({ file }: { file: File }) {
       <div className="viewer-body">
         {flipping
           ? flip
-            ? <FlipBook pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {
+            ? <FlipBook tinted pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {
                 setPage(flip.first + i)
                 localStorage.setItem(placeKey, String(flip.first + i))
               }} />

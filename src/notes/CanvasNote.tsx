@@ -15,6 +15,7 @@ function CanvasPage({ notebook, file, latest }: { notebook: string; file: string
   const host = useRef<HTMLDivElement>(null)
   const [initial, setInitial] = useState<Initial | null>(null)
   const theme = useTheme()
+  const drawing = useRef<{ getAppState(): { activeTool: { type: string } }; setActiveTool(tool: { type: 'freedraw' }): void } | null>(null)
   const save = useMemo(() => debounce((json: string) => { void saveNote(notebook, file, json) }, 800), [notebook, file])
 
   useEffect(() => {
@@ -31,9 +32,17 @@ function CanvasPage({ notebook, file, latest }: { notebook: string; file: string
   if (!initial) return <div className="canvas-page paper" />
 
   return (
-    <div ref={host} className="canvas-page paper">
+    <div
+      ref={host}
+      className="canvas-page paper"
+      // A stylus (Apple Pencil, S Pen, Surface Pen) means writing: pick up the pen tool without being asked.
+      onPointerDownCapture={e => {
+        if (e.pointerType === 'pen' && drawing.current?.getAppState().activeTool.type === 'selection') drawing.current.setActiveTool({ type: 'freedraw' })
+      }}
+    >
       <Excalidraw
         initialData={initial}
+        excalidrawAPI={api => { drawing.current = api }}
         theme={theme === 'dark' ? 'dark' : 'light'}
         onChange={(elements, appState, files) => {
           // The paper sits behind the drawing and follows its pan and zoom.
@@ -71,7 +80,7 @@ async function renderSheet(saved: string | null) {
   if (data?.elements?.some((element: { isDeleted?: boolean }) => !element.isDeleted)) {
     const drawing = await exportToCanvas({
       elements: data.elements,
-      appState: { ...data.appState, exportBackground: false },
+      appState: { ...data.appState, exportBackground: false, exportWithDarkMode: document.documentElement.dataset.theme === 'dark' },
       files: data.files ?? null,
       exportPadding: 0,
     })

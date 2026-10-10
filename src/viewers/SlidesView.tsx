@@ -52,7 +52,7 @@ export default function SlidesView({ file }: { file: File }) {
       </div>
       <div className="viewer-body">
         {flip
-          ? <FlipBook pages={slides} ratio={HEIGHT / WIDTH} startPage={current} onFlip={setCurrent} />
+          ? <FlipBook tinted pages={slides} ratio={HEIGHT / WIDTH} startPage={current} onFlip={setCurrent} />
           : <div className="slide-list">
               {slides.map((url, i) => <img key={url} src={url} alt={`Slide ${i + 1}`} onClick={() => setCurrent(i)} />)}
             </div>}

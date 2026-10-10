@@ -5,13 +5,44 @@ import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
+import { pageFilter, useTheme } from '../lib/theme'
 import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendQuote } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
 const FLIP_CHUNK = 80
 
+type Box = [left: number, top: number, right: number, bottom: number]
+
+// Where the pictures sit on a page, as fractions of its width and height. Read from the page's drawing
+// instructions: each picture is a unit square placed by the transform in force when it is painted.
+async function pictureBoxes(page: pdfjs.PDFPageProxy): Promise<Box[]> {
+  const { OPS, Util } = pdfjs
+  const viewport = page.getViewport({ scale: 1 })
+  const { fnArray, argsArray } = await page.getOperatorList()
+  const stack: number[][] = []
+  let matrix = viewport.transform
+  const boxes: Box[] = []
+  fnArray.forEach((fn, i) => {
+    const args = argsArray[i]
+    if (fn === OPS.save || fn === OPS.beginGroup) stack.push(matrix)
+    else if (fn === OPS.restore || fn === OPS.endGroup || fn === OPS.paintFormXObjectEnd) matrix = stack.pop() ?? matrix
+    else if (fn === OPS.transform) matrix = Util.transform(matrix, args)
+    else if (fn === OPS.paintFormXObjectBegin) {
+      stack.push(matrix)
+      if (args?.[0]) matrix = Util.transform(matrix, args[0])
+    } else if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject || fn === OPS.paintImageXObjectRepeat) {
+      const corners = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => [matrix[0] * x + matrix[2] * y + matrix[4], matrix[1] * x + matrix[3] * y + matrix[5]])
+      const xs = corners.map(c => c[0] / viewport.width)
+      const ys = corners.map(c => c[1] / viewport.height)
+      boxes.push([Math.max(0, Math.min(...xs)), Math.max(0, Math.min(...ys)), Math.min(1, Math.max(...xs)), Math.min(1, Math.max(...ys))])
+    }
+  })
+  return boxes
+}
+
 export default function PdfView({ file }: { file: File }) {
+  const theme = useTheme()
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<PDFViewer | null>(null)
   const toolUsed = useRef(false)
@@ -48,6 +79,19 @@ export default function PdfView({ file }: { file: File }) {
     })
     viewerRef.current = viewer
     const placeKey = `sidepage:place:${file.name}`
+    // Mark where each page's pictures are, so a dark theme can leave them in their real colours (see index.css).
+    eventBus.on('pagerendered', async (e: { pageNumber: number; source: { div: HTMLElement; pdfPage?: pdfjs.PDFPageProxy } }) => {
+      const wrapper = e.source.div.querySelector('.canvasWrapper')
+      if (!wrapper || !e.source.pdfPage) return
+      const boxes = await pictureBoxes(e.source.pdfPage).catch(() => [])
+      wrapper.querySelectorAll('.picture-keep').forEach(old => old.remove())
+      for (const [left, top, right, bottom] of boxes) {
+        const keep = document.createElement('div')
+        keep.className = 'picture-keep'
+        keep.style.cssText = `left:${left * 100}%;top:${top * 100}%;width:${(right - left) * 100}%;height:${(bottom - top) * 100}%`
+        wrapper.append(keep)
+      }
+    })
     eventBus.on('pagesinit', () => {
       viewer.currentScaleValue = 'page-width'
       // Reopen where the reader left off.
@@ -81,6 +125,7 @@ export default function PdfView({ file }: { file: File }) {
       resize.disconnect()
       task?.destroy()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file])
 
   // Flip mode shows rendered page images, a chunk at a time so long books stay light.
@@ -100,7 +145,21 @@ export default function PdfView({ file }: { file: File }) {
         canvas.width = viewport.width
         canvas.height = viewport.height
         await pdfPage.render({ canvas, canvasContext: canvas.getContext('2d')!, viewport }).promise
-        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
+        // Shade the page for the theme, then put its pictures back as they were.
+        const shaded = document.createElement('canvas')
+        shaded.width = canvas.width
+        shaded.height = canvas.height
+        const ink = shaded.getContext('2d')!
+        ink.filter = pageFilter(theme)
+        ink.drawImage(canvas, 0, 0)
+        ink.filter = 'none'
+        if (theme === 'dark') {
+          for (const [left, top, right, bottom] of await pictureBoxes(pdfPage).catch(() => [])) {
+            const [x, y, w, h] = [left * canvas.width, top * canvas.height, (right - left) * canvas.width, (bottom - top) * canvas.height]
+            if (w >= 1 && h >= 1) ink.drawImage(canvas, x, y, w, h, x, y, w, h)
+          }
+        }
+        const blob = await new Promise<Blob | null>(resolve => shaded.toBlob(resolve, 'image/jpeg', 0.85))
         if (blob) urls.push(URL.createObjectURL(blob))
       }
       if (!cancelled) setFlip({ pages: urls, ratio, first })
@@ -112,7 +171,7 @@ export default function PdfView({ file }: { file: File }) {
     }
     // The chunk is chosen when flip mode is entered; flipping inside it must not re-render it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, doc])
+  }, [mode, doc, theme])
 
   useEffect(() => {
     const viewer = viewerRef.current
@@ -191,7 +250,13 @@ export default function PdfView({ file }: { file: File }) {
         </button>
       </div>
       <div className="viewer-body">
-        <div ref={container} className="pdf-container" style={{ visibility: mode === 'scroll' ? 'visible' : 'hidden' }}>
+        <div
+          ref={container}
+          className="pdf-container"
+          style={{ visibility: mode === 'scroll' ? 'visible' : 'hidden' }}
+          // A stylus touching the page means writing on it: switch to Draw without being asked.
+          onPointerDownCapture={e => { if (e.pointerType === 'pen' && tool === 'none') setTool('draw') }}
+        >
           <div className="pdfViewer" />
         </div>
         {mode === 'flip' && (flip
