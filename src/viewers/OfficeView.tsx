@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { baseName, extensionOf, sendQuote } from '../lib/platform'
 
-// Word documents (docx-preview), RTF (rtf.js) and OpenDocument text (odf-kit).
+// Word documents (docx-preview, and @file-viewer/doc for Word 97–2003), RTF (rtf.js) and OpenDocument text (odf-kit).
 export default function OfficeView({ file }: { file: File }) {
   const host = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
@@ -29,6 +29,10 @@ export default function OfficeView({ file }: { file: File }) {
         RTFJS.loggingEnabled(false)
         const parts = await new RTFJS.Document(await file.arrayBuffer(), {}).render()
         if (!cancelled) page().append(...parts)
+      } else if (kind === 'doc') {
+        const { parseMsDocToHtml, mountMsDoc } = await import('@file-viewer/doc')
+        const rendered = await parseMsDocToHtml(await file.arrayBuffer())
+        if (!cancelled) mountMsDoc(page(), rendered)
       } else if (kind === 'odt') {
         const [{ odtToHtml }, { default: purify }] = await Promise.all([import('odf-kit/odt/to-html'), import('dompurify')])
         const html = odtToHtml(new Uint8Array(await file.arrayBuffer()), { fragment: true })

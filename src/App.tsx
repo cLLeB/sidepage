@@ -11,6 +11,7 @@ const BookView = lazy(() => import('./viewers/BookView'))
 const OfficeView = lazy(() => import('./viewers/OfficeView'))
 const SlidesView = lazy(() => import('./viewers/SlidesView'))
 const DjvuView = lazy(() => import('./viewers/DjvuView'))
+const PptView = lazy(() => import('./viewers/PptView'))
 const TextView = lazy(() => import('./viewers/TextView'))
 const WrittenNote = lazy(() => import('./notes/WrittenNote'))
 const CanvasNote = lazy(() => import('./notes/CanvasNote'))
@@ -30,7 +31,8 @@ function viewerFor(name: string) {
   const ext = extensionOf(name)
   if (ext === 'pdf') return PdfView
   if (['epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt'].includes(ext)) return BookView
-  if (['docx', 'rtf', 'odt'].includes(ext)) return OfficeView
+  if (['docx', 'doc', 'rtf', 'odt'].includes(ext)) return OfficeView
+  if (ext === 'ppt' || ext === 'pps') return PptView
   if (ext === 'pptx') return SlidesView
   if (ext === 'djvu' || ext === 'djv') return DjvuView
   if (['txt', 'md', 'markdown', 'html', 'htm'].includes(ext)) return TextView
