@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Open the book the reader picks, and keep notes under Documents/Sidepage",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "fs:allow-read-file",
+    "fs:allow-document-read-recursive",
+    "fs:allow-document-write-recursive"
+  ]
+}

@@ -12,7 +12,8 @@ export default defineConfig({
     include: [
       'pptxviewjs', 'jszip', 'chart.js', 'docx-preview', 'page-flip', 'pdfjs-dist',
       'pdfjs-dist/web/pdf_viewer.mjs', '@excalidraw/excalidraw', 'mind-elixir',
-      '@milkdown/crepe', '@milkdown/kit/utils',
+      '@milkdown/crepe', '@milkdown/kit/utils', '@milkdown/kit/core', '@milkdown/kit/prose/state',
+      'idb-keyval', 'dockview-react',
     ],
   },
 })

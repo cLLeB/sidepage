@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Crepe } from '@milkdown/crepe'
+import { editorViewCtx } from '@milkdown/kit/core'
+import { Selection } from '@milkdown/kit/prose/state'
 import { insert } from '@milkdown/kit/utils'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
@@ -23,6 +25,11 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       crepe = editor
       stopQuotes = onQuote(({ text, source }) => {
         const quoted = text.split(/\n+/).map(line => `> ${line}`).join('\n')
+        // Quotes are added at the end of the page, like the next line in a notebook.
+        editor.editor.action(ctx => {
+          const view = ctx.get(editorViewCtx)
+          view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)))
+        })
         editor.editor.action(insert(`\n${quoted}\n>\n> — *${source}*\n\n`))
       })
     })

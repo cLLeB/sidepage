@@ -29,23 +29,90 @@ export async function pickFile(): Promise<File | null> {
   })
 }
 
-// Notes live as plain files in Documents/Sidepage/<notebook>/ on desktop, and in localStorage in a browser tab.
+// Notes are plain files. On desktop they live in Documents/Sidepage/<notebook>/. In a browser the reader can
+// pick a folder for them (File System Access API); until then they stay in the browser's own storage.
 const ROOT = 'Sidepage'
 const safe = (part: string) => part.replace(/[<>:"/\\|?*]/g, '_').trim() || 'untitled'
+const localKey = (notebook: string, file: string) => `sidepage:${notebook}/${file}`
+
+type Permission = 'granted' | 'denied' | 'prompt'
+type Folder = FileSystemDirectoryHandle & {
+  queryPermission(options: { mode: 'readwrite' }): Promise<Permission>
+  requestPermission(options: { mode: 'readwrite' }): Promise<Permission>
+}
+
+let folder: Folder | null = null
+let folderLocked: Folder | null = null
+const folderListeners = new Set<() => void>()
+
+export const canPickNotesFolder = !isTauri && 'showDirectoryPicker' in window
+export const notesFolder = () => ({ name: (folder ?? folderLocked)?.name ?? null, locked: !folder && !!folderLocked })
+export const onNotesFolderChange = (listener: () => void) => {
+  folderListeners.add(listener)
+  return () => { folderListeners.delete(listener) }
+}
+
+async function useFolder(handle: Folder) {
+  folder = handle
+  folderLocked = null
+  // Carry over anything written before a folder was chosen, without overwriting files already there.
+  for (const key of Object.keys(localStorage)) {
+    const match = key.match(/^sidepage:(.+)\/([^/]+)$/)
+    if (match && (await loadNote(match[1], match[2])) === null) await saveNote(match[1], match[2], localStorage.getItem(key)!)
+  }
+  folderListeners.forEach(listener => listener())
+}
+
+// Called once at start: reuse the folder from last time if the browser still allows it.
+export async function restoreNotesFolder() {
+  if (!canPickNotesFolder) return
+  const { get } = await import('idb-keyval')
+  const saved = await get<Folder>('notes-folder')
+  if (!saved) return
+  if ((await saved.queryPermission({ mode: 'readwrite' })) === 'granted') return useFolder(saved)
+  folderLocked = saved
+  folderListeners.forEach(listener => listener())
+}
+
+// Needs a click: either re-allow the remembered folder or pick a new one.
+export async function chooseNotesFolder() {
+  if (folderLocked && (await folderLocked.requestPermission({ mode: 'readwrite' })) === 'granted') return useFolder(folderLocked)
+  const picked = await (window as unknown as { showDirectoryPicker(options: object): Promise<Folder> })
+    .showDirectoryPicker({ id: 'sidepage-notes', mode: 'readwrite' })
+    .catch(() => null)
+  if (!picked) return
+  const { set } = await import('idb-keyval')
+  await set('notes-folder', picked)
+  await useFolder(picked)
+}
 
 export async function loadNote(notebook: string, file: string): Promise<string | null> {
-  if (!isTauri) return localStorage.getItem(`sidepage:${notebook}/${file}`)
-  const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs')
-  const path = `${ROOT}/${safe(notebook)}/${file}`
-  if (!(await exists(path, { baseDir: BaseDirectory.Document }))) return null
-  return readTextFile(path, { baseDir: BaseDirectory.Document })
+  if (isTauri) {
+    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs')
+    const path = `${ROOT}/${safe(notebook)}/${file}`
+    if (!(await exists(path, { baseDir: BaseDirectory.Document }))) return null
+    return readTextFile(path, { baseDir: BaseDirectory.Document })
+  }
+  if (!folder) return localStorage.getItem(localKey(notebook, file))
+  try {
+    const dir = await folder.getDirectoryHandle(safe(notebook))
+    return await (await (await dir.getFileHandle(file)).getFile()).text()
+  } catch {
+    return null
+  }
 }
 
 export async function saveNote(notebook: string, file: string, text: string): Promise<void> {
-  if (!isTauri) return localStorage.setItem(`sidepage:${notebook}/${file}`, text)
-  const { writeTextFile, mkdir, BaseDirectory } = await import('@tauri-apps/plugin-fs')
-  await mkdir(`${ROOT}/${safe(notebook)}`, { baseDir: BaseDirectory.Document, recursive: true })
-  await writeTextFile(`${ROOT}/${safe(notebook)}/${file}`, text, { baseDir: BaseDirectory.Document })
+  if (isTauri) {
+    const { writeTextFile, mkdir, BaseDirectory } = await import('@tauri-apps/plugin-fs')
+    await mkdir(`${ROOT}/${safe(notebook)}`, { baseDir: BaseDirectory.Document, recursive: true })
+    return writeTextFile(`${ROOT}/${safe(notebook)}/${file}`, text, { baseDir: BaseDirectory.Document })
+  }
+  if (!folder) return localStorage.setItem(localKey(notebook, file), text)
+  const dir = await folder.getDirectoryHandle(safe(notebook), { create: true })
+  const writable = await (await dir.getFileHandle(file, { create: true })).createWritable()
+  await writable.write(text)
+  await writable.close()
 }
 
 export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number) {

@@ -1,0 +1,30 @@
+[package]
+name = "sidepage"
+version = "0.1.0"
+description = "Read books, documents and slides with your notes alongside"
+authors = ["cLLeB"]
+license = "AGPL-3.0-or-later"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+name = "sidepage_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.1", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2.12.1", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+
+# Keep the installed app small.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

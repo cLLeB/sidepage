@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react'
 import 'dockview-react/dist/styles/dockview.css'
-import { baseName, extensionOf, pickFile } from './lib/platform'
+import {
+  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, notesFolder, onNotesFolderChange, pickFile, restoreNotesFolder,
+} from './lib/platform'
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
@@ -42,7 +44,10 @@ function DocPanel({ params }: IDockviewPanelProps<{ file: File }>) {
 
 function NotePanel({ params }: IDockviewPanelProps<{ kind: NoteKind; notebook: string }>) {
   const Note = NOTE_KINDS[params.kind].component
-  return <Suspense fallback={<Loading />}><Note notebook={params.notebook} /></Suspense>
+  // Reload from the new place when the notes folder changes.
+  const [storage, setStorage] = useState(0)
+  useEffect(() => onNotesFolderChange(() => setStorage(n => n + 1)), [])
+  return <Suspense fallback={<Loading />}><Note key={storage} notebook={params.notebook} /></Suspense>
 }
 
 const components = { doc: DocPanel, note: NotePanel }
@@ -52,6 +57,12 @@ export default function App() {
   const [notebook, setNotebook] = useState('My notebook')
   const [paper, setPaper] = useState<Paper>(() => (localStorage.getItem('sidepage:paper') as Paper) || 'lined')
   const [empty, setEmpty] = useState(true)
+  const [folder, setFolder] = useState(notesFolder)
+
+  useEffect(() => {
+    void restoreNotesFolder()
+    return onNotesFolderChange(() => setFolder(notesFolder()))
+  }, [])
 
   useEffect(() => {
     document.documentElement.dataset.paper = paper
@@ -144,6 +155,11 @@ export default function App() {
           <button key={kind} onClick={() => openNote(kind, notebook)}>{NOTE_KINDS[kind].title}</button>
         ))}
         <span className="spacer" />
+        {canPickNotesFolder && (
+          <button onClick={() => void chooseNotesFolder()} title="Where your notes are saved as files">
+            {!folder.name ? 'Choose notes folder' : folder.locked ? `Reconnect notes folder: ${folder.name}` : `Notes folder: ${folder.name}`}
+          </button>
+        )}
         <label className="paper-picker">
           Paper
           <select value={paper} onChange={e => setPaper(e.target.value as Paper)}>
