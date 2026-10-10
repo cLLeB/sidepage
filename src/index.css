@@ -1,0 +1,143 @@
+:root {
+  --bg: #f2f3f5;
+  --panel: #ffffff;
+  --border: #dcdee3;
+  --text: #2e3035;
+  --muted: #6d6f78;
+  --accent: #4e5058;
+  --paper-bg: #fffef9;
+  --paper-line: #c5d2e3;
+  --paper-margin: #e7a3a3;
+  --rule: 32px;
+  font-family: system-ui, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { background: var(--bg); overflow: hidden; }
+
+button, select {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+button:hover, select:hover { background: #ebedef; }
+button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 8px 18px; }
+.spacer { flex: 1; }
+
+.app { display: flex; flex-direction: column; height: 100%; }
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.brand { margin-right: 8px; letter-spacing: 0.2px; }
+.divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.paper-picker { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.workspace { position: relative; flex: 1; min-height: 0; }
+
+.welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--bg);
+  text-align: center;
+  padding: 24px;
+}
+.welcome h1 { font-size: 24px; margin: 0; }
+.welcome p { color: var(--muted); margin: 4px 0 12px; }
+.welcome .hint { font-size: 12px; margin-top: 16px; }
+
+/* Readers */
+.viewer { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
+.viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.viewer-bar select { max-width: 220px; }
+.viewer-pos { color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 4px; }
+.viewer-body { position: relative; flex: 1; min-height: 0; overflow: auto; }
+.viewer-message { display: grid; place-items: center; height: 100%; padding: 24px; color: var(--muted); text-align: center; }
+
+.pdf-container { position: absolute; inset: 0; overflow: auto; }
+.book-host { overflow: hidden; background: var(--panel); }
+.book-host foliate-view { display: block; width: 100%; height: 100%; }
+.office-host .docx-wrapper { zoom: var(--fit, 1); align-items: flex-start; background: var(--bg); padding: 20px; }
+.office-host .docx-wrapper > section.docx { margin: 0 auto 20px; box-shadow: 0 1px 4px rgb(0 0 0 / 0.15); }
+.slide-list { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.slide-list img { width: 100%; border: 1px solid var(--border); border-radius: 4px; background: #fff; }
+.text-host { background: var(--panel); margin: 0; }
+.plain-text { padding: 24px 32px; white-space: pre-wrap; font: 15px/1.6 Georgia, 'Times New Roman', serif; }
+.html-frame { border: 0; width: 100%; background: #fff; }
+
+.flipbook {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: hidden;
+  outline: none;
+  background: var(--bg);
+}
+.flipbook > div { width: 100%; max-height: 100%; }
+
+/* Notes and their paper */
+.note { position: relative; height: 100%; overflow: auto; background: var(--panel); }
+.paper {
+  background-color: var(--paper-bg);
+  background-position: var(--paper-x, 0) var(--paper-y, 0);
+  --step: calc(var(--rule) * var(--paper-zoom, 1));
+}
+[data-paper='lined'] .paper {
+  background-image: linear-gradient(to bottom, transparent calc(var(--step) - 1px), var(--paper-line) calc(var(--step) - 1px));
+  background-size: 100% var(--step);
+}
+[data-paper='grid'] .paper {
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--step) - 1px), var(--paper-line) calc(var(--step) - 1px)),
+    linear-gradient(to right, transparent calc(var(--step) - 1px), var(--paper-line) calc(var(--step) - 1px));
+  background-size: var(--step) var(--step);
+}
+[data-paper='dots'] .paper {
+  background-image: radial-gradient(circle, var(--paper-line) 1.3px, transparent 1.6px);
+  background-size: var(--step) var(--step);
+}
+
+/* Written notes sit on the rules like handwriting in an exercise book. */
+.written-note { background-attachment: local; }
+.written-note .milkdown { background: transparent; }
+.written-note .milkdown .ProseMirror { padding: var(--rule) 48px calc(var(--rule) * 4) 88px; }
+[data-paper='lined'] .written-note::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 64px;
+  width: 1px;
+  height: 100%;
+  background: var(--paper-margin);
+}
+.written-note .milkdown .ProseMirror :is(p, li, blockquote) { line-height: var(--rule); margin-block: 0; padding-block: 0; }
+.written-note .milkdown .ProseMirror :is(h1, h2, h3, h4) { line-height: calc(var(--rule) * 2); margin-block: 0; padding-block: 0; }
+
+.canvas-note .excalidraw { --color-surface-lowest: transparent; }
+.mindmap-note { background: var(--paper-bg); }
+.mindmap-note .map-container { background: transparent; }
