@@ -101,7 +101,7 @@ export default function BookView({ file }: { file: File }) {
         )}
         <span className="viewer-pos">{Math.round(where.fraction * 100)}%</span>
         <span className="spacer" />
-        <button onClick={quote} title="Copy the selected text into your notes">Quote to notes</button>
+        <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
         <button onClick={() => setScrolled(s => !s)} className={scrolled ? 'on' : ''}>Scroll</button>
       </div>
       <div ref={host} className="viewer-body book-host" />

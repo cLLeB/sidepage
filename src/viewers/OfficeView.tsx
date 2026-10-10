@@ -59,7 +59,7 @@ export default function OfficeView({ file }: { file: File }) {
     <div className="viewer">
       <div className="viewer-bar">
         <span className="spacer" />
-        <button onClick={quote} title="Copy the selected text into your notes">Quote to notes</button>
+        <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
       </div>
       <div ref={host} className="viewer-body office-host" />
     </div>

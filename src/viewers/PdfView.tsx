@@ -18,6 +18,7 @@ export default function PdfView({ file }: { file: File }) {
   const [mode, setMode] = useState<'scroll' | 'flip'>('scroll')
   const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
   const [error, setError] = useState('')
+  const [tool, setTool] = useState<'none' | 'highlight' | 'draw'>('none')
 
   useEffect(() => {
     let cancelled = false
@@ -29,6 +30,9 @@ export default function PdfView({ file }: { file: File }) {
       eventBus,
       linkService,
       findController,
+      // PDF.js's own annotation editor: highlights and pen strokes drawn on the page.
+      annotationEditorMode: pdfjs.AnnotationEditorType.NONE,
+      annotationEditorHighlightColors: 'yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F',
     })
     linkService.setViewer(viewer)
     viewerRef.current = viewer
@@ -99,6 +103,21 @@ export default function PdfView({ file }: { file: File }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, doc])
 
+  useEffect(() => {
+    if (!doc || !viewerRef.current) return
+    const { HIGHLIGHT, INK, NONE } = pdfjs.AnnotationEditorType
+    viewerRef.current.annotationEditorMode = { mode: tool === 'highlight' ? HIGHLIGHT : tool === 'draw' ? INK : NONE }
+  }, [tool, doc])
+
+  // Highlights and drawings are written into a copy of the PDF itself.
+  const saveCopy = async () => {
+    if (!doc) return
+    const url = URL.createObjectURL(new Blob([await doc.saveDocument() as BlobPart], { type: 'application/pdf' }))
+    const link = Object.assign(document.createElement('a'), { href: url, download: `${baseName(file.name)} (annotated).pdf` })
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }
+
   const leaveFlip = () => {
     setMode('scroll')
     requestAnimationFrame(() => { if (viewerRef.current) viewerRef.current.currentPageNumber = page })
@@ -125,9 +144,14 @@ export default function PdfView({ file }: { file: File }) {
         </>}
         <span className="viewer-pos">{page} / {doc?.numPages ?? '…'}</span>
         <span className="spacer" />
-        {mode === 'scroll' && <button onClick={quote} title="Copy the selected text into your notes">Quote to notes</button>}
+        {mode === 'scroll' && <>
+          <button onClick={() => setTool(t => (t === 'highlight' ? 'none' : 'highlight'))} className={tool === 'highlight' ? 'on' : ''} title="Select text to highlight it">Highlight</button>
+          <button onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} className={tool === 'draw' ? 'on' : ''} title="Draw on the page">Draw</button>
+          <button onClick={() => void saveCopy()} title="Save a copy of the PDF with your highlights and drawings">Save copy</button>
+          <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
+        </>}
         <button onClick={() => (mode === 'flip' ? leaveFlip() : setMode('flip'))} className={mode === 'flip' ? 'on' : ''}>
-          Flip pages
+          Flip
         </button>
       </div>
       <div className="viewer-body">

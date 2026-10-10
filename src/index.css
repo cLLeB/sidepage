@@ -72,6 +72,8 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
+.viewer-bar { overflow-x: auto; scrollbar-width: none; }
+.viewer-bar > * { flex-shrink: 0; white-space: nowrap; }
 .viewer-bar select { max-width: 220px; }
 .viewer-pos { color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 4px; }
 .viewer-body { position: relative; flex: 1; min-height: 0; overflow: auto; }

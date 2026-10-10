@@ -33,7 +33,7 @@ export default function TextView({ file }: { file: File }) {
     <div className="viewer">
       <div className="viewer-bar">
         <span className="spacer" />
-        {!isHtml && <button onClick={quote} title="Copy the selected text into your notes">Quote to notes</button>}
+        {!isHtml && <button onClick={quote} title="Copy the selected text into your notes">Quote</button>}
       </div>
       {isHtml
         ? <iframe className="viewer-body html-frame" sandbox="" srcDoc={text ?? ''} title={file.name} />
