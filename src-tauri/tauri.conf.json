@@ -27,6 +27,9 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "fileAssociations": [
+      { "ext": ["epub", "mobi", "azw", "azw3", "fb2", "cbz", "cbr", "cb7", "cbt"], "name": "Book", "role": "Viewer" }
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

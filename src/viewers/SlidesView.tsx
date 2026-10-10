@@ -14,6 +14,7 @@ export default function SlidesView({ file }: { file: File }) {
   useEffect(() => {
     let cancelled = false
     const urls: string[] = []
+    let release = () => {}
     ;(async () => {
       const { PPTXViewer } = await import('pptxviewjs')
       const viewer = new PPTXViewer({ backgroundColor: '#ffffff' })
@@ -26,11 +27,14 @@ export default function SlidesView({ file }: { file: File }) {
         const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
         if (blob) urls.push(URL.createObjectURL(blob))
       }
-      viewer.destroy()
-      if (!cancelled) setSlides(urls)
+      // Released on close: the library still has work queued right after the last slide.
+      release = () => viewer.destroy()
+      if (cancelled) release()
+      else setSlides(urls)
     })().catch(e => setError(String(e?.message ?? e)))
     return () => {
       cancelled = true
+      release()
       urls.forEach(url => URL.revokeObjectURL(url))
     }
   }, [file])

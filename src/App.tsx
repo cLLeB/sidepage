@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react'
 import 'dockview-react/dist/styles/dockview.css'
 import {
-  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, notesFolder, onNotesFolderChange, pickFile, restoreNotesFolder,
+  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, launchFile, notesFolder, onNotesFolderChange, pickFile, restoreNotesFolder,
 } from './lib/platform'
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
@@ -127,6 +127,7 @@ export default function App() {
 
   const onReady = (event: DockviewReadyEvent) => {
     api.current = event.api
+    void launchFile().then(file => { if (file) openFile(file) })
     const sync = () => setEmpty(event.api.panels.length === 0)
     event.api.onDidAddPanel(sync)
     event.api.onDidRemovePanel(sync)

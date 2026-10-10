@@ -4,7 +4,7 @@ import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-di
 import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
-import { baseName, sendQuote } from '../lib/platform'
+import { baseName, saveFileAs, sendQuote } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -111,11 +111,7 @@ export default function PdfView({ file }: { file: File }) {
 
   // Highlights and drawings are written into a copy of the PDF itself.
   const saveCopy = async () => {
-    if (!doc) return
-    const url = URL.createObjectURL(new Blob([await doc.saveDocument() as BlobPart], { type: 'application/pdf' }))
-    const link = Object.assign(document.createElement('a'), { href: url, download: `${baseName(file.name)} (annotated).pdf` })
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    if (doc) await saveFileAs(`${baseName(file.name)} (annotated).pdf`, await doc.saveDocument())
   }
 
   const leaveFlip = () => {

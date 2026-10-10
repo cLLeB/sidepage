@@ -29,6 +29,28 @@ export async function pickFile(): Promise<File | null> {
   })
 }
 
+// The book the desktop app was started with ("Open with", or a double-click on a book file).
+export async function launchFile(): Promise<File | null> {
+  if (!isTauri) return null
+  const { invoke } = await import('@tauri-apps/api/core')
+  const name = await invoke<string | null>('launch_file_name')
+  return name ? new File([await invoke<ArrayBuffer>('read_launch_file')], name) : null
+}
+
+// Hand the reader a file to keep, e.g. a PDF with their highlights.
+export async function saveFileAs(name: string, bytes: Uint8Array) {
+  if (isTauri) {
+    const { save } = await import('@tauri-apps/plugin-dialog')
+    const path = await save({ defaultPath: name })
+    if (!path) return
+    const { writeFile } = await import('@tauri-apps/plugin-fs')
+    return writeFile(path, bytes)
+  }
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart]))
+  Object.assign(document.createElement('a'), { href: url, download: name }).click()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
 // Notes are plain files. On desktop they live in Documents/Sidepage/<notebook>/. In a browser the reader can
 // pick a folder for them (File System Access API); until then they stay in the browser's own storage.
 const ROOT = 'Sidepage'
