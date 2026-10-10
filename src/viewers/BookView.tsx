@@ -110,7 +110,10 @@ export default function BookView({ file }: { file: File }) {
       })
       // Reopen where the reader left off.
       await view.init({ lastLocation: localStorage.getItem(`sidepage:place:${file.name}`) })
-      if (!closed) setSections(view.book.sections)
+      if (closed) return
+      // Only now is the reader's place known, so only now may the paper pages be built from it.
+      setCurlStart(s => ({ place: here.current, key: s.key + 1 }))
+      setSections(view.book.sections)
     }).catch((e: Error) => setError(String(e?.message ?? e)))
     return () => {
       closed = true
@@ -176,11 +179,34 @@ export default function BookView({ file }: { file: File }) {
     viewRef.current?.clearSearch()
   }
 
-  const quote = () => {
+  // Keep a quoted passage: highlight it in the book and send it to the notes with a link back to its place.
+  const keep = (text: string, index: number, cfi: string) => {
+    marks.current.push({ cfi, index, text })
+    void saveNote(baseName(file.name), 'highlights.json', JSON.stringify(marks.current))
+    void viewRef.current.addAnnotation({ value: cfi })
+    sendQuote({ text, source: [baseName(file.name), where.label].filter(Boolean).join(', '), book: file.name, place: cfi })
+  }
+
+  const quote = async () => {
     const view = viewRef.current
     if (turning) {
-      const text = curlRef.current?.selectedText()
-      if (text) sendQuote({ text, source: [baseName(file.name), where.label].filter(Boolean).join(', ') })
+      // The paper pages are a copy of the chapter, so the selection is found again in the chapter itself
+      // to get its true address in the book.
+      const picked = curlRef.current?.selection()
+      if (!picked) return
+      const source = [baseName(file.name), where.label].filter(Boolean).join(', ')
+      try {
+        const doc: Document = await sections[picked.index].createDocument()
+        const find = (path: number[]) => path.reduce<Node>((node, i) => node.childNodes[i], doc.body)
+        const range = doc.createRange()
+        range.setStart(find(picked.start.path), picked.start.offset)
+        range.setEnd(find(picked.end.path), picked.end.offset)
+        if (range.toString().trim() !== picked.text) throw new Error('selection not found in chapter')
+        keep(picked.text, picked.index, view.getCFI(picked.index, range))
+      } catch {
+        sendQuote({ text: picked.text, source, book: file.name })
+      }
+      document.getSelection()?.removeAllRanges()
       return
     }
     const contents: { doc: Document; index: number }[] = view?.renderer?.getContents?.() ?? []
@@ -188,12 +214,8 @@ export default function BookView({ file }: { file: File }) {
       const selection = doc.getSelection()
       const text = selection?.toString().trim()
       if (!selection || !text) continue
-      const cfi: string = view.getCFI(index, selection.getRangeAt(0))
-      marks.current.push({ cfi, index, text })
-      void saveNote(baseName(file.name), 'highlights.json', JSON.stringify(marks.current))
-      void view.addAnnotation({ value: cfi })
-      selection.removeAllRanges()
-      return sendQuote({ text, source: [baseName(file.name), where.label].filter(Boolean).join(', '), book: file.name, place: cfi })
+      keep(text, index, view.getCFI(index, selection.getRangeAt(0)))
+      return selection.removeAllRanges()
     }
   }
 
@@ -215,7 +237,7 @@ export default function BookView({ file }: { file: File }) {
         <span className="viewer-pos">{Math.round(where.fraction * 100)}%</span>
         <span className="spacer" />
         <SearchBox onSearch={query => void search(query)} onClear={clearSearch} status={searching} hits={hits} />
-        <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
+        <button onClick={() => void quote()} title="Copy the selected text into your notes">Quote</button>
         {!turning && <button onClick={() => setScrolled(s => !s)} className={scrolled ? 'on' : ''}>Scroll</button>}
         {canCurl && <button onClick={toggleCurl} className={curl ? 'on' : ''} title="Turn pages like paper">Flip</button>}
       </div>
