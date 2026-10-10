@@ -49,6 +49,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .workspace { position: relative; flex: 1; min-height: 0; }
 
 .welcome {
+  overflow: auto;
   position: absolute;
   inset: 0;
   display: flex;
@@ -170,6 +171,18 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   border-top: 1px solid var(--border);
 }
 button:disabled { opacity: 0.45; cursor: default; }
+/* Links between the book and the notes */
+.written-note a[href^='#sidepage-open'] { cursor: pointer; text-decoration: underline dotted; }
+
+/* Recent books on the home screen */
+.shelf { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; width: min(760px, 100%); }
+.shelf li { display: flex; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.shelf button { border: 0; border-radius: 0; background: transparent; }
+.shelf-book { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 10px 12px; text-align: left; }
+.shelf-kind { font-size: 10px; font-weight: 600; text-transform: uppercase; color: #fff; background: var(--accent); border-radius: 4px; padding: 2px 5px; }
+.shelf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelf-remove { color: var(--muted); padding: 0 10px; }
+
 /* Phones, tablets and other touch screens */
 .topbar { overflow-x: auto; scrollbar-width: none; }
 .topbar > * { flex-shrink: 0; white-space: nowrap; }

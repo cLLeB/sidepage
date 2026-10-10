@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Sidepage",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "io.github.clleb.sidepage",
   "build": {
     "frontendDist": "../dist",
@@ -28,7 +28,8 @@
     "active": true,
     "targets": ["nsis"],
     "fileAssociations": [
-      { "ext": ["epub", "mobi", "azw", "azw3", "fb2", "djvu", "cbz", "cbr", "cb7", "cbt"], "name": "Book", "role": "Viewer" }
+      { "ext": ["epub", "mobi", "azw", "azw3", "fb2", "djvu", "cbz", "cbr", "cb7", "cbt"], "name": "Book", "role": "Viewer" },
+      { "ext": ["sidepage"], "name": "Sidepage book with notes", "role": "Editor" }
     ],
     "icon": [
       "icons/32x32.png",

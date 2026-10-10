@@ -3,8 +3,10 @@ import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, t
 import { ErrorBoundary } from 'react-error-boundary'
 import 'dockview-react/dist/styles/dockview.css'
 import {
-  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, launchFile, notesFolder, onNotesFolderChange, pickFile, restoreNotesFolder,
+  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, launchFile, notesFolder, onFindInNotes, onGoToPlace,
+  onNotesFolderChange, pickFile, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
+import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
@@ -72,6 +74,7 @@ export default function App() {
   const [paper, setPaper] = useState<Paper>(() => (localStorage.getItem('sidepage:paper') as Paper) || 'lined')
   const [empty, setEmpty] = useState(true)
   const [folder, setFolder] = useState(notesFolder)
+  const [books, setBooks] = useState<Shelved[]>([])
 
   useEffect(() => {
     void restoreNotesFolder()
@@ -103,7 +106,7 @@ export default function App() {
     })
   }, [])
 
-  const openFile = useCallback((file: File) => {
+  const openBook = useCallback((file: File) => {
     const dock = api.current
     if (!dock) return
     const book = baseName(file.name)
@@ -126,9 +129,44 @@ export default function App() {
     dock.getPanel(id)?.api.setActive()
   }, [openNote])
 
+  // A .sidepage file is unpacked into its book and notes first; every opened book goes on the shelf.
+  const openFile = useCallback(async (file: File) => {
+    const book = extensionOf(file.name) === BUNDLE_EXTENSION ? await unpackBundle(file) : file
+    openBook(book)
+    await shelve(book)
+    setBooks(await shelf())
+  }, [openBook])
+
+  useEffect(() => { void shelf().then(setBooks) }, [])
+
+  // A link in a note leads to its place in the book, reopening the book from the shelf if it was closed.
+  useEffect(() => onGoToPlace(async ({ book, place }) => {
+    const panel = api.current?.getPanel(`doc:${book}`)
+    if (panel) return panel.api.setActive()
+    const file = await fromShelf(book)
+    if (!file) return
+    localStorage.setItem(`sidepage:place:${book}`, place.replace(/^page=/, ''))
+    void openFile(file)
+  }), [openFile])
+
+  // A highlight clicked in the book brings its notebook forward.
+  useEffect(() => onFindInNotes(() => api.current?.getPanel(`note:written:${notebook}`)?.api.setActive()), [notebook])
+
+  // The book and everything written beside it, saved together as one .sidepage file.
+  const saveWhole = useCallback(async () => {
+    const dock = api.current
+    const active = dock?.activePanel?.params as { file?: File } | undefined
+    const file = active?.file
+      ?? (dock?.panels.map(p => (p.params as { file?: File } | undefined)?.file).find(f => f && baseName(f.name) === notebook))
+    if (!file) return
+    // Let the last keystrokes reach storage before packing.
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    await saveFileAs(`${baseName(file.name)}.${BUNDLE_EXTENSION}`, await packBundle(file))
+  }, [notebook])
+
   const browse = useCallback(async () => {
     const file = await pickFile()
-    if (file) openFile(file)
+    if (file) void openFile(file)
   }, [openFile])
 
   // Dev helper: open a file by URL from the console, e.g. __open('/samples/sample.pdf').
@@ -141,7 +179,7 @@ export default function App() {
 
   const onReady = (event: DockviewReadyEvent) => {
     api.current = event.api
-    void launchFile().then(file => { if (file) openFile(file) })
+    void launchFile().then(file => { if (file) void openFile(file) })
     const sync = () => setEmpty(event.api.panels.length === 0)
     event.api.onDidAddPanel(sync)
     event.api.onDidRemovePanel(sync)
@@ -159,7 +197,7 @@ export default function App() {
       onDrop={e => {
         if (!e.dataTransfer.files.length) return
         e.preventDefault()
-        for (const file of e.dataTransfer.files) openFile(file)
+        for (const file of e.dataTransfer.files) void openFile(file)
       }}
     >
       <header className="topbar">
@@ -169,6 +207,8 @@ export default function App() {
         {(Object.keys(NOTE_KINDS) as NoteKind[]).map(kind => (
           <button key={kind} onClick={() => openNote(kind, notebook)}>{NOTE_KINDS[kind].title}</button>
         ))}
+        <span className="divider" />
+        <button onClick={() => void saveWhole()} disabled={empty} title="Save the book and all its notes together as one .sidepage file">Save as one file</button>
         <span className="spacer" />
         {canPickNotesFolder && (
           <button onClick={() => void chooseNotesFolder()} title="Where your notes are saved as files">
@@ -189,6 +229,19 @@ export default function App() {
             <h1>Read on one side, think on the other.</h1>
             <p>Open a book, a document or a slide deck, or drop one here. Your notes open beside it.</p>
             <button className="primary" onClick={browse}>Open book</button>
+            {books.length > 0 && (
+              <ul className="shelf">
+                {books.slice(0, 12).map(book => (
+                  <li key={book.name}>
+                    <button className="shelf-book" onClick={() => void fromShelf(book.name).then(file => { if (file) void openFile(file) })}>
+                      <span className="shelf-kind">{extensionOf(book.name)}</span>
+                      <span className="shelf-name">{baseName(book.name)}</span>
+                    </button>
+                    <button className="shelf-remove" title="Remove from this list" onClick={() => void unshelve(book.name).then(shelf).then(setBooks)}>×</button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <p className="hint">PDF · EPUB · MOBI · AZW3 · FB2 · DJVU · CBZ · CBR · DOCX · RTF · ODT · PPTX · TXT · Markdown · HTML</p>
           </div>
         )}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import 'foliate-js/view.js'
-import { baseName, extensionOf, sendQuote } from '../lib/platform'
+import { Overlayer } from 'foliate-js/overlayer.js'
+import { baseName, extensionOf, findInNotes, loadNote, onGoToPlace, saveNote, sendQuote } from '../lib/platform'
 
 type TocItem = { label: string; href: string; subitems?: TocItem[] }
 
@@ -38,6 +39,7 @@ export default function BookView({ file }: { file: File }) {
   const [where, setWhere] = useState({ fraction: 0, label: '' })
   const [scrolled, setScrolled] = useState(false)
   const [error, setError] = useState('')
+  const marks = useRef<{ cfi: string; index: number; text: string }[]>([])
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,9 +60,23 @@ export default function BookView({ file }: { file: File }) {
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') view.goLeft()
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') view.goRight()
     }
+    // Quoted passages stay highlighted in the book; clicking one shows the note that quotes it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    view.addEventListener('create-overlay', (e: any) => {
+      for (const mark of marks.current) if (mark.index === e.detail.index) view.addAnnotation({ value: mark.cfi })
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    view.addEventListener('draw-annotation', (e: any) => e.detail.draw(Overlayer.highlight, { color: '#ffd84d' }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    view.addEventListener('show-annotation', (e: any) => {
+      const mark = marks.current.find(m => m.cfi === e.detail.value)
+      if (mark) findInNotes({ text: mark.text })
+    })
+    const stopGoTo = onGoToPlace(({ book, place }) => { if (book === file.name) void view.goTo(place) })
     const isArchive = ['cbr', 'cb7', 'cbt'].includes(extensionOf(file.name))
-    Promise.resolve(isArchive ? openComicArchive(file) : file).then(book => view.open(book)).then(() => {
+    Promise.resolve(isArchive ? openComicArchive(file) : file).then(book => view.open(book)).then(async () => {
       if (closed) return
+      marks.current = JSON.parse((await loadNote(baseName(file.name), 'highlights.json')) ?? '[]')
       setToc(flatten(view.book.toc ?? []))
       view.renderer.setStyles?.(bookCSS)
       view.renderer.setAttribute('animated', '')
@@ -69,6 +85,7 @@ export default function BookView({ file }: { file: File }) {
     }).catch((e: Error) => setError(String(e?.message ?? e)))
     return () => {
       closed = true
+      stopGoTo()
       view.close?.()
       view.remove()
     }
@@ -79,9 +96,19 @@ export default function BookView({ file }: { file: File }) {
   }, [scrolled, toc])
 
   const quote = () => {
-    const contents: { doc: Document }[] = viewRef.current?.renderer?.getContents?.() ?? []
-    const text = contents.map(c => c.doc.getSelection()?.toString().trim()).find(Boolean)
-    if (text) sendQuote({ text, source: [baseName(file.name), where.label].filter(Boolean).join(', ') })
+    const view = viewRef.current
+    const contents: { doc: Document; index: number }[] = view?.renderer?.getContents?.() ?? []
+    for (const { doc, index } of contents) {
+      const selection = doc.getSelection()
+      const text = selection?.toString().trim()
+      if (!selection || !text) continue
+      const cfi: string = view.getCFI(index, selection.getRangeAt(0))
+      marks.current.push({ cfi, index, text })
+      void saveNote(baseName(file.name), 'highlights.json', JSON.stringify(marks.current))
+      void view.addAnnotation({ value: cfi })
+      selection.removeAllRanges()
+      return sendQuote({ text, source: [baseName(file.name), where.label].filter(Boolean).join(', '), book: file.name, place: cfi })
+    }
   }
 
   if (error) return <div className="viewer-message">Could not open this book: {error}</div>

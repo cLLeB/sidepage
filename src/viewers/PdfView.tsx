@@ -4,7 +4,7 @@ import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-di
 import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
-import { baseName, saveFileAs, sendQuote } from '../lib/platform'
+import { baseName, onGoToPlace, saveFileAs, sendQuote } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -124,6 +124,13 @@ export default function PdfView({ file }: { file: File }) {
     if (doc) await saveFileAs(`${baseName(file.name)} (annotated).pdf`, await doc.saveDocument())
   }
 
+  // A link in a note brings the reader to its page.
+  useEffect(() => onGoToPlace(({ book, place }) => {
+    if (book !== file.name || !viewerRef.current) return
+    setMode('scroll')
+    viewerRef.current.currentPageNumber = Number(place.replace('page=', '')) || 1
+  }), [file])
+
   const leaveFlip = () => {
     setMode('scroll')
     requestAnimationFrame(() => { if (viewerRef.current) viewerRef.current.currentPageNumber = page })
@@ -131,7 +138,7 @@ export default function PdfView({ file }: { file: File }) {
 
   const quote = () => {
     const text = window.getSelection()?.toString().trim()
-    if (text) sendQuote({ text, source: `${baseName(file.name)}, p. ${page}` })
+    if (text) sendQuote({ text, source: `${baseName(file.name)}, p. ${page}`, book: file.name, place: `page=${page}` })
   }
 
   const go = (delta: number) => {

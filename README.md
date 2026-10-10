@@ -18,6 +18,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | Mind maps | [Mind Elixir](https://github.com/SSShooter/mind-elixir-core) | MIT |
 | Side-by-side panels and tabs | [Dockview](https://github.com/mathuo/dockview) | MIT |
 | Comic archives (CBR, CB7, CBT) | [libarchive.js](https://github.com/nika-begiashvili/libarchivejs) | MIT |
+| Word 97–2003 (.doc) | [@file-viewer/doc](https://www.npmjs.com/package/@file-viewer/doc) | MIT |
+| PowerPoint 97–2003 (.ppt) | [react-pptx](https://www.npmjs.com/package/@extend-ai/react-pptx) | MIT |
 | RTF documents | [rtf.js](https://github.com/tbluemel/rtf.js) | MIT |
 | OpenDocument text | [odf-kit](https://www.npmjs.com/package/odf-kit) | Apache-2.0 |
 | Installable web app, offline | [vite-plugin-pwa](https://github.com/vite-pwa/vite-plugin-pwa) | MIT |
@@ -25,13 +27,18 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 
 ## What it does
 
-- Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, DJVU, CBZ, CBR, CB7, CBT, DOCX, RTF, ODT, PPTX, TXT, Markdown and HTML.
+- Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, DJVU, CBZ, CBR, CB7, CBT, DOCX, DOC, RTF, ODT, PPTX, PPT, TXT, Markdown and HTML.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots.
 - "Flip" turns PDFs, slide decks and your canvas notebook into a book you leaf through.
 - Highlight and draw on PDF pages, and save a copy with the marks in it.
 - "Quote" copies the selected passage into your notes with its source.
+- The source line under each quote is a link: click it to travel back to that exact place in the book. Quoted
+  passages stay highlighted in EPUB-family books, and clicking a highlight shows the note that quotes it.
+- **One file for everything**: "Save as one file" writes a `.sidepage` file holding the book and all its notes,
+  drawings, mind map, highlights and reading position. Open it on any device to get the whole thing back.
+- The home screen lists the books you opened recently.
 - Reopens each book where you left off.
 - Notes are plain files (`notes.md`, `canvas.excalidraw`, `mindmap.json`) in one folder per book.
 
@@ -57,7 +64,7 @@ every sample format opens (it reads the samples from the dev server, so keep `np
 
 ## Not there yet
 
-CHM and the old binary Office formats (.doc, .ppt).
+CHM. Old `.doc` and `.ppt` files open as static pages: unusual layouts, charts and effects may be simplified.
 
 ## Licence
 

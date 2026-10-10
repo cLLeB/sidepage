@@ -4,7 +4,7 @@ export const isTauri = '__TAURI_INTERNALS__' in window
 
 export const BOOK_EXTENSIONS = [
   'pdf', 'epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt', 'djvu', 'djv',
-  'docx', 'doc', 'rtf', 'odt', 'pptx', 'ppt', 'pps', 'txt', 'md', 'markdown', 'html', 'htm',
+  'docx', 'doc', 'rtf', 'odt', 'pptx', 'ppt', 'pps', 'sidepage', 'txt', 'md', 'markdown', 'html', 'htm',
 ]
 
 export const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
@@ -153,11 +153,68 @@ export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: numb
   }
 }
 
-// A quote sent from a reader to whichever written note is open.
-export type Quote = { text: string; source: string }
-export const sendQuote = (quote: Quote) => window.dispatchEvent(new CustomEvent<Quote>('sidepage:quote', { detail: quote }))
-export const onQuote = (handler: (quote: Quote) => void) => {
-  const listener = (e: Event) => handler((e as CustomEvent<Quote>).detail)
-  window.addEventListener('sidepage:quote', listener)
-  return () => window.removeEventListener('sidepage:quote', listener)
+// Messages between the reading side and the writing side, so they behave as one workspace.
+function channel<T>(name: string) {
+  const send = (detail: T) => { window.dispatchEvent(new CustomEvent<T>(name, { detail })) }
+  const listen = (handler: (detail: T) => void) => {
+    const listener = (e: Event) => handler((e as CustomEvent<T>).detail)
+    window.addEventListener(name, listener)
+    return () => window.removeEventListener(name, listener)
+  }
+  return [send, listen] as const
+}
+
+// A passage sent from a reader to the written note. `place` is where it sits in the book
+// ("page=12" or an EPUB CFI), which makes the note's source line a link back to that spot.
+export type Quote = { text: string; source: string; book?: string; place?: string }
+export const [sendQuote, onQuote] = channel<Quote>('sidepage:quote')
+
+// Note → book: open this place. Book → note: show the note that quotes this passage.
+export type Place = { book: string; place: string }
+export const [goToPlace, onGoToPlace] = channel<Place>('sidepage:goto')
+export const [findInNotes, onFindInNotes] = channel<{ text: string }>('sidepage:find')
+
+// A hash link: editors and sanitisers leave it alone, and it is harmless if the note is opened elsewhere.
+const LINK = '#sidepage-open'
+// Brackets are escaped too, so the link survives inside Markdown's [text](url).
+const escapeForLink = (text: string) => encodeURIComponent(text).replace(/[()!'*]/g, c => `%${c.charCodeAt(0).toString(16)}`)
+export const placeLink = ({ book, place }: Place) => `${LINK}?book=${escapeForLink(book)}&at=${escapeForLink(place)}`
+export const parsePlaceLink = (href: string): Place | null => {
+  if (!href.startsWith(LINK)) return null
+  const query = new URLSearchParams(href.slice(LINK.length + 1))
+  const book = query.get('book')
+  const place = query.get('at')
+  return book && place ? { book, place } : null
+}
+
+// The books opened on this device, kept so they can be reopened from the home screen or from a link in a note.
+export type Shelved = { name: string; opened: number; size: number }
+
+export async function shelve(file: File) {
+  const { get, set } = await import('idb-keyval')
+  const shelf = ((await get<Shelved[]>('shelf')) ?? []).filter(book => book.name !== file.name)
+  shelf.unshift({ name: file.name, opened: Date.now(), size: file.size })
+  try {
+    await set(`book:${file.name}`, file)
+    await set('shelf', shelf)
+  } catch {
+    // Out of space: the book still opens, it just is not remembered.
+  }
+}
+
+export async function shelf(): Promise<Shelved[]> {
+  const { get } = await import('idb-keyval')
+  return (await get<Shelved[]>('shelf')) ?? []
+}
+
+export async function fromShelf(name: string): Promise<File | null> {
+  const { get } = await import('idb-keyval')
+  const stored = await get<Blob>(`book:${name}`)
+  return stored ? new File([stored], name) : null
+}
+
+export async function unshelve(name: string) {
+  const { get, set, del } = await import('idb-keyval')
+  await del(`book:${name}`)
+  await set('shelf', ((await get<Shelved[]>('shelf')) ?? []).filter(book => book.name !== name))
 }
