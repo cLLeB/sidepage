@@ -16,25 +16,44 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | Drawing and handwriting canvas | [Excalidraw](https://github.com/excalidraw/excalidraw) | MIT |
 | Mind maps | [Mind Elixir](https://github.com/SSShooter/mind-elixir-core) | MIT |
 | Side-by-side panels and tabs | [Dockview](https://github.com/mathuo/dockview) | MIT |
-| Desktop shell (optional) | [Tauri](https://github.com/tauri-apps/tauri) | MIT / Apache-2.0 |
+| Comic archives (CBR, CB7, CBT) | [libarchive.js](https://github.com/nika-begiashvili/libarchivejs) | MIT |
+| RTF documents | [rtf.js](https://github.com/tbluemel/rtf.js) | MIT |
+| OpenDocument text | [odf-kit](https://www.npmjs.com/package/odf-kit) | Apache-2.0 |
+| Installable web app, offline | [vite-plugin-pwa](https://github.com/vite-pwa/vite-plugin-pwa) | MIT |
+| Desktop shell | [Tauri](https://github.com/tauri-apps/tauri) | MIT / Apache-2.0 |
 
 ## What it does
 
-- Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, CBZ, DOCX, PPTX, TXT, Markdown and HTML.
-- Three kinds of notes per book: written notes, a free canvas, and a mind map. Open any of them beside the book,
-  drag the tabs to rearrange.
+- Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, CBZ, CBR, CB7, CBT, DOCX, RTF, ODT, PPTX, TXT, Markdown and HTML.
+- Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
+  book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots.
-- "Flip pages" turns PDFs and slide decks into a book you leaf through.
-- "Quote to notes" copies the selected passage into your notes with its source.
+- "Flip" turns PDFs, slide decks and your canvas notebook into a book you leaf through.
+- Highlight and draw on PDF pages, and save a copy with the marks in it.
+- "Quote" copies the selected passage into your notes with its source.
+- Reopens each book where you left off.
 - Notes are plain files (`notes.md`, `canvas.excalidraw`, `mindmap.json`) in one folder per book.
 
-## Run it
+## Where it runs
+
+- **Windows, macOS, Linux**: `npm run tauri build` makes a small native app (about 7 MB installer on Windows).
+  Notes are saved under `Documents/Sidepage`. Needs the Rust toolchain to build.
+- **Phones, tablets, iPads, Chromebooks**: the same app is an installable web app. Host the `dist` folder on any
+  HTTPS site (`.github/workflows/pages.yml` publishes it to GitHub Pages), open it and choose "Install" or
+  "Add to Home Screen". It works offline afterwards. The layout stacks on upright tablets and becomes one tab
+  strip on phones.
+- **Any browser**: `npm run dev`, or `Sidepage.cmd` on Windows to open the built app in its own window.
+
+## Develop
 
 ```
 npm install
 npm run dev
 ```
 
-On Windows, `Sidepage.cmd` builds the app once and opens it in its own window (through Microsoft Edge).
+`node scripts/verify-desktop.mjs <path to sidepage.exe> [book]` starts the built desktop app and checks that
+every sample format opens (it reads the samples from the dev server, so keep `npm run dev` running).
 
-`src-tauri` holds a Tauri shell for a small native build (`npm run tauri build`). It needs the Rust toolchain.
+## Not there yet
+
+DJVU, CHM, and the old binary Office formats (.doc, .ppt).

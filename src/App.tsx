@@ -34,6 +34,10 @@ function viewerFor(name: string) {
   return null
 }
 
+// Side by side on wide screens, stacked on a tablet held upright, one tab strip on a phone.
+const besideBook = () => (window.innerWidth < 700 ? 'within' : window.innerWidth < window.innerHeight ? 'below' : 'right')
+const besideNotes = () => (({ within: 'within', below: 'above', right: 'left' }) as const)[besideBook()]
+
 const Loading = () => <div className="viewer-message">Loading…</div>
 
 function DocPanel({ params }: IDockviewPanelProps<{ file: File }>) {
@@ -85,7 +89,7 @@ export default function App() {
       params: { kind, notebook: book },
       position: sibling
         ? { referencePanel: sibling.id, direction: 'within' }
-        : reference ? { referencePanel: reference.id, direction: 'right' } : undefined,
+        : reference ? { referencePanel: reference.id, direction: besideBook() } : undefined,
     })
   }, [])
 
@@ -106,7 +110,7 @@ export default function App() {
       params: { file },
       position: sibling
         ? { referencePanel: sibling.id, direction: 'within' }
-        : note ? { referencePanel: note.id, direction: 'left' } : undefined,
+        : note ? { referencePanel: note.id, direction: besideNotes() } : undefined,
     })
     openNote('written', book)
     dock.getPanel(id)?.api.setActive()

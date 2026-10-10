@@ -14,7 +14,7 @@ const bookCSS = `
 // CBR, CB7 and CBT comics: libarchive.js unpacks the pages, foliate-js shows them like a CBZ.
 async function openComicArchive(file: File) {
   const { Archive } = await import('libarchive.js')
-  Archive.init({ workerUrl: '/libarchive/worker-bundle.js' })
+  Archive.init({ workerUrl: new URL('libarchive/worker-bundle.js', document.baseURI).href })
   const archive = await Archive.open(file)
   const pages = new Map<string, { size: number; extract(): Promise<File> }>()
   for (const entry of await archive.getFilesArray()) pages.set(`${entry.path}${entry.file.name}`.toLowerCase(), entry.file)

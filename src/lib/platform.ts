@@ -78,9 +78,10 @@ async function useFolder(handle: Folder) {
   folder = handle
   folderLocked = null
   // Carry over anything written before a folder was chosen, without overwriting files already there.
-  for (const key of Object.keys(localStorage)) {
-    const match = key.match(/^sidepage:(.+)\/([^/]+)$/)
-    if (match && (await loadNote(match[1], match[2])) === null) await saveNote(match[1], match[2], localStorage.getItem(key)!)
+  const { entries } = await import('idb-keyval')
+  for (const [key, text] of await entries<string, string>()) {
+    const match = typeof key === 'string' && key.match(/^sidepage:(.+)\/([^/]+)$/)
+    if (match && (await loadNote(match[1], match[2])) === null) await saveNote(match[1], match[2], text)
   }
   folderListeners.forEach(listener => listener())
 }
@@ -115,7 +116,11 @@ export async function loadNote(notebook: string, file: string): Promise<string |
     if (!(await exists(path, { baseDir: BaseDirectory.Document }))) return null
     return readTextFile(path, { baseDir: BaseDirectory.Document })
   }
-  if (!folder) return localStorage.getItem(localKey(notebook, file))
+  if (!folder) {
+    // The browser's own database: works on phones and tablets too, and holds far more than localStorage.
+    const { get } = await import('idb-keyval')
+    return (await get<string>(localKey(notebook, file))) ?? localStorage.getItem(localKey(notebook, file))
+  }
   try {
     const dir = await folder.getDirectoryHandle(safe(notebook))
     return await (await (await dir.getFileHandle(file)).getFile()).text()
@@ -130,7 +135,10 @@ export async function saveNote(notebook: string, file: string, text: string): Pr
     await mkdir(`${ROOT}/${safe(notebook)}`, { baseDir: BaseDirectory.Document, recursive: true })
     return writeTextFile(`${ROOT}/${safe(notebook)}/${file}`, text, { baseDir: BaseDirectory.Document })
   }
-  if (!folder) return localStorage.setItem(localKey(notebook, file), text)
+  if (!folder) {
+    const { set } = await import('idb-keyval')
+    return set(localKey(notebook, file), text)
+  }
   const dir = await folder.getDirectoryHandle(safe(notebook), { create: true })
   const writable = await (await dir.getFileHandle(file, { create: true })).createWritable()
   await writable.write(text)
