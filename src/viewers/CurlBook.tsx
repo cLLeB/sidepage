@@ -23,7 +23,7 @@ async function readChapter(section: Section) {
 }
 
 const layoutCss = (width: number, height: number) => `
-  :host { display: block; position: relative; width: ${width}px; height: ${height}px; overflow: hidden; background: var(--paper-bg, #fffef9); color: #1c1d21; }
+  :host { display: block; position: relative; width: ${width}px; height: ${height}px; overflow: hidden; background: var(--paper-bg, #fffef9); color: var(--text, #1c1d21); }
   .clip { position: absolute; inset: ${PAD_Y}px ${PAD_X}px; overflow: hidden; }
   .flow {
     height: 100%;

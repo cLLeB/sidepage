@@ -5,6 +5,8 @@
   --text: #2e3035;
   --muted: #6d6f78;
   --accent: #4e5058;
+  --on-accent: #ffffff;
+  --hover: #ebedef;
   --paper-bg: #fffef9;
   --paper-line: #c5d2e3;
   --paper-margin: #e7a3a3;
@@ -14,6 +16,69 @@
   font-size: 14px;
   color: var(--text);
 }
+
+:root[data-theme='sepia'] {
+  --bg: #ece2cf;
+  --panel: #f8f1e3;
+  --border: #d9cbb2;
+  --text: #40372b;
+  --muted: #7d705d;
+  --accent: #6b5d4a;
+  --hover: #efe4cf;
+  --paper-bg: #f6ecd9;
+  --paper-line: #d6c5a5;
+}
+:root[data-theme='dark'] {
+  --bg: #1e1f22;
+  --panel: #2b2d31;
+  --border: #3f4147;
+  --text: #dbdee1;
+  --muted: #949ba4;
+  --accent: #c4c9d0;
+  --on-accent: #1e1f22;
+  --hover: #35373c;
+  --paper-bg: #26272b;
+  --paper-line: #3a3e49;
+  --paper-margin: #6e4444;
+  color-scheme: dark;
+}
+
+/* The panel frame (Dockview) follows the theme. */
+.dockview-theme-light {
+  --dv-group-view-background-color: var(--bg);
+  --dv-tabs-and-actions-container-background-color: var(--bg);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--panel);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--bg);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--panel);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--bg);
+  --dv-activegroup-visiblepanel-tab-color: var(--text);
+  --dv-activegroup-hiddenpanel-tab-color: var(--muted);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--text);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--muted);
+  --dv-separator-border: var(--border);
+  --dv-paneview-header-border-color: var(--border);
+}
+
+/* Written notes (Milkdown) follow it too. */
+:root:not([data-theme='light']) .milkdown {
+  --crepe-color-background: var(--panel);
+  --crepe-color-on-background: var(--text);
+  --crepe-color-surface: var(--panel);
+  --crepe-color-surface-low: var(--bg);
+  --crepe-color-on-surface: var(--text);
+  --crepe-color-on-surface-variant: var(--muted);
+  --crepe-color-outline: var(--muted);
+  --crepe-color-primary: var(--accent);
+  --crepe-color-secondary: var(--border);
+  --crepe-color-on-secondary: var(--text);
+  --crepe-color-hover: var(--hover);
+  --crepe-color-selected: var(--border);
+  --crepe-color-inline-area: var(--border);
+}
+
+/* Pages that are pictures (PDF, DjVu, slides, Word pages) are tinted rather than re-coloured. */
+:root[data-theme='sepia'] :is(.pdfViewer .page, .djvu-page, .slide-list img, .office-host section.docx, .office-host .sheet, .ppt-host, .flipbook:not(.curl-book) canvas) { filter: sepia(0.35) brightness(0.97); }
+:root[data-theme='dark'] :is(.pdfViewer .page, .djvu-page, .slide-list img, .office-host section.docx, .office-host .sheet, .ppt-host, .flipbook:not(.curl-book) canvas) { filter: invert(0.9) hue-rotate(180deg); }
 
 * { box-sizing: border-box; scrollbar-width: none; }
 /* No scrollbars anywhere: pages scroll and swipe without them. */
@@ -31,9 +96,9 @@ button, select {
   padding: 4px 10px;
   cursor: pointer;
 }
-button:hover, select:hover { background: #ebedef; }
-button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 8px 18px; }
+button:hover, select:hover { background: var(--hover); }
+button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); padding: 8px 18px; }
 .spacer { flex: 1; }
 
 .app { display: flex; flex-direction: column; height: 100%; }

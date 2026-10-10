@@ -3,6 +3,7 @@ import { Excalidraw, exportToCanvas, serializeAsJSON } from '@excalidraw/excalid
 import '@excalidraw/excalidraw/index.css'
 import FlipBook from '../viewers/FlipBook'
 import { debounce, loadNote, saveNote } from '../lib/platform'
+import { useTheme } from '../lib/theme'
 
 type Initial = NonNullable<Parameters<typeof Excalidraw>[0]['initialData']>
 
@@ -13,6 +14,7 @@ const SHEET = { width: 800, height: 1120, rule: 32 }
 function CanvasPage({ notebook, file, latest }: { notebook: string; file: string; latest: { current: string | null } }) {
   const host = useRef<HTMLDivElement>(null)
   const [initial, setInitial] = useState<Initial | null>(null)
+  const theme = useTheme()
   const save = useMemo(() => debounce((json: string) => { void saveNote(notebook, file, json) }, 800), [notebook, file])
 
   useEffect(() => {
@@ -32,6 +34,7 @@ function CanvasPage({ notebook, file, latest }: { notebook: string; file: string
     <div ref={host} className="canvas-page paper">
       <Excalidraw
         initialData={initial}
+        theme={theme === 'dark' ? 'dark' : 'light'}
         onChange={(elements, appState, files) => {
           // The paper sits behind the drawing and follows its pan and zoom.
           const style = host.current?.style

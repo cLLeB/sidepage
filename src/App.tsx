@@ -7,6 +7,7 @@ import {
   onNotesFolderChange, pickFile, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
+import { setTheme, THEMES, useTheme, type Theme } from './lib/theme'
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
@@ -73,6 +74,7 @@ export default function App() {
   const [notebook, setNotebook] = useState('My notebook')
   const [paper, setPaper] = useState<Paper>(() => (localStorage.getItem('sidepage:paper') as Paper) || 'lined')
   const [empty, setEmpty] = useState(true)
+  const theme = useTheme()
   const [folder, setFolder] = useState(notesFolder)
   const [books, setBooks] = useState<Shelved[]>([])
 
@@ -215,6 +217,12 @@ export default function App() {
             {!folder.name ? 'Choose notes folder' : folder.locked ? `Reconnect notes folder: ${folder.name}` : `Notes folder: ${folder.name}`}
           </button>
         )}
+        <label className="paper-picker">
+          Theme
+          <select value={theme} onChange={e => setTheme(e.target.value as Theme)}>
+            {THEMES.map(t => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}
+          </select>
+        </label>
         <label className="paper-picker">
           Paper
           <select value={paper} onChange={e => setPaper(e.target.value as Paper)}>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
+import { useTheme, type Theme } from '../lib/theme'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
   baseName, extensionOf, findInNotes, loadNote, onGoToPlace, prefersFlip, rememberFlip, saveNote, sendQuote,
@@ -8,9 +9,13 @@ import {
 
 type TocItem = { label: string; href: string; subitems?: TocItem[] }
 
-const bookCSS = `
+const bookColours = { light: '#1c1d21', sepia: '#40372b', dark: '#d7dade' } as const
+
+const bookCSS = (theme: Theme) => `
   @namespace epub "http://www.idpf.org/2007/ops";
-  html { color-scheme: light; }
+  /* The page itself stays see-through, so the panel's themed background shows behind the text. */
+  html { color: ${bookColours[theme]}; }
+  a:any-link { color: ${theme === 'dark' ? '#8ab4f8' : '#1a56c4'}; }
   p, li, blockquote, dd { line-height: 1.6; text-align: start; hyphens: auto; }
   pre { white-space: pre-wrap !important; }
 `
@@ -43,6 +48,9 @@ export default function BookView({ file }: { file: File }) {
   const [scrolled, setScrolled] = useState(false)
   const [error, setError] = useState('')
   const marks = useRef<{ cfi: string; index: number; text: string }[]>([])
+  const theme = useTheme()
+  const themeAtStart = useRef(theme)
+  themeAtStart.current = theme
   // Page-turn mode: the same book shown as paper pages that curl (see CurlBook). Not for comics, which are pictures.
   const canCurl = !['cbz', 'cbr', 'cb7', 'cbt'].includes(extensionOf(file.name))
   const [curl, setCurl] = useState(() => canCurl && prefersFlip())
@@ -90,7 +98,7 @@ export default function BookView({ file }: { file: File }) {
       if (closed) return
       marks.current = JSON.parse((await loadNote(baseName(file.name), 'highlights.json')) ?? '[]')
       setToc(flatten(view.book.toc ?? []))
-      view.renderer.setStyles?.(bookCSS)
+      view.renderer.setStyles?.(bookCSS(themeAtStart.current))
       view.renderer.setAttribute('animated', '')
       // Where the reader is, chapter by chapter. A jump made elsewhere (contents, a link in a note) moves the
       // paper pages too; a page turned by hand is already there, so its echo is ignored.
@@ -110,6 +118,10 @@ export default function BookView({ file }: { file: File }) {
       view.remove()
     }
   }, [file])
+
+  useEffect(() => {
+    viewRef.current?.renderer?.setStyles?.(bookCSS(theme))
+  }, [theme])
 
   useEffect(() => {
     viewRef.current?.renderer?.setAttribute('flow', scrolled ? 'scrolled' : 'paginated')

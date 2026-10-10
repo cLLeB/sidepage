@@ -2,10 +2,19 @@ import { useEffect, useRef } from 'react'
 import MindElixir from 'mind-elixir'
 import 'mind-elixir/style.css'
 import { debounce, loadNote, saveNote } from '../lib/platform'
+import { useTheme } from '../lib/theme'
 
 // Mind map (Mind Elixir), saved as mindmap.json.
 export default function MindMapNote({ notebook }: { notebook: string }) {
   const host = useRef<HTMLDivElement>(null)
+  const map = useRef<InstanceType<typeof MindElixir> | null>(null)
+  const theme = useTheme()
+  const themeAtStart = useRef(theme)
+  themeAtStart.current = theme
+
+  useEffect(() => {
+    map.current?.changeTheme(theme === 'dark' ? MindElixir.DARK_THEME : MindElixir.THEME)
+  }, [theme])
 
   useEffect(() => {
     let cancelled = false
@@ -18,6 +27,8 @@ export default function MindMapNote({ notebook }: { notebook: string }) {
       if (cancelled || !host.current) return
       mind = new MindElixir({ el: host.current, direction: MindElixir.SIDE })
       mind.init(saved ? JSON.parse(saved) : MindElixir.new(notebook))
+      map.current = mind
+      if (themeAtStart.current === 'dark') mind.changeTheme(MindElixir.DARK_THEME)
       mind.bus.addListener('operation', save)
       // A map created in a hidden tab has no size yet; centre it the first time it is shown.
       centre = new ResizeObserver(() => {
