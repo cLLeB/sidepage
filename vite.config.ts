@@ -42,7 +42,7 @@ export default defineConfig({
       'pptxviewjs', 'jszip', 'chart.js', 'docx-preview', 'page-flip', 'pdfjs-dist',
       'pdfjs-dist/web/pdf_viewer.mjs', '@excalidraw/excalidraw', 'mind-elixir',
       '@milkdown/crepe', '@milkdown/kit/utils', '@milkdown/kit/core', '@milkdown/kit/prose/state',
-      'idb-keyval', 'dockview-react', 'rtf.js', 'odf-kit/odt/to-html', 'dompurify', 'libarchive.js', '@file-viewer/doc', '@extend-ai/react-pptx', 'react-error-boundary',
+      'idb-keyval', 'dockview-react', 'rtf.js', 'odf-kit/odt/to-html', 'dompurify', 'libarchive.js', '@file-viewer/doc', '@extend-ai/react-pptx', 'react-error-boundary', 'force-graph',
     ],
   },
 })

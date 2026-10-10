@@ -191,6 +191,23 @@ export const parsePlaceLink = (href: string): Place | null => {
   return book && place ? { book, place } : null
 }
 
+// Note → note: a link in one book's notes that opens another book and its notes.
+const NOTE_LINK = '#sidepage-note'
+export const noteLink = (book: string) => `${NOTE_LINK}?book=${escapeForLink(book)}`
+export const parseNoteLink = (href: string) =>
+  href.startsWith(NOTE_LINK) ? new URLSearchParams(href.slice(NOTE_LINK.length + 1)).get('book') : null
+export const [openBookByName, onOpenBookByName] = channel<string>('sidepage:open')
+
+// Every link between notebooks, as book file names: what the graph draws and what "Linked from" lists.
+export async function noteLinks(): Promise<{ from: string; to: string }[]> {
+  const links: { from: string; to: string }[] = []
+  for (const book of await shelf()) {
+    const notes = (await loadNote(baseName(book.name), 'notes.md')) ?? ''
+    for (const match of notes.matchAll(/#sidepage-note\?book=([^)\s]+)/g)) links.push({ from: book.name, to: decodeURIComponent(match[1]) })
+  }
+  return links
+}
+
 // The books opened on this device, kept so they can be reopened from the home screen or from a link in a note.
 export type Shelved = { name: string; opened: number; size: number }
 

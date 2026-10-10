@@ -1,7 +1,7 @@
 {
   "name": "sidepage",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -25,6 +25,7 @@
     "docx-preview": "^0.4.1",
     "dompurify": "^3.4.16",
     "foliate-js": "^1.0.1",
+    "force-graph": "^1.52.0",
     "idb-keyval": "^6.3.0",
     "jszip": "^3.10.2",
     "libarchive.js": "^2.0.2",

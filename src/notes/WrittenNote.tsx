@@ -1,15 +1,29 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { Selection } from '@milkdown/kit/prose/state'
 import { insert } from '@milkdown/kit/utils'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
-import { baseName, debounce, goToPlace, loadNote, onFindInNotes, onQuote, parsePlaceLink, placeLink, saveNote } from '../lib/platform'
+import {
+  baseName, debounce, goToPlace, loadNote, noteLink, noteLinks, onFindInNotes, onQuote, openBookByName, parseNoteLink,
+  parsePlaceLink, placeLink, saveNote, shelf,
+} from '../lib/platform'
 
 // Typed notes in Markdown (Milkdown Crepe), saved as notes.md.
 export default function WrittenNote({ notebook }: { notebook: string }) {
   const host = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<Crepe | null>(null)
+  // Other books to link to, and the books whose notes link here.
+  const [others, setOthers] = useState<string[]>([])
+  const [backlinks, setBacklinks] = useState<string[]>([])
+
+  const refreshLinks = async () => {
+    const [books, links] = await Promise.all([shelf(), noteLinks()])
+    setOthers(books.map(book => book.name).filter(name => baseName(name) !== notebook))
+    setBacklinks([...new Set(links.filter(link => baseName(link.to) === notebook && baseName(link.from) !== notebook).map(link => link.from))])
+  }
+  useEffect(() => { void refreshLinks() }, [notebook]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let crepe: Crepe | undefined
@@ -23,6 +37,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       await editor.create()
       if (cancelled) return void editor.destroy()
       crepe = editor
+      editorRef.current = editor
       stopQuotes = onQuote(({ text, source, book, place }) => {
         // Each book's quotes go to its own notebook.
         if (book && baseName(book) !== notebook) return
@@ -41,11 +56,14 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     // Clicking a source link travels to that place in the book instead of leaving the app.
     const root = host.current
     const follow = (e: MouseEvent) => {
-      const place = parsePlaceLink((e.target as HTMLElement).closest('a')?.getAttribute('href') ?? '')
-      if (!place) return
+      const href = (e.target as HTMLElement).closest('a')?.getAttribute('href') ?? ''
+      const place = parsePlaceLink(href)
+      const book = parseNoteLink(href)
+      if (!place && !book) return
       e.preventDefault()
       e.stopPropagation()
-      goToPlace(place)
+      if (place) goToPlace(place)
+      else if (book) openBookByName(book)
     }
     root?.addEventListener('click', follow, true)
 
@@ -69,5 +87,22 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     }
   }, [notebook])
 
-  return <div ref={host} className="note written-note paper" />
+  return (
+    <div className="note written-wrap">
+      <div className="note-bar">
+        <select
+          value=""
+          onFocus={() => void refreshLinks()}
+          onChange={e => editorRef.current?.editor.action(insert(`[${baseName(e.target.value)}](${noteLink(e.target.value)})`))}
+          title="Insert a link to another book's notes"
+        >
+          <option value="" disabled>Link to another book…</option>
+          {others.map(name => <option key={name} value={name}>{baseName(name)}</option>)}
+        </select>
+        {backlinks.length > 0 && <span className="viewer-pos">Linked from</span>}
+        {backlinks.map(name => <button key={name} onClick={() => openBookByName(name)}>{baseName(name)}</button>)}
+      </div>
+      <div ref={host} className="written-note paper" />
+    </div>
+  )
 }

@@ -3,7 +3,7 @@ import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, t
 import { ErrorBoundary } from 'react-error-boundary'
 import 'dockview-react/dist/styles/dockview.css'
 import {
-  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, launchFile, notesFolder, onFindInNotes, onGoToPlace,
+  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, launchFile, notesFolder, onFindInNotes, onGoToPlace, onOpenBookByName,
   onNotesFolderChange, pickFile, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
@@ -19,6 +19,7 @@ const TextView = lazy(() => import('./viewers/TextView'))
 const WrittenNote = lazy(() => import('./notes/WrittenNote'))
 const CanvasNote = lazy(() => import('./notes/CanvasNote'))
 const MindMapNote = lazy(() => import('./notes/MindMapNote'))
+const GraphView = lazy(() => import('./notes/GraphView'))
 
 const PAPERS = ['blank', 'lined', 'grid', 'dots'] as const
 type Paper = (typeof PAPERS)[number]
@@ -67,7 +68,9 @@ function NotePanel({ params }: IDockviewPanelProps<{ kind: NoteKind; notebook: s
   return <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><Note key={storage} notebook={params.notebook} /></Suspense></ErrorBoundary>
 }
 
-const components = { doc: DocPanel, note: NotePanel }
+const GraphPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><GraphView /></Suspense></ErrorBoundary>
+
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -151,6 +154,26 @@ export default function App() {
     void openFile(file)
   }), [openFile])
 
+  // A link between notebooks, or a dot in the graph, opens that book with its notes.
+  useEffect(() => onOpenBookByName(async name => {
+    const panel = api.current?.getPanel(`doc:${name}`)
+    if (panel) {
+      panel.api.setActive()
+      return openNote('written', baseName(name))
+    }
+    const file = await fromShelf(name)
+    if (file) void openFile(file)
+  }), [openFile, openNote])
+
+  const openGraph = useCallback(() => {
+    const dock = api.current
+    if (!dock) return
+    const existing = dock.getPanel('graph')
+    if (existing) return existing.api.setActive()
+    const sibling = dock.panels.find(p => p.id.startsWith('note:'))
+    dock.addPanel({ id: 'graph', component: 'graph', title: 'Graph', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
+  }, [])
+
   // A highlight clicked in the book brings its notebook forward.
   useEffect(() => onFindInNotes(() => api.current?.getPanel(`note:written:${notebook}`)?.api.setActive()), [notebook])
 
@@ -195,10 +218,16 @@ export default function App() {
   return (
     <div
       className="app"
-      onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault() }}
+      // Dropped files are books for Sidepage; they stop here so PDF.js does not also try to paste them into a page.
+      onDragOver={e => {
+        if (!e.dataTransfer.types.includes('Files')) return
+        e.preventDefault()
+        e.stopPropagation()
+      }}
       onDrop={e => {
         if (!e.dataTransfer.files.length) return
         e.preventDefault()
+        e.stopPropagation()
         for (const file of e.dataTransfer.files) void openFile(file)
       }}
     >
@@ -209,6 +238,7 @@ export default function App() {
         {(Object.keys(NOTE_KINDS) as NoteKind[]).map(kind => (
           <button key={kind} onClick={() => openNote(kind, notebook)}>{NOTE_KINDS[kind].title}</button>
         ))}
+        <button onClick={openGraph} title="How your books' notes link to each other">Graph</button>
         <span className="divider" />
         <button onClick={() => void saveWhole()} disabled={empty} title="Save the book and all its notes together as one .sidepage file">Save as one file</button>
         <span className="spacer" />

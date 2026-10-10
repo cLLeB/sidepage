@@ -15,6 +15,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | Page-turn effect | [StPageFlip](https://github.com/Nodlik/StPageFlip) | MIT |
 | Written notes (Markdown) | [Milkdown Crepe](https://github.com/Milkdown/milkdown) | MIT |
 | Drawing and handwriting canvas | [Excalidraw](https://github.com/excalidraw/excalidraw) | MIT |
+| Graph of linked notebooks | [force-graph](https://github.com/vasturiano/force-graph) | MIT |
 | Mind maps | [Mind Elixir](https://github.com/SSShooter/mind-elixir-core) | MIT |
 | Side-by-side panels and tabs | [Dockview](https://github.com/mathuo/dockview) | MIT |
 | Comic archives (CBR, CB7, CBT) | [libarchive.js](https://github.com/nika-begiashvili/libarchivejs) | MIT |
@@ -31,7 +32,13 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots.
-- "Flip" turns PDFs, slide decks and your canvas notebook into a book you leaf through.
+- "Flip" turns PDFs, slide decks, DjVu books and your canvas notebook into a book you leaf through, with a paper
+  curl as each page turns. EPUB, MOBI and FB2 text curls the same way: Sidepage lays the chapter out in page-wide
+  columns and hands the pages to StPageFlip (this part is Sidepage's own, in `src/viewers/CurlBook.tsx`).
+  The choice is remembered, and no scrollbars are shown anywhere.
+- Search inside a book or PDF; each match leads to its place.
+- Light, sepia and dark themes for the whole workspace.
+- Link one book's notes to another's, see which notes link back ("Linked from"), and view all of it as a graph.
 - Highlight and draw on PDF pages, and save a copy with the marks in it.
 - "Quote" copies the selected passage into your notes with its source.
 - The source line under each quote is a link: click it to travel back to that exact place in the book. Quoted

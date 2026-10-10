@@ -241,6 +241,14 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   border-top: 1px solid var(--border);
 }
 button:disabled { opacity: 0.45; cursor: default; }
+/* Written notes: a slim bar for links, then the page */
+.written-wrap { display: flex; flex-direction: column; overflow: hidden; }
+.written-wrap .written-note { position: relative; flex: 1; min-height: 0; overflow: auto; }
+.note-bar { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; }
+.note-bar > * { flex-shrink: 0; white-space: nowrap; }
+.note-bar select { max-width: 200px; }
+.graph-view { background: var(--paper-bg); overflow: hidden; }
+
 /* Search in the book */
 .search-box { position: relative; display: inline-flex; align-items: center; gap: 4px; }
 .search-box input { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; width: 170px; }
