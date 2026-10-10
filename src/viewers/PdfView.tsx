@@ -4,7 +4,7 @@ import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-di
 import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
-import { baseName, onGoToPlace, saveFileAs, sendQuote } from '../lib/platform'
+import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendQuote } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -15,8 +15,8 @@ export default function PdfView({ file }: { file: File }) {
   const viewerRef = useRef<PDFViewer | null>(null)
   const toolUsed = useRef(false)
   const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy | null>(null)
-  const [page, setPage] = useState(1)
-  const [mode, setMode] = useState<'scroll' | 'flip'>('scroll')
+  const [page, setPage] = useState(() => Number(localStorage.getItem(`sidepage:place:${file.name}`)) || 1)
+  const [mode, setMode] = useState<'scroll' | 'flip'>(() => (prefersFlip() ? 'flip' : 'scroll'))
   const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
   const [error, setError] = useState('')
   const [tool, setTool] = useState<'none' | 'highlight' | 'draw'>('none')
@@ -132,6 +132,7 @@ export default function PdfView({ file }: { file: File }) {
   }), [file])
 
   const leaveFlip = () => {
+    rememberFlip(false)
     setMode('scroll')
     requestAnimationFrame(() => { if (viewerRef.current) viewerRef.current.currentPageNumber = page })
   }
@@ -163,7 +164,7 @@ export default function PdfView({ file }: { file: File }) {
           <button onClick={() => void saveCopy()} title="Save a copy of the PDF with your highlights and drawings">Save copy</button>
           <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
         </>}
-        <button onClick={() => (mode === 'flip' ? leaveFlip() : setMode('flip'))} className={mode === 'flip' ? 'on' : ''}>
+        <button onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} className={mode === 'flip' ? 'on' : ''}>
           Flip
         </button>
       </div>
@@ -172,7 +173,10 @@ export default function PdfView({ file }: { file: File }) {
           <div className="pdfViewer" />
         </div>
         {mode === 'flip' && (flip
-          ? <FlipBook pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => setPage(flip.first + i)} />
+          ? <FlipBook pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {
+              setPage(flip.first + i)
+              localStorage.setItem(`sidepage:place:${file.name}`, String(flip.first + i))
+            }} />
           : <div className="viewer-message">Preparing pages…</div>)}
       </div>
     </div>

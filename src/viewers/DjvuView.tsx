@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import FlipBook from './FlipBook'
+import { prefersFlip, rememberFlip } from '../lib/platform'
 
 type Size = { width: number; height: number }
 type Task<T> = { run(): Promise<T> }
@@ -38,9 +39,9 @@ export default function DjvuView({ file }: { file: File }) {
   const list = useRef<HTMLDivElement>(null)
   const worker = useRef<DjvuWorker | null>(null)
   const [sizes, setSizes] = useState<Size[] | null>(null)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(() => Number(localStorage.getItem(`sidepage:place:${file.name}`)) || 1)
   const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
-  const [flipping, setFlipping] = useState(false)
+  const [flipping, setFlipping] = useState(prefersFlip)
   const [error, setError] = useState('')
   const placeKey = `sidepage:place:${file.name}`
 
@@ -117,7 +118,7 @@ export default function DjvuView({ file }: { file: File }) {
       <div className="viewer-bar">
         <span className="viewer-pos">{page} / {sizes.length}</span>
         <span className="spacer" />
-        <button onClick={() => setFlipping(f => !f)} className={flipping ? 'on' : ''}>Flip</button>
+        <button onClick={() => { rememberFlip(!flipping); setFlipping(!flipping) }} className={flipping ? 'on' : ''}>Flip</button>
       </div>
       <div className="viewer-body">
         {flipping

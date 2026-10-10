@@ -153,6 +153,10 @@ export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: numb
   }
 }
 
+// Whether books open as pages to turn (Flip) or as a scroll; the last choice is kept.
+export const prefersFlip = () => localStorage.getItem('sidepage:flip') === '1'
+export const rememberFlip = (on: boolean) => localStorage.setItem('sidepage:flip', on ? '1' : '0')
+
 // Messages between the reading side and the writing side, so they behave as one workspace.
 function channel<T>(name: string) {
   const send = (detail: T) => { window.dispatchEvent(new CustomEvent<T>(name, { detail })) }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import FlipBook from './FlipBook'
+import { prefersFlip, rememberFlip } from '../lib/platform'
 
 const WIDTH = 1280
 const HEIGHT = 720
@@ -7,7 +8,7 @@ const HEIGHT = 720
 // PowerPoint decks, drawn slide by slide with PptxViewJS.
 export default function SlidesView({ file }: { file: File }) {
   const [slides, setSlides] = useState<string[] | null>(null)
-  const [flip, setFlip] = useState(false)
+  const [flip, setFlip] = useState(prefersFlip)
   const [current, setCurrent] = useState(0)
   const [error, setError] = useState('')
 
@@ -47,7 +48,7 @@ export default function SlidesView({ file }: { file: File }) {
       <div className="viewer-bar">
         <span className="viewer-pos">{flip ? `${current + 1} / ${slides.length}` : `${slides.length} slides`}</span>
         <span className="spacer" />
-        <button onClick={() => setFlip(f => !f)} className={flip ? 'on' : ''}>Flip</button>
+        <button onClick={() => { rememberFlip(!flip); setFlip(!flip) }} className={flip ? 'on' : ''}>Flip</button>
       </div>
       <div className="viewer-body">
         {flip

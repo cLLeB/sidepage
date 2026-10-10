@@ -15,7 +15,9 @@
   color: var(--text);
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: none; }
+/* No scrollbars anywhere: pages scroll and swipe without them. */
+*::-webkit-scrollbar { display: none; }
 html, body, #root { height: 100%; margin: 0; }
 #root { height: 100dvh; }
 body { background: var(--bg); overflow: hidden; }
