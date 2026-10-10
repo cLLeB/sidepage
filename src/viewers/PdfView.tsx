@@ -4,6 +4,7 @@ import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-di
 import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
+import SearchBox from './SearchBox'
 import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendQuote } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
@@ -14,6 +15,8 @@ export default function PdfView({ file }: { file: File }) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<PDFViewer | null>(null)
   const toolUsed = useRef(false)
+  const bus = useRef<EventBus | null>(null)
+  const [matches, setMatches] = useState('')
   const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy | null>(null)
   const [page, setPage] = useState(() => Number(localStorage.getItem(`sidepage:place:${file.name}`)) || 1)
   const [mode, setMode] = useState<'scroll' | 'flip'>(() => (prefersFlip() ? 'flip' : 'scroll'))
@@ -36,6 +39,13 @@ export default function PdfView({ file }: { file: File }) {
       annotationEditorHighlightColors: 'yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F',
     })
     linkService.setViewer(viewer)
+    bus.current = eventBus
+    eventBus.on('updatefindmatchescount', (e: { matchesCount: { current: number; total: number } }) => {
+      setMatches(e.matchesCount.total ? `${e.matchesCount.current} / ${e.matchesCount.total}` : 'No matches')
+    })
+    eventBus.on('updatefindcontrolstate', (e: { state: number; matchesCount: { total: number } }) => {
+      if (e.state === 1) setMatches('No matches')
+    })
     viewerRef.current = viewer
     const placeKey = `sidepage:place:${file.name}`
     eventBus.on('pagesinit', () => {
@@ -131,6 +141,17 @@ export default function PdfView({ file }: { file: File }) {
     viewerRef.current.currentPageNumber = Number(place.replace('page=', '')) || 1
   }), [file])
 
+  // Find in the PDF with PDF.js's own find controller: every match is highlighted, Enter steps through them.
+  const find = (query: string, again: boolean) => {
+    bus.current?.dispatch('find', {
+      source: null, type: again ? 'again' : '', query, caseSensitive: false, entireWord: false, highlightAll: true, findPrevious: false,
+    })
+  }
+  const clearFind = () => {
+    setMatches('')
+    bus.current?.dispatch('findbarclose', { source: null })
+  }
+
   const leaveFlip = () => {
     rememberFlip(false)
     setMode('scroll')
@@ -159,6 +180,7 @@ export default function PdfView({ file }: { file: File }) {
         <span className="viewer-pos">{page} / {doc?.numPages ?? '…'}</span>
         <span className="spacer" />
         {mode === 'scroll' && <>
+          <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <button onClick={() => setTool(t => (t === 'highlight' ? 'none' : 'highlight'))} className={tool === 'highlight' ? 'on' : ''} title="Select text to highlight it">Highlight</button>
           <button onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} className={tool === 'draw' ? 'on' : ''} title="Draw on the page">Draw</button>
           <button onClick={() => void saveCopy()} title="Save a copy of the PDF with your highlights and drawings">Save copy</button>

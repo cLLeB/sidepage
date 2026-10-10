@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
 import { useTheme, type Theme } from '../lib/theme'
+import SearchBox, { type SearchHit } from './SearchBox'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
   baseName, extensionOf, findInNotes, loadNote, onGoToPlace, prefersFlip, rememberFlip, saveNote, sendQuote,
@@ -143,6 +144,38 @@ export default function BookView({ file }: { file: File }) {
 
   const turning = curl && !!sections
 
+  // Search the whole book (foliate-js); each match leads to its place.
+  const [hits, setHits] = useState<SearchHit[]>([])
+  const [searching, setSearching] = useState('')
+  const searchRun = useRef(0)
+  const search = async (query: string) => {
+    const view = viewRef.current
+    const run = ++searchRun.current
+    const found: SearchHit[] = []
+    setHits([])
+    setSearching('Searching…')
+    type Match = { cfi: string; excerpt: { pre: string; match: string; post: string } }
+    const add = ({ cfi, excerpt }: Match) => found.length < 200 && found.push({
+      key: cfi,
+      label: <>{excerpt.pre}<mark>{excerpt.match}</mark>{excerpt.post}</>,
+      pick: () => void view.goTo(cfi),
+    })
+    for await (const result of view.search({ query })) {
+      if (run !== searchRun.current) return
+      if (result === 'done') break
+      if (result.cfi) add(result)
+      for (const item of result.subitems ?? []) add(item)
+      setHits([...found])
+    }
+    setSearching(found.length ? `${found.length}${found.length === 200 ? '+' : ''} found` : 'No matches')
+  }
+  const clearSearch = () => {
+    searchRun.current++
+    setHits([])
+    setSearching('')
+    viewRef.current?.clearSearch()
+  }
+
   const quote = () => {
     const view = viewRef.current
     if (turning) {
@@ -181,6 +214,7 @@ export default function BookView({ file }: { file: File }) {
         )}
         <span className="viewer-pos">{Math.round(where.fraction * 100)}%</span>
         <span className="spacer" />
+        <SearchBox onSearch={query => void search(query)} onClear={clearSearch} status={searching} hits={hits} />
         <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
         {!turning && <button onClick={() => setScrolled(s => !s)} className={scrolled ? 'on' : ''}>Scroll</button>}
         {canCurl && <button onClick={toggleCurl} className={curl ? 'on' : ''} title="Turn pages like paper">Flip</button>}

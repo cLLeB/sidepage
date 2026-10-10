@@ -241,6 +241,20 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   border-top: 1px solid var(--border);
 }
 button:disabled { opacity: 0.45; cursor: default; }
+/* Search in the book */
+.search-box { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.search-box input { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; width: 170px; }
+.viewer-bar:has(.search-hits) { overflow: visible; }
+.search-hits {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 20;
+  width: min(360px, 80vw); max-height: 50vh; overflow: auto;
+  margin: 0; padding: 4px; list-style: none;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
+}
+.search-hits button { display: block; width: 100%; border: 0; text-align: left; white-space: normal; line-height: 1.4; padding: 6px 8px; }
+.search-hits mark { background: #ffd84d; color: #1c1d21; border-radius: 2px; }
+.search-none { padding: 8px; color: var(--muted); }
+
 /* Links between the book and the notes */
 .written-note a[href^='#sidepage-open'] { cursor: pointer; text-decoration: underline dotted; }
 
