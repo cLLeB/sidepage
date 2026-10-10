@@ -150,6 +150,19 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .written-note .milkdown .ProseMirror :is(p, li, blockquote) { line-height: var(--rule); margin-block: 0; padding-block: 0; }
 .written-note .milkdown .ProseMirror :is(h1, h2, h3, h4) { line-height: calc(var(--rule) * 2); margin-block: 0; padding-block: 0; }
 
+.canvas-note { display: flex; flex-direction: column; overflow: hidden; }
+.canvas-page { position: relative; flex: 1; min-height: 0; }
+.canvas-note .flipbook { position: relative; inset: auto; flex: 1; min-height: 0; }
 .canvas-note .excalidraw { --color-surface-lowest: transparent; }
+.page-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+button:disabled { opacity: 0.45; cursor: default; }
 .mindmap-note { background: var(--paper-bg); }
 .mindmap-note .map-container { background: transparent; }
