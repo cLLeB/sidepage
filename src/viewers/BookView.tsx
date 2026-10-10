@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
-import { baseName, extensionOf, findInNotes, loadNote, onGoToPlace, saveNote, sendQuote } from '../lib/platform'
+import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
+import {
+  baseName, extensionOf, findInNotes, loadNote, onGoToPlace, prefersFlip, rememberFlip, saveNote, sendQuote,
+} from '../lib/platform'
 
 type TocItem = { label: string; href: string; subitems?: TocItem[] }
 
@@ -40,6 +43,15 @@ export default function BookView({ file }: { file: File }) {
   const [scrolled, setScrolled] = useState(false)
   const [error, setError] = useState('')
   const marks = useRef<{ cfi: string; index: number; text: string }[]>([])
+  // Page-turn mode: the same book shown as paper pages that curl (see CurlBook). Not for comics, which are pictures.
+  const canCurl = !['cbz', 'cbr', 'cb7', 'cbt'].includes(extensionOf(file.name))
+  const [curl, setCurl] = useState(() => canCurl && prefersFlip())
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [sections, setSections] = useState<any[] | null>(null)
+  const [curlStart, setCurlStart] = useState<{ place: CurlPlace; key: number }>({ place: { index: 0, fraction: 0 }, key: 0 })
+  const curlRef = useRef<CurlHandle>(null)
+  const here = useRef<CurlPlace>({ index: 0, fraction: 0 })
+  const turnedAt = useRef(0)
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,8 +92,16 @@ export default function BookView({ file }: { file: File }) {
       setToc(flatten(view.book.toc ?? []))
       view.renderer.setStyles?.(bookCSS)
       view.renderer.setAttribute('animated', '')
+      // Where the reader is, chapter by chapter. A jump made elsewhere (contents, a link in a note) moves the
+      // paper pages too; a page turned by hand is already there, so its echo is ignored.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      view.renderer.addEventListener('relocate', (e: any) => {
+        here.current = { index: e.detail.index ?? 0, fraction: e.detail.fraction ?? 0 }
+        if (Date.now() - turnedAt.current > 1500) setCurlStart(s => ({ place: here.current, key: s.key + 1 }))
+      })
       // Reopen where the reader left off.
-      return view.init({ lastLocation: localStorage.getItem(`sidepage:place:${file.name}`) })
+      await view.init({ lastLocation: localStorage.getItem(`sidepage:place:${file.name}`) })
+      if (!closed) setSections(view.book.sections)
     }).catch((e: Error) => setError(String(e?.message ?? e)))
     return () => {
       closed = true
@@ -95,8 +115,29 @@ export default function BookView({ file }: { file: File }) {
     viewRef.current?.renderer?.setAttribute('flow', scrolled ? 'scrolled' : 'paginated')
   }, [scrolled, toc])
 
+  // A page turned in page-turn mode moves the underlying reader too, which keeps progress, contents and the
+  // saved place right.
+  const onCurlPlace = (place: CurlPlace) => {
+    here.current = place
+    turnedAt.current = Date.now()
+    void viewRef.current?.renderer.goTo({ index: place.index, anchor: place.fraction })
+  }
+
+  const toggleCurl = () => {
+    rememberFlip(!curl)
+    if (!curl) setCurlStart(s => ({ place: here.current, key: s.key + 1 }))
+    setCurl(!curl)
+  }
+
+  const turning = curl && !!sections
+
   const quote = () => {
     const view = viewRef.current
+    if (turning) {
+      const text = curlRef.current?.selectedText()
+      if (text) sendQuote({ text, source: [baseName(file.name), where.label].filter(Boolean).join(', ') })
+      return
+    }
     const contents: { doc: Document; index: number }[] = view?.renderer?.getContents?.() ?? []
     for (const { doc, index } of contents) {
       const selection = doc.getSelection()
@@ -116,8 +157,8 @@ export default function BookView({ file }: { file: File }) {
   return (
     <div className="viewer">
       <div className="viewer-bar">
-        <button onClick={() => viewRef.current?.goLeft()} title="Previous page">‹</button>
-        <button onClick={() => viewRef.current?.goRight()} title="Next page">›</button>
+        <button onClick={() => (turning ? curlRef.current?.previous() : viewRef.current?.goLeft())} title="Previous page">‹</button>
+        <button onClick={() => (turning ? curlRef.current?.next() : viewRef.current?.goRight())} title="Next page">›</button>
         {toc.length > 0 && (
           <select value="" onChange={e => viewRef.current?.goTo(e.target.value)} title="Contents">
             <option value="" disabled>{where.label || 'Contents'}</option>
@@ -129,9 +170,13 @@ export default function BookView({ file }: { file: File }) {
         <span className="viewer-pos">{Math.round(where.fraction * 100)}%</span>
         <span className="spacer" />
         <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
-        <button onClick={() => setScrolled(s => !s)} className={scrolled ? 'on' : ''}>Scroll</button>
+        {!turning && <button onClick={() => setScrolled(s => !s)} className={scrolled ? 'on' : ''}>Scroll</button>}
+        {canCurl && <button onClick={toggleCurl} className={curl ? 'on' : ''} title="Turn pages like paper">Flip</button>}
       </div>
-      <div ref={host} className="viewer-body book-host" />
+      <div className="viewer-body">
+        <div ref={host} className="book-host" style={{ visibility: turning ? 'hidden' : 'visible' }} />
+        {turning && <CurlBook key={curlStart.key} ref={curlRef} sections={sections} start={curlStart.place} onPlace={onCurlPlace} />}
+      </div>
     </div>
   )
 }
