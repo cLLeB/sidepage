@@ -53,7 +53,7 @@ const checks = `
   const out = { origin: location.origin, tauri: '__TAURI_INTERNALS__' in window, openedAtLaunch: [...document.querySelectorAll('.dv-tab')].map(t => t.textContent) }
   await drop('sample.pdf'); out.pdf = document.querySelectorAll('.pdfViewer .page canvas').length
   await drop('sample.epub'); out.epub = !!document.querySelector('foliate-view')?.renderer?.getContents?.()[0]
-  await drop('sample.pptx'); out.pptx = document.querySelectorAll('.slide-list img').length
+  await drop('sample.pptx'); out.pptx = (document.querySelector('.ppt-host')?.textContent ?? '').trim().length > 20 || !!document.querySelector('.flipbook.tinted canvas')
   await drop('sample.docx'); out.docx = document.querySelectorAll('section.docx').length
   await drop('sample.cb7'); out.comic = [...document.querySelectorAll('foliate-view')].map(v => v.book?.sections?.length)
   out.notes = !!document.querySelector('.written-note .ProseMirror')
