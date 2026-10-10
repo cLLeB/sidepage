@@ -33,6 +33,7 @@
     "pptxviewjs": "^1.1.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-error-boundary": "^6.1.6",
     "rtf.js": "^3.0.9"
   },
   "devDependencies": {

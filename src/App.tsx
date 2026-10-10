@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react'
+import { ErrorBoundary } from 'react-error-boundary'
 import 'dockview-react/dist/styles/dockview.css'
 import {
   baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, launchFile, notesFolder, onNotesFolderChange, pickFile, restoreNotesFolder,
@@ -40,12 +41,17 @@ function viewerFor(name: string) {
 const besideBook = () => (window.innerWidth < 700 ? 'within' : window.innerWidth < window.innerHeight ? 'below' : 'right')
 const besideNotes = () => (({ within: 'within', below: 'above', right: 'left' }) as const)[besideBook()]
 
+// One panel failing must not take the rest of the workspace with it.
+const Broken = ({ error }: { error: unknown }) => (
+  <div className="viewer-message">This panel hit a problem: {error instanceof Error ? error.message : String(error)}</div>
+)
+
 const Loading = () => <div className="viewer-message">Loading…</div>
 
 function DocPanel({ params }: IDockviewPanelProps<{ file: File }>) {
   const Viewer = viewerFor(params.file.name)
   if (!Viewer) return <div className="viewer-message">Sidepage cannot open .{extensionOf(params.file.name)} files yet.</div>
-  return <Suspense fallback={<Loading />}><Viewer file={params.file} /></Suspense>
+  return <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><Viewer file={params.file} /></Suspense></ErrorBoundary>
 }
 
 function NotePanel({ params }: IDockviewPanelProps<{ kind: NoteKind; notebook: string }>) {
@@ -53,7 +59,7 @@ function NotePanel({ params }: IDockviewPanelProps<{ kind: NoteKind; notebook: s
   // Reload from the new place when the notes folder changes.
   const [storage, setStorage] = useState(0)
   useEffect(() => onNotesFolderChange(() => setStorage(n => n + 1)), [])
-  return <Suspense fallback={<Loading />}><Note key={storage} notebook={params.notebook} /></Suspense>
+  return <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><Note key={storage} notebook={params.notebook} /></Suspense></ErrorBoundary>
 }
 
 const components = { doc: DocPanel, note: NotePanel }

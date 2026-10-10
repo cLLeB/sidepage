@@ -13,6 +13,7 @@ const FLIP_CHUNK = 80
 export default function PdfView({ file }: { file: File }) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<PDFViewer | null>(null)
+  const toolUsed = useRef(false)
   const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy | null>(null)
   const [page, setPage] = useState(1)
   const [mode, setMode] = useState<'scroll' | 'flip'>('scroll')
@@ -104,9 +105,18 @@ export default function PdfView({ file }: { file: File }) {
   }, [mode, doc])
 
   useEffect(() => {
-    if (!doc || !viewerRef.current) return
+    const viewer = viewerRef.current
+    if (!doc || !viewer) return
     const { HIGHLIGHT, INK, NONE } = pdfjs.AnnotationEditorType
-    viewerRef.current.annotationEditorMode = { mode: tool === 'highlight' ? HIGHLIGHT : tool === 'draw' ? INK : NONE }
+    // PDF.js sets its editor up a moment after the document loads, and not at all for some files.
+    // So it is only touched once the reader picks a tool.
+    if (tool === 'none' && !toolUsed.current) return
+    try {
+      viewer.annotationEditorMode = { mode: tool === 'highlight' ? HIGHLIGHT : tool === 'draw' ? INK : NONE }
+      toolUsed.current = true
+    } catch {
+      setTool('none')
+    }
   }, [tool, doc])
 
   // Highlights and drawings are written into a copy of the PDF itself.
