@@ -27,8 +27,8 @@ type NoteKind = keyof typeof NOTE_KINDS
 function viewerFor(name: string) {
   const ext = extensionOf(name)
   if (ext === 'pdf') return PdfView
-  if (['epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz'].includes(ext)) return BookView
-  if (ext === 'docx') return OfficeView
+  if (['epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt'].includes(ext)) return BookView
+  if (['docx', 'rtf', 'odt'].includes(ext)) return OfficeView
   if (ext === 'pptx') return SlidesView
   if (['txt', 'md', 'markdown', 'html', 'htm'].includes(ext)) return TextView
   return null

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { baseName, sendQuote } from '../lib/platform'
+import { baseName, extensionOf, sendQuote } from '../lib/platform'
 
-// Word documents, laid out page by page with docx-preview.
+// Word documents (docx-preview), RTF (rtf.js) and OpenDocument text (odf-kit).
 export default function OfficeView({ file }: { file: File }) {
   const host = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
@@ -16,8 +16,29 @@ export default function OfficeView({ file }: { file: File }) {
     }
     const resize = new ResizeObserver(fit)
     resize.observe(el)
-    import('docx-preview')
-      .then(({ renderAsync }) => cancelled ? undefined : renderAsync(file, el, undefined, { inWrapper: true, breakPages: true }))
+    const kind = extensionOf(file.name)
+    const page = () => {
+      const sheet = document.createElement('article')
+      sheet.className = 'sheet'
+      el.append(sheet)
+      return sheet
+    }
+    const render = async () => {
+      if (kind === 'rtf') {
+        const { RTFJS } = await import('rtf.js')
+        RTFJS.loggingEnabled(false)
+        const parts = await new RTFJS.Document(await file.arrayBuffer(), {}).render()
+        if (!cancelled) page().append(...parts)
+      } else if (kind === 'odt') {
+        const [{ odtToHtml }, { default: purify }] = await Promise.all([import('odf-kit/odt/to-html'), import('dompurify')])
+        const html = odtToHtml(new Uint8Array(await file.arrayBuffer()), { fragment: true })
+        if (!cancelled) page().innerHTML = purify.sanitize(html)
+      } else {
+        const { renderAsync } = await import('docx-preview')
+        if (!cancelled) await renderAsync(file, el, undefined, { inWrapper: true, breakPages: true })
+      }
+    }
+    render()
       .then(fit)
       .catch(e => setError(String(e?.message ?? e)))
     return () => {

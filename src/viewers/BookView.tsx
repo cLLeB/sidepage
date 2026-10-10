@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import 'foliate-js/view.js'
-import { baseName, sendQuote } from '../lib/platform'
+import { baseName, extensionOf, sendQuote } from '../lib/platform'
 
 type TocItem = { label: string; href: string; subitems?: TocItem[] }
 
@@ -11,7 +11,22 @@ const bookCSS = `
   pre { white-space: pre-wrap !important; }
 `
 
-const flatten = (items: TocItem[], depth = 0): (TocItem & { depth: number })[] =>
+// CBR, CB7 and CBT comics: libarchive.js unpacks the pages, foliate-js shows them like a CBZ.
+async function openComicArchive(file: File) {
+  const { Archive } = await import('libarchive.js')
+  Archive.init({ workerUrl: '/libarchive/worker-bundle.js' })
+  const archive = await Archive.open(file)
+  const pages = new Map<string, { size: number; extract(): Promise<File> }>()
+  for (const entry of await archive.getFilesArray()) pages.set(`${entry.path}${entry.file.name}`.toLowerCase(), entry.file)
+  const { makeComicBook } = await import('foliate-js/comic-book.js')
+  return makeComicBook({
+    entries: [...pages.keys()].map(filename => ({ filename })),
+    loadBlob: (name: string) => pages.get(name)!.extract(),
+    getSize: (name: string) => pages.get(name)!.size,
+  }, file)
+}
+
+const flatten =(items: TocItem[], depth = 0): (TocItem & { depth: number })[] =>
   items.flatMap(item => [{ ...item, depth }, ...flatten(item.subitems ?? [], depth + 1)])
 
 // EPUB, MOBI, AZW3, FB2 and CBZ, rendered by foliate-js.
@@ -33,6 +48,7 @@ export default function BookView({ file }: { file: File }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     view.addEventListener('relocate', (e: any) => {
       setWhere({ fraction: e.detail.fraction ?? 0, label: e.detail.tocItem?.label ?? '' })
+      if (e.detail.cfi) localStorage.setItem(`sidepage:place:${file.name}`, e.detail.cfi)
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     view.addEventListener('load', (e: any) => {
@@ -42,12 +58,14 @@ export default function BookView({ file }: { file: File }) {
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') view.goLeft()
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') view.goRight()
     }
-    view.open(file).then(() => {
+    const isArchive = ['cbr', 'cb7', 'cbt'].includes(extensionOf(file.name))
+    Promise.resolve(isArchive ? openComicArchive(file) : file).then(book => view.open(book)).then(() => {
       if (closed) return
       setToc(flatten(view.book.toc ?? []))
       view.renderer.setStyles?.(bookCSS)
       view.renderer.setAttribute('animated', '')
-      view.renderer.next()
+      // Reopen where the reader left off.
+      return view.init({ lastLocation: localStorage.getItem(`sidepage:place:${file.name}`) })
     }).catch((e: Error) => setError(String(e?.message ?? e)))
     return () => {
       closed = true

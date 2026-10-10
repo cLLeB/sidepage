@@ -32,8 +32,17 @@ export default function PdfView({ file }: { file: File }) {
     })
     linkService.setViewer(viewer)
     viewerRef.current = viewer
-    eventBus.on('pagesinit', () => { viewer.currentScaleValue = 'page-width' })
-    eventBus.on('pagechanging', (e: { pageNumber: number }) => setPage(e.pageNumber))
+    const placeKey = `sidepage:place:${file.name}`
+    eventBus.on('pagesinit', () => {
+      viewer.currentScaleValue = 'page-width'
+      // Reopen where the reader left off.
+      const saved = Number(localStorage.getItem(placeKey))
+      if (saved > 1 && saved <= viewer.pagesCount) viewer.currentPageNumber = saved
+    })
+    eventBus.on('pagechanging', (e: { pageNumber: number }) => {
+      setPage(e.pageNumber)
+      localStorage.setItem(placeKey, String(e.pageNumber))
+    })
 
     const resize = new ResizeObserver(() => {
       if (viewer.pdfDocument && container.current?.clientWidth) viewer.currentScaleValue = 'page-width'

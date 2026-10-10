@@ -3,8 +3,8 @@
 export const isTauri = '__TAURI_INTERNALS__' in window
 
 export const BOOK_EXTENSIONS = [
-  'pdf', 'epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz',
-  'docx', 'pptx', 'txt', 'md', 'markdown', 'html', 'htm',
+  'pdf', 'epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt',
+  'docx', 'rtf', 'odt', 'pptx', 'txt', 'md', 'markdown', 'html', 'htm',
 ]
 
 export const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
