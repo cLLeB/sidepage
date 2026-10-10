@@ -11,7 +11,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | PDF reader | [PDF.js](https://github.com/mozilla/pdf.js) | Apache-2.0 |
 | DjVu books | [DjVu.js](https://github.com/RussCoder/djvujs) (vendored in `public/djvu`) | GPL-2.0 |
 | Word documents | [docx-preview](https://github.com/VolodymyrBaydalka/docxjs) | Apache-2.0 |
-| PowerPoint slides | [PptxViewJS](https://github.com/gptsci/pptxviewjs) | MIT |
+| PowerPoint slides as turnable pages | [PptxViewJS](https://github.com/gptsci/pptxviewjs) | MIT |
 | Page-turn effect | [StPageFlip](https://github.com/Nodlik/StPageFlip) | MIT |
 | Written notes (Markdown) | [Milkdown Crepe](https://github.com/Milkdown/milkdown) | MIT |
 | Drawing and handwriting canvas | [Excalidraw](https://github.com/excalidraw/excalidraw) | MIT |
@@ -20,7 +20,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | Side-by-side panels and tabs | [Dockview](https://github.com/mathuo/dockview) | MIT |
 | Comic archives (CBR, CB7, CBT) | [libarchive.js](https://github.com/nika-begiashvili/libarchivejs) | MIT |
 | Word 97–2003 (.doc) | [@file-viewer/doc](https://www.npmjs.com/package/@file-viewer/doc) | MIT |
-| PowerPoint 97–2003 (.ppt) | [react-pptx](https://www.npmjs.com/package/@extend-ai/react-pptx) | MIT |
+| PowerPoint (.pptx and .ppt) | [react-pptx](https://www.npmjs.com/package/@extend-ai/react-pptx) | MIT |
 | RTF documents | [rtf.js](https://github.com/tbluemel/rtf.js) | MIT |
 | OpenDocument text | [odf-kit](https://www.npmjs.com/package/odf-kit) | Apache-2.0 |
 | Installable web app, offline | [vite-plugin-pwa](https://github.com/vite-pwa/vite-plugin-pwa) | MIT |
@@ -53,13 +53,22 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 
 ## Where it runs
 
-- **Windows, macOS, Linux**: `npm run tauri build` makes a small native app (about 7 MB installer on Windows).
-  Notes are saved under `Documents/Sidepage`. Needs the Rust toolchain to build.
-- **Phones, tablets, iPads, Chromebooks**: the same app is an installable web app. Host the `dist` folder on any
-  HTTPS site (`.github/workflows/pages.yml` publishes it to GitHub Pages), open it and choose "Install" or
-  "Add to Home Screen". It works offline afterwards. The layout stacks on upright tablets and becomes one tab
-  strip on phones.
-- **Any browser**: `npm run dev`, or `Sidepage.cmd` on Windows to open the built app in its own window.
+Every release at https://github.com/cLLeB/sidepage/releases carries a build for each platform, made by
+`.github/workflows/release.yml` when a version tag is pushed:
+
+| Platform | File | Notes |
+| --- | --- | --- |
+| Windows | `Sidepage_x.y.z_x64-setup.exe` | Not code-signed: Windows asks you to confirm. |
+| macOS (Apple silicon and Intel) | `Sidepage_x.y.z_universal.dmg` | Not notarised: right-click the app and choose Open the first time. |
+| Linux | `.AppImage` and `.deb` | |
+| Android phones, tablets, Chromebooks | `Sidepage_x.y.z_android-test.apk` | A test build signed with Android's debug key; allow installing from your browser or file manager. |
+| iPhone, iPad, and any browser | https://clleb.github.io/sidepage/ | Open it and choose Install or Add to Home Screen. Works offline afterwards. An installable iOS app file needs an Apple developer account to sign it, so iOS uses the web app. |
+
+On desktop, notes are saved under `Documents/Sidepage`. In the web app they are kept by the browser, or in a
+folder you choose. The layout stacks on upright tablets and becomes one tab strip on phones.
+
+To build the desktop app yourself: `npm run tauri build` (needs the Rust toolchain). `Sidepage.cmd` opens the
+built web app in its own window on Windows without compiling anything.
 
 ## Develop
 

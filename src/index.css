@@ -88,6 +88,8 @@
 :root[data-theme='sepia'] :is(.djvu-page, .slide-list img, .flipbook.tinted canvas) { filter: sepia(0.35) brightness(0.97); }
 :root[data-theme='dark'] :is(.djvu-page, .slide-list img, .flipbook.tinted canvas) { filter: brightness(0.78); }
 
+:root[data-theme='dark'] .invert-scans :is(.djvu-page, .flipbook.tinted canvas) { filter: invert(1) hue-rotate(180deg); }
+
 /* Pages made of real text and shapes (Word, RTF, ODT, .doc, .ppt): in dark the page is inverted to light-on-dark
    and every picture inside it is inverted back, which returns it to its real colours. */
 :root[data-theme='sepia'] :is(.office-host section.docx, .office-host .sheet, .ppt-host) { filter: sepia(0.35) brightness(0.97); }
@@ -166,7 +168,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .pdf-container { position: absolute; inset: 0; overflow: auto; }
 .book-host { position: absolute; inset: 0; overflow: hidden; background: var(--panel); }
 .curl-book { padding: 12px; }
-.curl-book > div { width: auto; max-height: none; }
+.curl-book > div { width: 100%; max-height: none; }
 /* A paper page of a text book: the chapter set in page-wide columns, one column showing (see CurlBook). */
 .curl-page { overflow: hidden; background: var(--paper-bg); color: var(--text); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06); }
 .curl-page .clip { position: absolute; inset: 40px 34px; overflow: hidden; }

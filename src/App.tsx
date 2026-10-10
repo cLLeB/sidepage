@@ -12,7 +12,6 @@ import { setTheme, THEMES, useTheme, type Theme } from './lib/theme'
 const PdfView = lazy(() => import('./viewers/PdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
 const OfficeView = lazy(() => import('./viewers/OfficeView'))
-const SlidesView = lazy(() => import('./viewers/SlidesView'))
 const DjvuView = lazy(() => import('./viewers/DjvuView'))
 const PptView = lazy(() => import('./viewers/PptView'))
 const TextView = lazy(() => import('./viewers/TextView'))
@@ -36,8 +35,7 @@ function viewerFor(name: string) {
   if (ext === 'pdf') return PdfView
   if (['epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt'].includes(ext)) return BookView
   if (['docx', 'doc', 'rtf', 'odt'].includes(ext)) return OfficeView
-  if (ext === 'ppt' || ext === 'pps') return PptView
-  if (ext === 'pptx') return SlidesView
+  if (['pptx', 'ppt', 'pps'].includes(ext)) return PptView
   if (ext === 'djvu' || ext === 'djv') return DjvuView
   if (['txt', 'md', 'markdown', 'html', 'htm'].includes(ext)) return TextView
   return null

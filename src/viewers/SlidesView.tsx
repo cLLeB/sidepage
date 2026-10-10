@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import FlipBook from './FlipBook'
-import { prefersFlip, rememberFlip } from '../lib/platform'
 
 const WIDTH = 1280
 const HEIGHT = 720
 
-// PowerPoint decks, drawn slide by slide with PptxViewJS.
-export default function SlidesView({ file }: { file: File }) {
+// A PowerPoint deck as a book to leaf through: each slide drawn as a picture by PptxViewJS and turned by
+// StPageFlip. The everyday view of a deck, with real text, is PptView.
+export default function SlidesView({ file, onLeave }: { file: File; onLeave(): void }) {
   const [slides, setSlides] = useState<string[] | null>(null)
-  const [flip, setFlip] = useState(prefersFlip)
   const [current, setCurrent] = useState(0)
   const [error, setError] = useState('')
 
@@ -40,22 +39,19 @@ export default function SlidesView({ file }: { file: File }) {
     }
   }, [file])
 
-  if (error) return <div className="viewer-message">Could not open these slides: {error}</div>
-  if (!slides) return <div className="viewer-message">Preparing slides…</div>
-
   return (
     <div className="viewer">
       <div className="viewer-bar">
-        <span className="viewer-pos">{flip ? `${current + 1} / ${slides.length}` : `${slides.length} slides`}</span>
+        <span className="viewer-pos">{slides ? `${current + 1} / ${slides.length}` : '…'}</span>
         <span className="spacer" />
-        <button onClick={() => { rememberFlip(!flip); setFlip(!flip) }} className={flip ? 'on' : ''}>Flip</button>
+        <button onClick={onLeave} className="on" title="Back to the slides with selectable text">Flip</button>
       </div>
       <div className="viewer-body">
-        {flip
-          ? <FlipBook tinted pages={slides} ratio={HEIGHT / WIDTH} startPage={current} onFlip={setCurrent} />
-          : <div className="slide-list">
-              {slides.map((url, i) => <img key={url} src={url} alt={`Slide ${i + 1}`} onClick={() => setCurrent(i)} />)}
-            </div>}
+        {error
+          ? <div className="viewer-message">Could not turn these slides into pages: {error}</div>
+          : slides
+            ? <FlipBook tinted pages={slides} ratio={HEIGHT / WIDTH} startPage={current} onFlip={setCurrent} />
+            : <div className="viewer-message">Preparing slides…</div>}
       </div>
     </div>
   )

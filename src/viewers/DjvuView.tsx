@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import FlipBook from './FlipBook'
 import { prefersFlip, rememberFlip } from '../lib/platform'
+import { useTheme } from '../lib/theme'
 
 type Size = { width: number; height: number }
 type Task<T> = { run(): Promise<T> }
@@ -43,6 +44,14 @@ export default function DjvuView({ file }: { file: File }) {
   const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
   const [flipping, setFlipping] = useState(prefersFlip)
   const [error, setError] = useState('')
+  // A scan is one picture: the app cannot tell its text from its photographs. In the dark theme the reader
+  // decides: leave it dimmed, or turn the whole page light-on-dark (which turns photographs too).
+  const theme = useTheme()
+  const [inverted, setInverted] = useState(() => localStorage.getItem('sidepage:invert-scans') === '1')
+  const toggleInverted = () => {
+    localStorage.setItem('sidepage:invert-scans', inverted ? '0' : '1')
+    setInverted(!inverted)
+  }
   const placeKey = `sidepage:place:${file.name}`
 
   useEffect(() => {
@@ -114,10 +123,11 @@ export default function DjvuView({ file }: { file: File }) {
   if (!sizes) return <div className="viewer-message">Opening…</div>
 
   return (
-    <div className="viewer">
+    <div className={inverted ? 'viewer invert-scans' : 'viewer'}>
       <div className="viewer-bar">
         <span className="viewer-pos">{page} / {sizes.length}</span>
         <span className="spacer" />
+        {theme === 'dark' && <button onClick={toggleInverted} className={inverted ? 'on' : ''} title="Show scanned pages light-on-dark. Photographs in them are inverted too.">Dark pages</button>}
         <button onClick={() => { rememberFlip(!flipping); setFlipping(!flipping) }} className={flipping ? 'on' : ''}>Flip</button>
       </div>
       <div className="viewer-body">

@@ -104,9 +104,12 @@ export default function CurlBook({ sections, start, onPlace, ref }: {
     const el = host.current!
     let timer: ReturnType<typeof setTimeout>
     const measure = () => {
-      const spread = el.clientWidth >= 720
-      const height = Math.max(240, el.clientHeight - 24)
-      const width = Math.floor(Math.max(200, Math.min(spread ? (el.clientWidth - 24) / 2 : el.clientWidth - 24, height * 0.78)))
+      // The room actually available for pages: the panel less its padding.
+      const box = getComputedStyle(el)
+      const room = el.clientWidth - parseFloat(box.paddingLeft) - parseFloat(box.paddingRight)
+      const spread = room >= 700
+      const height = Math.max(240, el.clientHeight - parseFloat(box.paddingTop) - parseFloat(box.paddingBottom))
+      const width = Math.floor(Math.max(200, Math.min(spread ? room / 2 : room, height * 0.78)))
       setSize(current => (current?.width === width && current.height === height ? current : { width, height, spread }))
     }
     const observer = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(measure, 200) })
@@ -123,6 +126,7 @@ export default function CurlBook({ sections, start, onPlace, ref }: {
     let idle = true
     let stale = false
     let quiet = false
+    let waiting = 0
     const chapters = new Map<number, Chapter>()
     const loading = new Set<number>()
     let pages: Leaf[] = []
@@ -153,8 +157,6 @@ export default function CurlBook({ sections, start, onPlace, ref }: {
         probe.remove()
         if (cancelled) return
         chapter.leaves = Array.from({ length: chapter.count }, (_, column) => ({ chapter, column, el: sheet(index) }))
-        // With two pages showing, every chapter fills whole sheets, so chapters always start on the same side.
-        if (size.spread && chapter.count % 2) chapter.leaves.push({ chapter, column: null, el: sheet(index) })
         chapters.set(index, chapter)
         stale = true
       } finally {
@@ -177,7 +179,11 @@ export default function CurlBook({ sections, start, onPlace, ref }: {
         chapter.style.remove()
         chapters.delete(index)
       }
+      const side = pages.indexOf(open) % 2
       pages = [...chapters.keys()].sort((a, b) => a - b).flatMap(index => chapters.get(index)!.leaves)
+      // With two pages showing, the open page must stay on the side it is on. If the chapters now in front of it
+      // would push it across, one blank sheet goes at the very front of the book, out of the reader's way.
+      if (size.spread && pages.indexOf(open) % 2 !== side) pages.unshift({ chapter: pages[0].chapter, column: null, el: sheet(pages[0].chapter.index) })
       tend()
       // Putting the book back on the open page is not a page turn, so it is not reported as one.
       quiet = true
@@ -211,14 +217,20 @@ export default function CurlBook({ sections, start, onPlace, ref }: {
         disableFlipByClick: true,
       })
       flip.loadFromHTML(pages.map(leaf => leaf.el))
-      flipRef.current = flip
+      // Turns asked for while a page is still in the air are kept and made one after another.
+      const turn = (by: 1 | -1) => {
+        if (!idle) return void (waiting += by)
+        if (by > 0) flip!.flipNext()
+        else flip!.flipPrev()
+      }
+      flipRef.current = { flipNext: () => turn(1), flipPrev: () => turn(-1) }
       flip.on('flip', (e: { data: number }) => {
         const leaf = pages[e.data]
         if (!leaf || quiet) return
-        // A blank sheet at a chapter's end counts as that chapter's last page.
-        open = leaf.column === null ? leaf.chapter.leaves[leaf.chapter.count - 1] : leaf
-        const { chapter, column } = open
-        latest.current = { index: chapter.index, fraction: chapter.count > 1 ? column! / (chapter.count - 1) : 0 }
+        // The blank sheet at the front of the book counts as the page after it.
+        const real = leaf.column === null ? pages[e.data + 1] ?? leaf : leaf
+        const { chapter, column } = real
+        latest.current = { index: chapter.index, fraction: chapter.count > 1 ? (column ?? 0) / (chapter.count - 1) : 0 }
         report.current(latest.current)
         open = leaf
         // Entering another chapter means the set of chapters to keep has moved on.
@@ -229,6 +241,10 @@ export default function CurlBook({ sections, start, onPlace, ref }: {
       flip.on('changeState', (e: { data: string }) => {
         idle = e.data === 'read'
         settle()
+        if (!idle || !waiting) return
+        const by = waiting > 0 ? 1 : -1
+        waiting -= by
+        setTimeout(() => turn(by))
       })
       // Nothing is reported until a page is turned: opening the book must not move the reader's saved place.
       neighbours()

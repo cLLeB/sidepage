@@ -1,20 +1,25 @@
 // Runs a snippet of JavaScript inside the app in a headless Microsoft Edge and prints what it returns.
 //   node scripts/check-in-edge.mjs <url> <file.js> [width] [height] [screenshot.png]
 // The snippet is the body of an async function. Useful when the app must really render (page turns, PDF pages).
-import { execSync, spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const [url, file, width = '1280', height = '800', shot] = process.argv.slice(2)
 const port = 9334
+quit()
 const edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', [
   '--headless=new', `--remote-debugging-port=${port}`, `--window-size=${width},${height}`,
   `--user-data-dir=${mkdtempSync(join(tmpdir(), 'sidepage-edge-'))}`, '--no-first-run', url,
 ], { stdio: 'ignore' })
 const sleep = ms => new Promise(r => setTimeout(r, ms))
-// Edge runs as a tree of processes; all of it has to go, or the next run would find this run's leftovers.
-const quit = () => { try { execSync(`taskkill /PID ${edge.pid} /T /F`, { stdio: 'ignore' }) } catch { /* already gone */ } }
+// Edge hands its work to other processes, so the one started here is not the one to stop: every Edge that
+// was started on this debugging port is. Otherwise the next run would attach to this run's leftovers.
+function quit() {
+  const stop = "Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | Where-Object { $_.CommandLine -like '*remote-debugging-port=" + port + "*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+  try { execFileSync('powershell', ['-NoProfile', '-Command', stop], { stdio: 'ignore' }) } catch { /* already gone */ }
+}
 
 let target
 for (let i = 0; i < 40 && !target; i++) {
