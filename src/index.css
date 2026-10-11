@@ -121,7 +121,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .app {
   display: flex; flex-direction: column; height: 100%;
   /* Keep clear of the status bar, gesture bar, notch and rounded corners on phones and tablets. */
-  padding: max(env(safe-area-inset-top), var(--safe-top, 0px)) env(safe-area-inset-right) max(env(safe-area-inset-bottom), var(--safe-bottom, 0px)) env(safe-area-inset-left);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   background: var(--panel);
 }
 .image-host { display: grid; place-items: center; padding: 12px; background: var(--bg); }

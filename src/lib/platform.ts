@@ -24,7 +24,10 @@ export async function pickFile(): Promise<File | null> {
     if (!path) return null
     const { readFile } = await import('@tauri-apps/plugin-fs')
     const bytes = await readFile(path)
-    return new File([bytes], path.split(/[\\/]/).pop() ?? 'book')
+    // On Android the "path" is an internal reference with no name in it. The app's Android side knows the real
+    // name (see src-tauri/android/MainActivity.kt); failing that, openFile recognises the file by its contents.
+    const android = (window as unknown as { SidepageAndroid?: { nameOf(reference: string): string } }).SidepageAndroid
+    return new File([bytes], android?.nameOf(path) || path.split(/[\/]/).pop() || 'book')
   }
   return new Promise(resolve => {
     const input = document.createElement('input')
