@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { TextQuote } from 'lucide-react'
+import { Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
 import { baseName, extensionOf, sendQuote } from '../lib/platform'
 
@@ -33,7 +35,7 @@ export default function TextView({ file }: { file: File }) {
     <div className="viewer">
       <div className="viewer-bar">
         <span className="spacer" />
-        {!isHtml && <button onClick={quote} title="Copy the selected text into your notes">Quote</button>}
+        {!isHtml && <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />}
       </div>
       {isHtml
         ? <iframe className="viewer-body html-frame" sandbox="" srcDoc={text ?? ''} title={file.name} />

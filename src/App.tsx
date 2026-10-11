@@ -1,6 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react'
 import { ErrorBoundary } from 'react-error-boundary'
+import {
+  Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
+  Share2, Sun, Workflow, X,
+} from 'lucide-react'
+import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
   baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, launchFile, notesFolder, onFindInNotes, onGoToPlace, onOpenBookByName,
@@ -47,6 +52,10 @@ function viewerFor(name: string) {
 // Side by side on wide screens, stacked on a tablet held upright, one tab strip on a phone.
 const LAYOUTS = { auto: 'Automatic', side: 'Side by side', stacked: 'Book above notes', tabs: 'One at a time' } as const
 type Layout = keyof typeof LAYOUTS
+const LAYOUT_ICONS = { auto: LayoutDashboard, side: Columns2, stacked: Rows2, tabs: PanelTop } as const
+const THEME_ICONS = { light: Sun, sepia: Coffee, dark: Moon } as const
+// The choice after this one, going round.
+const next = <T,>(all: readonly T[], current: T) => all[(all.indexOf(current) + 1) % all.length]
 const chosenLayout = () => (localStorage.getItem('sidepage:layout') as Layout) || 'auto'
 // Where notes go relative to the book. "Automatic" follows the screen: beside the book when it is wider than
 // tall, below it when held upright, and in the same tab strip on a phone.
@@ -158,7 +167,7 @@ export default function App() {
     dock.addPanel({
       id,
       component: 'note',
-      title: `${NOTE_KINDS[kind].title} — ${book}`,
+      title: `${NOTE_KINDS[kind].title} · ${book}`,
       params: { kind, notebook: book },
       position: sibling
         ? { referencePanel: sibling.id, direction: 'within' }
@@ -289,51 +298,61 @@ export default function App() {
       }}
     >
       <header className="topbar">
-        <strong className="brand">Sidepage</strong>
-        <button onClick={browse}>Open book</button>
-        <span className="divider" />
-        {(Object.keys(NOTE_KINDS) as NoteKind[]).map(kind => (
-          <button key={kind} onClick={() => openNote(kind, notebook)}>{NOTE_KINDS[kind].title}</button>
-        ))}
-        <span className="spacer" />
-        <button className={more ? 'more-toggle on' : 'more-toggle'} onClick={() => setMore(!more)} aria-expanded={more} title="More">More</button>
-        <div className={more ? 'more open' : 'more'} onClick={e => { if ((e.target as HTMLElement).closest('button')) setMore(false) }}>
-        <button onClick={openGraph} title="How your books' notes link to each other">Graph</button>
-        <span className="divider" />
-        <button onClick={() => void saveWhole()} disabled={empty} title="Save the book and all its notes together as one .sidepage file">Save as one file</button>
-        <span className="spacer" />
-        {canPickNotesFolder && (
-          <button onClick={() => void chooseNotesFolder()} title="Where your notes are saved as files">
-            {!folder.name ? 'Choose notes folder' : folder.locked ? `Reconnect notes folder: ${folder.name}` : `Notes folder: ${folder.name}`}
-          </button>
-        )}
-        <label className="paper-picker">
-          Layout
-          <select value={layout} onChange={e => setLayout(e.target.value as Layout)}>
-            {(Object.keys(LAYOUTS) as Layout[]).map(key => <option key={key} value={key}>{LAYOUTS[key]}</option>)}
-          </select>
-        </label>
-        <label className="paper-picker">
-          Theme
-          <select value={theme} onChange={e => setTheme(e.target.value as Theme)}>
-            {THEMES.map(t => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}
-          </select>
-        </label>
-        <label className="paper-picker">
-          Paper
-          <select value={paper} onChange={e => setPaper(e.target.value as Paper)}>
-            {PAPERS.map(p => <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>)}
-          </select>
-        </label>
+        <img className="brand-mark" src="./favicon.svg" alt="" />
+        <strong className="brand-name">Sidepage</strong>
+        <Tool icon={FolderOpen} label="Open" hint="Open a book, document, deck or picture" onClick={() => void browse()} />
+        <div className="segment" role="group" aria-label="Write beside the book">
+          <Tool icon={NotebookPen} label="Notes" hint="Written notes" onClick={() => openNote('written', notebook)} />
+          <Tool icon={PenLine} label="Canvas" hint="Draw and handwrite" onClick={() => openNote('canvas', notebook)} />
+          <Tool icon={Workflow} label="Mind map" onClick={() => openNote('mindmap', notebook)} />
+          <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
         </div>
+        <span className="spacer" />
+        <Tool quiet icon={LAYOUT_ICONS[layout]} label={`Layout: ${LAYOUTS[layout]}`} hint={`Layout: ${LAYOUTS[layout]}. Tap to change.`} onClick={() => setLayout(next(Object.keys(LAYOUTS) as Layout[], layout))} />
+        <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${theme}`} hint={`Theme: ${theme}. Tap to change.`} onClick={() => setTheme(next(THEMES, theme))} />
+        <Tool quiet icon={Ellipsis} label="More" on={more} onClick={() => setMore(!more)} />
+        {more && <>
+          <div className="menu-backdrop" onClick={() => setMore(false)} />
+          <div className="menu" onClick={e => { if ((e.target as HTMLElement).closest('button')) setMore(false) }}>
+            <Tool icon={Package} label="Save as one file" hint="Save the book and all its notes together as one .sidepage file" disabled={empty} onClick={() => void saveWhole()} />
+            {canPickNotesFolder && (
+              <Tool
+                icon={FolderCog}
+                label={!folder.name ? 'Choose notes folder' : folder.locked ? `Reconnect notes folder: ${folder.name}` : `Notes folder: ${folder.name}`}
+                hint="Where your notes are saved as files"
+                onClick={() => void chooseNotesFolder()}
+              />
+            )}
+            <label className="menu-row">
+              Paper
+              <select value={paper} onChange={e => setPaper(e.target.value as Paper)}>
+                {PAPERS.map(p => <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>)}
+              </select>
+            </label>
+            <label className="menu-row">
+              Layout
+              <select value={layout} onChange={e => setLayout(e.target.value as Layout)}>
+                {(Object.keys(LAYOUTS) as Layout[]).map(key => <option key={key} value={key}>{LAYOUTS[key]}</option>)}
+              </select>
+            </label>
+            <label className="menu-row">
+              Theme
+              <select value={theme} onChange={e => setTheme(e.target.value as Theme)}>
+                {THEMES.map(t => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}
+              </select>
+            </label>
+          </div>
+        </>}
       </header>
       <main className="workspace">
         <DockviewReact components={components} onReady={onReady} theme={themeLight} defaultRenderer="always" />
         {empty && (
           <div className="welcome">
+            <img className="welcome-mark" src="./favicon.svg" alt="" />
             <h1>Read on one side, think on the other.</h1>
-            <p>Open a book, a document or a slide deck, or drop one here. Your notes open beside it.</p>
-            <button className="primary" onClick={browse}>Open book</button>
+            <p>Open a book, a document, a slide deck or a picture. Your notes open beside it.</p>
+            <button className="primary" onClick={() => void browse()}><FolderOpen size={18} aria-hidden /> Open a book</button>
+            {books.length > 0 && <h2 className="shelf-title">Recent</h2>}
             {books.length > 0 && (
               <ul className="shelf">
                 {books.slice(0, 12).map(book => (
@@ -342,7 +361,7 @@ export default function App() {
                       <span className="shelf-kind">{extensionOf(book.name)}</span>
                       <span className="shelf-name">{baseName(book.name)}</span>
                     </button>
-                    <button className="shelf-remove" title="Remove from this list" onClick={() => void unshelve(book.name).then(shelf).then(setBooks)}>×</button>
+                    <button className="shelf-remove" title="Remove from this list" aria-label="Remove from this list" onClick={() => void unshelve(book.name).then(shelf).then(setBooks)}><X size={15} aria-hidden /></button>
                   </li>
                 ))}
               </ul>

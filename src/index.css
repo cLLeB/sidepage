@@ -321,26 +321,6 @@ button:disabled { opacity: 0.45; cursor: default; }
 .shelf-remove { color: var(--muted); padding: 0 10px; }
 
 /* Phones, tablets and other touch screens */
-.topbar { position: relative; flex-wrap: wrap; row-gap: 6px; }
-.topbar > *, .more > * { flex-shrink: 0; white-space: nowrap; }
-/* Wide screens: the extra controls sit in the bar itself. */
-.more { display: contents; }
-.more-toggle { display: none; }
-.topbar > .spacer:first-of-type { display: none; }
-/* Narrow screens: they fold into a menu under "More". */
-@media (max-width: 1150px) {
-  .more-toggle { display: inline-block; }
-  .topbar > .spacer:first-of-type { display: block; }
-  .more { display: none; }
-  .more.open {
-    display: flex; flex-direction: column; align-items: stretch; gap: 6px;
-    position: absolute; top: calc(100% + 4px); right: 8px; z-index: 30;
-    padding: 8px; min-width: 220px;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.22);
-  }
-  .more.open .divider, .more.open .spacer { display: none; }
-  .more.open .paper-picker { justify-content: space-between; }
-}
 /* Fingers and styluses need bigger targets than a mouse pointer. */
 @media (pointer: coarse) {
   button, select { min-height: 44px; padding: 8px 14px; }
@@ -356,3 +336,129 @@ button:disabled { opacity: 0.45; cursor: default; }
 
 .mindmap-note { background: var(--paper-bg); }
 .mindmap-note .map-container { background: transparent; }
+
+/* ─────────────────────────────────────────────────────────────────────────────────────────────────────
+   Look and feel. Everything above lays the app out; this part is how it is dressed: quiet controls with an
+   icon and a name, one accent, soft corners, and room for a finger.
+   ───────────────────────────────────────────────────────────────────────────────────────────────────── */
+:root {
+  --radius: 10px;
+  --accent-soft: color-mix(in srgb, var(--accent) 13%, transparent);
+  --accent-ring: color-mix(in srgb, var(--accent) 32%, transparent);
+  --shadow: 0 12px 32px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.08);
+  font-size: 14.5px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Controls are quiet until touched: no boxes round every word. */
+button, select {
+  border-radius: var(--radius);
+  border-color: transparent;
+  background: transparent;
+  padding: 7px 12px;
+  font-weight: 500;
+  transition: background-color 0.12s, box-shadow 0.12s;
+}
+select { border-color: var(--border); background: var(--panel); }
+button:hover:not(:disabled) { background: var(--hover); }
+button:active:not(:disabled) { background: var(--border); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 1px; }
+button.on { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent-ring); }
+button.primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; border-radius: 12px; font-weight: 600;
+  background: var(--accent); color: var(--on-accent);
+}
+button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.1); }
+
+.tool { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px; line-height: 1; }
+.tool svg { flex: none; }
+.tool.quiet .tool-label { display: none; }
+
+/* The top bar */
+.topbar {
+  container: topbar / inline-size;
+  position: relative;
+  min-height: 52px; padding: 6px 12px; gap: 4px;
+  flex-wrap: nowrap;
+}
+.topbar > * { flex-shrink: 0; white-space: nowrap; }
+.brand-mark { width: 28px; height: 28px; border-radius: 8px; }
+.brand-name { margin: 0 10px 0 6px; font-size: 15px; letter-spacing: 0.1px; }
+.segment { display: inline-flex; gap: 2px; padding: 3px; margin-left: 6px; background: var(--bg); border-radius: 12px; }
+.segment .tool { padding: 6px 10px; border-radius: 9px; }
+.segment .tool:hover:not(:disabled) { background: var(--panel); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+@container topbar (max-width: 780px) {
+  .tool-label, .brand-name { display: none; }
+  .segment { margin-left: 2px; }
+}
+@container topbar (max-width: 430px) {
+  .brand-mark { display: none; }
+}
+
+/* The menu behind "More" */
+.menu-backdrop { position: fixed; inset: 0; z-index: 39; }
+.menu {
+  position: absolute; top: calc(100% + 6px); right: 10px; z-index: 40;
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 260px; padding: 8px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+}
+.menu .tool { justify-content: flex-start; width: 100%; padding: 10px; }
+.menu .tool-label { display: inline; }
+.menu-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 4px 4px 10px; color: var(--muted); }
+
+/* A reader's or a note's own bar */
+.viewer-bar, .page-bar, .note-bar { container: bar / inline-size; min-height: 46px; padding: 5px 8px; gap: 2px; }
+.viewer-bar select, .note-bar select { margin: 0 4px; }
+@container bar (max-width: 640px) {
+  .tool-label { display: none; }
+}
+.viewer-pos { font-size: 12.5px; padding: 4px 10px; background: var(--bg); border-radius: 999px; color: var(--muted); }
+.search-box .viewer-pos { background: transparent; padding: 0 4px; }
+.search-box input { border-radius: var(--radius); padding: 7px 10px; }
+
+/* Tabs: the open one reads as a tab, the rest as plain names. */
+.dockview-theme-light {
+  --dv-tabs-and-actions-container-height: 40px;
+  --dv-tabs-and-actions-container-font-size: 13px;
+  --dv-tab-divider-color: transparent;
+}
+.dv-tab { max-width: 240px; margin-top: 5px; border-radius: 10px 10px 0 0; }
+.dv-tab .dv-default-tab { padding: 0 6px 0 12px; gap: 4px; }
+.dv-default-tab-content { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dv-default-tab-action { border-radius: 6px; opacity: 0.5; }
+.dv-tab.dv-active-tab { font-weight: 600; }
+.dv-tab.dv-active-tab .dv-default-tab-action { opacity: 0.8; }
+
+/* The divider between the book and the notes: a handle to take hold of. */
+.dv-sash { position: relative; z-index: 5; }
+.dv-sash::before { content: ''; position: absolute; inset: -7px; }
+.dv-sash::after {
+  content: ''; position: absolute; inset: 0; margin: auto;
+  width: 4px; height: 44px; border-radius: 4px; background: var(--border);
+  transition: background-color 0.12s;
+}
+.dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash::after { width: 44px; height: 4px; }
+.dv-sash:hover::after, .dv-sash:active::after { background: var(--accent); }
+
+/* Home */
+.welcome { gap: 4px; }
+.welcome-mark { width: 72px; height: 72px; border-radius: 18px; box-shadow: var(--shadow); margin-bottom: 18px; }
+.welcome h1 { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; }
+.welcome p { max-width: 46ch; line-height: 1.5; }
+.shelf-title { width: min(760px, 100%); margin: 28px 0 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-align: left; }
+.shelf { margin-top: 10px; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.shelf li { border-radius: 14px; transition: box-shadow 0.15s, transform 0.15s; }
+.shelf li:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.shelf-book { padding: 14px; gap: 10px; }
+.shelf-kind { padding: 3px 7px; border-radius: 6px; letter-spacing: 0.04em; color: var(--on-accent); }
+.shelf-remove { display: grid; place-items: center; }
+
+/* Fingers and styluses: every control at least a fingertip across, text a touch larger. */
+@media (pointer: coarse) {
+  :root { font-size: 15.5px; }
+  .tool { min-width: 44px; min-height: 44px; }
+  .segment .tool { min-height: 40px; }
+  .dv-tab .dv-default-tab-action { padding: 6px; }
+}

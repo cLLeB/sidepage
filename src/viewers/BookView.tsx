@@ -3,6 +3,8 @@ import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
 import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
+import { BookOpen, ChevronLeft, ChevronRight, ScrollText, TextQuote } from 'lucide-react'
+import { Tool } from '../ui'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
   baseName, extensionOf, findInNotes, loadNote, onGoToPlace, prefersFlip, rememberFlip, saveNote, sendQuote,
@@ -224,8 +226,8 @@ export default function BookView({ file }: { file: File }) {
   return (
     <div className="viewer">
       <div className="viewer-bar">
-        <button onClick={() => (turning ? curlRef.current?.previous() : viewRef.current?.goLeft())} title="Previous page">‹</button>
-        <button onClick={() => (turning ? curlRef.current?.next() : viewRef.current?.goRight())} title="Next page">›</button>
+        <Tool quiet icon={ChevronLeft} label="Previous page" onClick={() => (turning ? curlRef.current?.previous() : viewRef.current?.goLeft())} />
+        <Tool quiet icon={ChevronRight} label="Next page" onClick={() => (turning ? curlRef.current?.next() : viewRef.current?.goRight())} />
         {toc.length > 0 && (
           <select value="" onChange={e => viewRef.current?.goTo(e.target.value)} title="Contents">
             <option value="" disabled>{where.label || 'Contents'}</option>
@@ -237,9 +239,9 @@ export default function BookView({ file }: { file: File }) {
         <span className="viewer-pos">{Math.round(where.fraction * 100)}%</span>
         <span className="spacer" />
         <SearchBox onSearch={query => void search(query)} onClear={clearSearch} status={searching} hits={hits} />
-        <button onClick={() => void quote()} title="Copy the selected text into your notes">Quote</button>
-        {!turning && <button onClick={() => setScrolled(s => !s)} className={scrolled ? 'on' : ''}>Scroll</button>}
-        {canCurl && <button onClick={toggleCurl} className={curl ? 'on' : ''} title="Turn pages like paper">Flip</button>}
+        <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={() => void quote()} />
+        {!turning && <Tool icon={ScrollText} label="Scroll" hint="Read as one long scroll" on={scrolled} onClick={() => setScrolled(s => !s)} />}
+        {canCurl && <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={curl} onClick={toggleCurl} />}
       </div>
       <div className="viewer-body">
         <div ref={host} className="book-host" style={{ visibility: turning ? 'hidden' : undefined }} />

@@ -1,7 +1,7 @@
 {
   "name": "sidepage",
   "private": true,
-  "version": "0.4.4",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -28,6 +28,7 @@
     "idb-keyval": "^6.3.0",
     "jszip": "^3.10.2",
     "libarchive.js": "^2.0.2",
+    "lucide-react": "^1.55.0",
     "mind-elixir": "^6.0.0-next.4",
     "odf-kit": "^0.14.4",
     "page-flip": "^2.0.7",

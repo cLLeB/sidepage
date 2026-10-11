@@ -16,6 +16,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | Drawing and handwriting canvas | [Excalidraw](https://github.com/excalidraw/excalidraw) | MIT |
 | Graph of linked notebooks | [force-graph](https://github.com/vasturiano/force-graph) | MIT |
 | Mind maps | [Mind Elixir](https://github.com/SSShooter/mind-elixir-core) | MIT |
+| Icons | [Lucide](https://github.com/lucide-icons/lucide) | ISC |
 | Side-by-side panels and tabs | [Dockview](https://github.com/mathuo/dockview) | MIT |
 | Comic archives (CBR, CB7, CBT) | [libarchive.js](https://github.com/nika-begiashvili/libarchivejs) | MIT |
 | Word 97–2003 (.doc) | [@file-viewer/doc](https://www.npmjs.com/package/@file-viewer/doc) | MIT |

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import FlipBook from './FlipBook'
+import { BookOpen, Moon } from 'lucide-react'
+import { Tool } from '../ui'
 import { prefersFlip, rememberFlip } from '../lib/platform'
 import { useTheme } from '../lib/theme'
 
@@ -127,8 +129,8 @@ export default function DjvuView({ file }: { file: File }) {
       <div className="viewer-bar">
         <span className="viewer-pos">{page} / {sizes.length}</span>
         <span className="spacer" />
-        {theme === 'dark' && <button onClick={toggleInverted} className={inverted ? 'on' : ''} title="Show scanned pages light-on-dark. Photographs in them are inverted too.">Dark pages</button>}
-        <button onClick={() => { rememberFlip(!flipping); setFlipping(!flipping) }} className={flipping ? 'on' : ''}>Flip</button>
+        {theme === 'dark' && <Tool icon={Moon} label="Dark pages" hint="Show scanned pages light-on-dark. Photographs in them are inverted too." on={inverted} onClick={toggleInverted} />}
+        <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={flipping} onClick={() => { rememberFlip(!flipping); setFlipping(!flipping) }} />
       </div>
       <div className="viewer-body">
         {flipping

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Excalidraw, exportToCanvas, serializeAsJSON } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 import FlipBook from '../viewers/FlipBook'
+import { BookOpen, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Tool } from '../ui'
 import { debounce, loadNote, saveNote } from '../lib/platform'
 import { useTheme } from '../lib/theme'
 
@@ -140,13 +142,13 @@ export default function CanvasNote({ notebook }: { notebook: string }) {
         ? <FlipBook pages={sheets} ratio={SHEET.height / SHEET.width} startPage={page - 1} onFlip={i => setPage(i + 1)} />
         : <CanvasPage key={`${notebook}/${page}`} notebook={notebook} file={fileOf(page)} latest={latest} />}
       <div className="page-bar">
-        {!sheets && <button onClick={() => void turnTo(page - 1)} disabled={page === 1} title="Previous page">‹</button>}
+        {!sheets && <Tool quiet icon={ChevronLeft} label="Previous page" disabled={page === 1} onClick={() => void turnTo(page - 1)} />}
         <span className="viewer-pos">Page {page} / {count}</span>
         {!sheets && <>
-          <button onClick={() => void turnTo(page + 1)} disabled={page === count} title="Next page">›</button>
-          <button onClick={() => void turnTo(count + 1)} title="Add a page at the end">+ Page</button>
+          <Tool quiet icon={ChevronRight} label="Next page" disabled={page === count} onClick={() => void turnTo(page + 1)} />
+          <Tool icon={Plus} label="Page" hint="Add a page at the end" onClick={() => void turnTo(count + 1)} />
         </>}
-        <button onClick={() => void toggleFlip()} className={sheets ? 'on' : ''} title="Leaf through the notebook">Flip</button>
+        <Tool icon={BookOpen} label="Flip" hint="Leaf through the notebook" on={!!sheets} onClick={() => void toggleFlip()} />
       </div>
     </div>
   )

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { TextQuote } from 'lucide-react'
+import { Tool } from '../ui'
 import { baseName, extensionOf, sendQuote } from '../lib/platform'
 
 // Word documents (docx-preview, and @file-viewer/doc for Word 97–2003), RTF (rtf.js) and OpenDocument text (odf-kit).
@@ -63,7 +65,7 @@ export default function OfficeView({ file }: { file: File }) {
     <div className="viewer">
       <div className="viewer-bar">
         <span className="spacer" />
-        <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
+        <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
       </div>
       <div ref={host} className="viewer-body office-host" />
     </div>

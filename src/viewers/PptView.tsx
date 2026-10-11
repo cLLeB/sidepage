@@ -3,6 +3,8 @@ import { ReactPptxViewer, setWasmSource, type PptxViewerController } from '@exte
 import wasmUrl from '@extend-ai/react-pptx/pptx_wasm_bg.wasm?url'
 import '@extend-ai/react-pptx/styles.css'
 import SlidesView from './SlidesView'
+import { BookOpen, TextQuote } from 'lucide-react'
+import { Tool } from '../ui'
 import { baseName, prefersFlip, rememberFlip, sendQuote } from '../lib/platform'
 
 setWasmSource(new URL(wasmUrl, document.baseURI).href)
@@ -36,8 +38,8 @@ export default function PptView({ file }: { file: File }) {
       <div className="viewer-bar">
         <span className="viewer-pos">{count ? `${slide + 1} / ${count}` : '…'}</span>
         <span className="spacer" />
-        <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
-        <button onClick={toggleFlip} className={flip ? 'on' : ''} title="Turn slides like pages">Flip</button>
+        <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
+        <Tool icon={BookOpen} label="Flip" hint="Turn slides like pages" on={flip} onClick={toggleFlip} />
       </div>
       <div className="viewer-body">
         {/* The scrolling view stays in place underneath: the page-turn view draws its slides through it. */}

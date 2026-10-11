@@ -5,6 +5,8 @@ import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
+import { BookOpen, ChevronLeft, ChevronRight, Download, Highlighter, Pencil, TextQuote } from 'lucide-react'
+import { Tool } from '../ui'
 import { pageFilter, useTheme } from '../lib/theme'
 import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendQuote } from '../lib/platform'
 
@@ -237,21 +239,19 @@ export default function PdfView({ file }: { file: File }) {
     <div className="viewer">
       <div className="viewer-bar">
         {mode === 'scroll' && <>
-          <button onClick={() => go(-1)} title="Previous page">‹</button>
-          <button onClick={() => go(1)} title="Next page">›</button>
+          <Tool quiet icon={ChevronLeft} label="Previous page" onClick={() => go(-1)} />
+          <Tool quiet icon={ChevronRight} label="Next page" onClick={() => go(1)} />
         </>}
         <span className="viewer-pos">{page} / {doc?.numPages ?? '…'}</span>
         <span className="spacer" />
         {mode === 'scroll' && <>
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
-          <button onClick={() => setTool(t => (t === 'highlight' ? 'none' : 'highlight'))} className={tool === 'highlight' ? 'on' : ''} title="Select text to highlight it">Highlight</button>
-          <button onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} className={tool === 'draw' ? 'on' : ''} title="Draw on the page">Draw</button>
-          <button onClick={() => void saveCopy()} title="Save a copy of the PDF with your highlights and drawings">Save copy</button>
-          <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
+          <Tool icon={Highlighter} label="Highlight" hint="Select text to highlight it" on={tool === 'highlight'} onClick={() => setTool(t => (t === 'highlight' ? 'none' : 'highlight'))} />
+          <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
+          <Tool icon={Download} label="Save copy" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
+          <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
         </>}
-        <button onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} className={mode === 'flip' ? 'on' : ''}>
-          Flip
-        </button>
+        <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={mode === 'flip'} onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} />
       </div>
       <div className="viewer-body">
         <div

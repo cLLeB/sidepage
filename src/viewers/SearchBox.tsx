@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { Search, X } from 'lucide-react'
+import { Tool } from '../ui'
 
 export type SearchHit = { key: string; label: ReactNode; pick(): void }
 
@@ -20,7 +22,7 @@ export default function SearchBox({ onSearch, onClear, status, hits }: {
     onClear()
   }
 
-  if (!open) return <button onClick={() => setOpen(true)} title="Search in this book">Search</button>
+  if (!open) return <Tool icon={Search} label="Search" hint="Search in this book" onClick={() => setOpen(true)} />
 
   return (
     <span className="search-box">
@@ -37,7 +39,7 @@ export default function SearchBox({ onSearch, onClear, status, hits }: {
         }}
       />
       {status && <span className="viewer-pos">{status}</span>}
-      <button onClick={close} title="Close search">×</button>
+      <Tool quiet icon={X} label="Close search" onClick={close} />
       {hits && searched && (
         <ul className="search-hits">
           {hits.length === 0 && <li className="search-none">{status || 'No matches'}</li>}
