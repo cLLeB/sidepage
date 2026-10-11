@@ -118,7 +118,16 @@ button.on { background: var(--accent); border-color: var(--accent); color: var(-
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); padding: 8px 18px; }
 .spacer { flex: 1; }
 
-.app { display: flex; flex-direction: column; height: 100%; }
+.app {
+  display: flex; flex-direction: column; height: 100%;
+  /* Keep clear of the status bar, gesture bar, notch and rounded corners on phones and tablets. */
+  padding: max(env(safe-area-inset-top), var(--safe-top, 0px)) env(safe-area-inset-right) max(env(safe-area-inset-bottom), var(--safe-bottom, 0px)) env(safe-area-inset-left);
+  background: var(--panel);
+}
+.image-host { display: grid; place-items: center; padding: 12px; background: var(--bg); }
+.image-host img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+.image-host.full { display: block; }
+.image-host.full img { max-width: none; max-height: none; cursor: zoom-out; }
 .topbar {
   display: flex;
   align-items: center;

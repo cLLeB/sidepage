@@ -1,10 +1,16 @@
 // Thin layer over the two places Sidepage runs: the Tauri desktop shell and a plain browser tab.
 
 export const isTauri = '__TAURI_INTERNALS__' in window
+export const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+// Desktop apps keep notes as files in the Documents folder. A phone or tablet gives an app no such folder to
+// write in freely, so there notes are kept in the app's own private storage.
+const usesComputerFiles = isTauri && !isMobile
+export const PICTURE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif']
 
 export const BOOK_EXTENSIONS = [
   'pdf', 'epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt', 'djvu', 'djv',
   'docx', 'doc', 'rtf', 'odt', 'pptx', 'ppt', 'pps', 'sidepage', 'txt', 'md', 'markdown', 'html', 'htm',
+  ...PICTURE_EXTENSIONS,
 ]
 
 export const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
@@ -13,7 +19,8 @@ export const baseName = (name: string) => name.replace(/\.[^.]+$/, '')
 export async function pickFile(): Promise<File | null> {
   if (isTauri) {
     const { open } = await import('@tauri-apps/plugin-dialog')
-    const path = await open({ multiple: false, filters: [{ name: 'Books and documents', extensions: BOOK_EXTENSIONS }] })
+    // A phone's picker sorts by kind of file, not by ending, and would grey books out: there every file is offered.
+    const path = await open({ multiple: false, filters: isMobile ? undefined : [{ name: 'Books and documents', extensions: BOOK_EXTENSIONS }] })
     if (!path) return null
     const { readFile } = await import('@tauri-apps/plugin-fs')
     const bytes = await readFile(path)
@@ -22,7 +29,8 @@ export async function pickFile(): Promise<File | null> {
   return new Promise(resolve => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = BOOK_EXTENSIONS.map(e => `.${e}`).join(',')
+    // Phones filter by kind of file, not by ending, and would grey books out; there every file is offered.
+    if (!isMobile) input.accept = BOOK_EXTENSIONS.map(e => `.${e}`).join(',')
     input.onchange = () => resolve(input.files?.[0] ?? null)
     input.oncancel = () => resolve(null)
     input.click()
@@ -110,7 +118,7 @@ export async function chooseNotesFolder() {
 }
 
 export async function loadNote(notebook: string, file: string): Promise<string | null> {
-  if (isTauri) {
+  if (usesComputerFiles) {
     const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs')
     const path = `${ROOT}/${safe(notebook)}/${file}`
     if (!(await exists(path, { baseDir: BaseDirectory.Document }))) return null
@@ -130,7 +138,7 @@ export async function loadNote(notebook: string, file: string): Promise<string |
 }
 
 export async function saveNote(notebook: string, file: string, text: string): Promise<void> {
-  if (isTauri) {
+  if (usesComputerFiles) {
     const { writeTextFile, mkdir, BaseDirectory } = await import('@tauri-apps/plugin-fs')
     await mkdir(`${ROOT}/${safe(notebook)}`, { baseDir: BaseDirectory.Document, recursive: true })
     return writeTextFile(`${ROOT}/${safe(notebook)}/${file}`, text, { baseDir: BaseDirectory.Document })

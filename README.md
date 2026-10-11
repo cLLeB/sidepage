@@ -27,7 +27,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 
 ## What it does
 
-- Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, DJVU, CBZ, CBR, CB7, CBT, DOCX, DOC, RTF, ODT, PPTX, PPT, TXT, Markdown and HTML.
+- Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, DJVU, CBZ, CBR, CB7, CBT, DOCX, DOC, RTF, ODT, PPTX, PPT, TXT, Markdown, HTML
+  and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
+  by its contents.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots.

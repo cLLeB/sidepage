@@ -4,9 +4,10 @@ import { ErrorBoundary } from 'react-error-boundary'
 import 'dockview-react/dist/styles/dockview.css'
 import {
   baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, launchFile, notesFolder, onFindInNotes, onGoToPlace, onOpenBookByName,
-  onNotesFolderChange, pickFile, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  onNotesFolderChange, pickFile, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
+import { withDetectedType } from './lib/sniff'
 import { setTheme, THEMES, useTheme, type Theme } from './lib/theme'
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
@@ -15,6 +16,7 @@ const OfficeView = lazy(() => import('./viewers/OfficeView'))
 const DjvuView = lazy(() => import('./viewers/DjvuView'))
 const PptView = lazy(() => import('./viewers/PptView'))
 const TextView = lazy(() => import('./viewers/TextView'))
+const ImageView = lazy(() => import('./viewers/ImageView'))
 const WrittenNote = lazy(() => import('./notes/WrittenNote'))
 const CanvasNote = lazy(() => import('./notes/CanvasNote'))
 const MindMapNote = lazy(() => import('./notes/MindMapNote'))
@@ -33,6 +35,7 @@ type NoteKind = keyof typeof NOTE_KINDS
 function viewerFor(name: string) {
   const ext = extensionOf(name)
   if (ext === 'pdf') return PdfView
+  if (PICTURE_EXTENSIONS.includes(ext)) return ImageView
   if (['epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt'].includes(ext)) return BookView
   if (['docx', 'doc', 'rtf', 'odt'].includes(ext)) return OfficeView
   if (['pptx', 'ppt', 'pps'].includes(ext)) return PptView
@@ -54,7 +57,7 @@ const Loading = () => <div className="viewer-message">Loading…</div>
 
 function DocPanel({ params }: IDockviewPanelProps<{ file: File }>) {
   const Viewer = viewerFor(params.file.name)
-  if (!Viewer) return <div className="viewer-message">Sidepage cannot open .{extensionOf(params.file.name)} files yet.</div>
+  if (!Viewer) return <div className="viewer-message">Sidepage does not recognise this file, so it cannot open it yet.</div>
   return <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><Viewer file={params.file} /></Suspense></ErrorBoundary>
 }
 
@@ -135,7 +138,9 @@ export default function App() {
   }, [openNote])
 
   // A .sidepage file is unpacked into its book and notes first; every opened book goes on the shelf.
-  const openFile = useCallback(async (file: File) => {
+  const openFile = useCallback(async (picked: File) => {
+    // A file whose name does not say what it is (usual on phones) is recognised by its contents.
+    const file = await withDetectedType(picked, ext => ext === BUNDLE_EXTENSION || !!viewerFor(`x.${ext}`))
     const book = extensionOf(file.name) === BUNDLE_EXTENSION ? await unpackBundle(file) : file
     openBook(book)
     await shelve(book)
@@ -284,7 +289,7 @@ export default function App() {
                 ))}
               </ul>
             )}
-            <p className="hint">PDF · EPUB · MOBI · AZW3 · FB2 · DJVU · CBZ · CBR · DOCX · RTF · ODT · PPTX · TXT · Markdown · HTML</p>
+            <p className="hint">PDF · EPUB · MOBI · AZW3 · FB2 · DJVU · CBZ · CBR · DOCX · DOC · RTF · ODT · PPTX · PPT · TXT · Markdown · HTML · pictures</p>
           </div>
         )}
       </main>
