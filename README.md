@@ -61,7 +61,7 @@ Every release at https://github.com/cLLeB/sidepage/releases carries a build for 
 | Windows | `Sidepage_x.y.z_x64-setup.exe` | Not code-signed: Windows asks you to confirm. |
 | macOS (Apple silicon and Intel) | `Sidepage_x.y.z_universal.dmg` | Not notarised: right-click the app and choose Open the first time. |
 | Linux | `.AppImage` and `.deb` | |
-| Android phones, tablets, Chromebooks | `Sidepage_x.y.z_android-test.apk` | A test build signed with Android's debug key; allow installing from your browser or file manager. |
+| Android phones, tablets, Chromebooks | `Sidepage_x.y.z_android-test.apk` | A test build signed with a throwaway key; allow installing from your browser or file manager. |
 | iPhone, iPad, and any browser | https://clleb.github.io/sidepage/ | Open it and choose Install or Add to Home Screen. Works offline afterwards. An installable iOS app file needs an Apple developer account to sign it, so iOS uses the web app. |
 
 On desktop, notes are saved under `Documents/Sidepage`. In the web app they are kept by the browser, or in a
