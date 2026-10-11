@@ -45,7 +45,18 @@ function viewerFor(name: string) {
 }
 
 // Side by side on wide screens, stacked on a tablet held upright, one tab strip on a phone.
-const besideBook = () => (window.innerWidth < 700 ? 'within' : window.innerWidth < window.innerHeight ? 'below' : 'right')
+const LAYOUTS = { auto: 'Automatic', side: 'Side by side', stacked: 'Book above notes', tabs: 'One at a time' } as const
+type Layout = keyof typeof LAYOUTS
+const chosenLayout = () => (localStorage.getItem('sidepage:layout') as Layout) || 'auto'
+// Where notes go relative to the book. "Automatic" follows the screen: beside the book when it is wider than
+// tall, below it when held upright, and in the same tab strip on a phone.
+const besideBook = () => {
+  const layout = chosenLayout()
+  if (layout === 'side') return 'right'
+  if (layout === 'stacked') return 'below'
+  if (layout === 'tabs') return 'within'
+  return window.innerWidth < 700 ? 'within' : window.innerWidth < window.innerHeight ? 'below' : 'right'
+}
 const besideNotes = () => (({ within: 'within', below: 'above', right: 'left' }) as const)[besideBook()]
 
 // One panel failing must not take the rest of the workspace with it.
@@ -83,6 +94,47 @@ export default function App() {
   const [books, setBooks] = useState<Shelved[]>([])
   // On narrow screens the less-used controls fold into a "More" menu, so nothing runs off the edge.
   const [more, setMore] = useState(false)
+  const [layout, setLayout] = useState<Layout>(chosenLayout)
+
+  // Put the open panels where the layout says: every book in one group, every note in another, and the notes
+  // beside the books, below them, or in the same tab strip. Turning a tablet does this by itself, and the Layout
+  // control does it on request, since tabs cannot be dragged about with a finger.
+  const arrange = useCallback(() => {
+    const dock = api.current
+    if (!dock) return
+    const books = dock.panels.filter(p => p.id.startsWith('doc:'))
+    const notes = dock.panels.filter(p => !p.id.startsWith('doc:'))
+    if (!books.length || !notes.length) return
+    const shown = [dock.activePanel, ...dock.groups.map(group => group.activePanel)]
+    const home = books[0].group
+    for (const book of books.slice(1)) if (book.group !== home) book.api.moveTo({ group: home, position: 'center' })
+    const where = besideBook()
+    notes[0].api.moveTo({ group: home, position: where === 'right' ? 'right' : where === 'below' ? 'bottom' : 'center' })
+    for (const note of notes.slice(1)) note.api.moveTo({ group: notes[0].group, position: 'center' })
+    // Keep in front what the reader was looking at.
+    for (const panel of shown.reverse()) panel?.api.setActive()
+  }, [])
+
+  const placed = useRef(besideBook())
+  useEffect(() => {
+    localStorage.setItem('sidepage:layout', layout)
+    placed.current = besideBook()
+    arrange()
+  }, [layout, arrange])
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
+    const onResize = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        if (besideBook() === placed.current) return
+        placed.current = besideBook()
+        arrange()
+      }, 250)
+    }
+    window.addEventListener('resize', onResize)
+    return () => { window.removeEventListener('resize', onResize); clearTimeout(timer) }
+  }, [arrange])
 
   useEffect(() => {
     void restoreNotesFolder()
@@ -255,6 +307,12 @@ export default function App() {
             {!folder.name ? 'Choose notes folder' : folder.locked ? `Reconnect notes folder: ${folder.name}` : `Notes folder: ${folder.name}`}
           </button>
         )}
+        <label className="paper-picker">
+          Layout
+          <select value={layout} onChange={e => setLayout(e.target.value as Layout)}>
+            {(Object.keys(LAYOUTS) as Layout[]).map(key => <option key={key} value={key}>{LAYOUTS[key]}</option>)}
+          </select>
+        </label>
         <label className="paper-picker">
           Theme
           <select value={theme} onChange={e => setTheme(e.target.value as Theme)}>

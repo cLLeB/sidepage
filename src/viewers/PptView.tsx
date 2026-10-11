@@ -41,7 +41,7 @@ export default function PptView({ file }: { file: File }) {
       </div>
       <div className="viewer-body">
         {/* The scrolling view stays in place underneath: the page-turn view draws its slides through it. */}
-        <div className="ppt-host" style={{ visibility: turning ? 'hidden' : 'visible' }}>
+        <div className="ppt-host" style={{ visibility: turning ? 'hidden' : undefined }}>
           <ReactPptxViewer
             source={file}
             defaultZoom="fit-width"

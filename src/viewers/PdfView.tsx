@@ -257,7 +257,7 @@ export default function PdfView({ file }: { file: File }) {
         <div
           ref={container}
           className="pdf-container"
-          style={{ visibility: mode === 'scroll' ? 'visible' : 'hidden' }}
+          style={{ visibility: mode === 'scroll' ? undefined : 'hidden' }}
           // A stylus touching the page means writing on it: switch to Draw without being asked.
           onPointerDownCapture={e => { if (e.pointerType === 'pen' && tool === 'none') setTool('draw') }}
         >

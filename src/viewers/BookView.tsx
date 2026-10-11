@@ -242,7 +242,7 @@ export default function BookView({ file }: { file: File }) {
         {canCurl && <button onClick={toggleCurl} className={curl ? 'on' : ''} title="Turn pages like paper">Flip</button>}
       </div>
       <div className="viewer-body">
-        <div ref={host} className="book-host" style={{ visibility: turning ? 'hidden' : 'visible' }} />
+        <div ref={host} className="book-host" style={{ visibility: turning ? 'hidden' : undefined }} />
         {turning && <CurlBook key={curlStart.key} ref={curlRef} sections={sections} start={curlStart.place} onPlace={onCurlPlace} />}
       </div>
     </div>
