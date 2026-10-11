@@ -75,3 +75,35 @@ export const useTextStyle = () => useSyncExternalStore(
   listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
   () => textStyle,
 )
+
+// ── Highlights: passages the reader marked, kept with the book's notes as highlights.json ──
+// A highlight in a book is addressed by its CFI. One in a PDF is addressed by its page, and also carries where
+// on the page it lies (`rects`, as fractions of the page) so it can be drawn there again.
+export type Highlight = { cfi: string; index: number; text: string; color?: string; note?: string; rects?: number[][] }
+type Kind = 'book' | 'pdf'
+const ofKind = (kind: Kind) => (mark: Highlight) => !!mark.rects === (kind === 'pdf')
+
+export async function loadHighlights(notebook: string, kind: Kind): Promise<Highlight[]> {
+  return (JSON.parse((await loadNote(notebook, 'highlights.json')) ?? '[]') as Highlight[]).filter(ofKind(kind))
+}
+
+// A book and a PDF of the same title share a notebook, so saving one kind leaves the other kind's in place.
+export async function saveHighlights(notebook: string, kind: Kind, marks: Highlight[]) {
+  const others = (JSON.parse((await loadNote(notebook, 'highlights.json')) ?? '[]') as Highlight[]).filter(mark => !ofKind(kind)(mark))
+  await saveNote(notebook, 'highlights.json', JSON.stringify([...others, ...marks]))
+}
+
+// ── Time spent reading, counted by the day, for the home screen ──
+const day = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+const minutesOn = (date: Date) => Number(localStorage.getItem(`sidepage:time:${day(date)}`)) || 0
+export const addReadingTime = (minutes: number) => localStorage.setItem(`sidepage:time:${day(new Date())}`, String(minutesOn(new Date()) + minutes))
+
+export function readingStats() {
+  const back = (days: number) => new Date(Date.now() - days * 86_400_000)
+  const week = Array.from({ length: 7 }, (_, i) => minutesOn(back(i))).reduce((sum, minutes) => sum + minutes, 0)
+  // Days in a row with some reading. Today not having started yet does not break a run.
+  let streak = 0
+  for (let i = minutesOn(back(0)) >= 1 ? 0 : 1; minutesOn(back(i)) >= 1; i++) streak++
+  return { today: Math.round(minutesOn(back(0))), week: Math.round(week), streak }
+}
+export const asTime = (minutes: number) => (minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`)

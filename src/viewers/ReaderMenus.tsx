@@ -1,6 +1,8 @@
 import { ALargeSmall, Bookmark, BookmarkCheck, BookmarkMinus, BookmarkPlus, Highlighter, List, X } from 'lucide-react'
 import { Menu, Tool } from '../ui'
-import { FONTS, setTextStyle, useTextStyle, type Bookmark as Mark, type useBookmarks } from '../lib/reading'
+import { FONTS, setTextStyle, useTextStyle, type Bookmark as Mark, type Highlight, type useBookmarks } from '../lib/reading'
+
+export type { Highlight }
 
 // The reader's bookmarks: mark the page that is open, or go to one marked earlier.
 export function BookmarksMenu({ marks, here, onGo }: {
@@ -31,7 +33,6 @@ export function BookmarksMenu({ marks, here, onGo }: {
 }
 
 export const HIGHLIGHT_COLOURS = { Yellow: '#ffd84d', Green: '#8fe3a0', Blue: '#8ecbff', Pink: '#ffa8c7' } as const
-export type Highlight = { cfi: string; index: number; text: string; color?: string; note?: string }
 
 // Highlight the selected passage in a colour, and look after the highlights already made: each can carry a
 // comment, which also becomes the back of its flashcard.
@@ -52,7 +53,7 @@ export function HighlightsMenu({ marks, onHighlight, onGo, onChange, onRemove }:
           ))}
         </span>
       </div>
-      {marks.length === 0 && <p className="menu-note">Select some text in the book, then pick a colour.</p>}
+      {marks.length === 0 && <p className="menu-note">Select some text, then pick a colour.</p>}
       <div className="menu-scroll">
         {marks.map(mark => (
           <div className="highlight" key={mark.cfi} style={{ borderColor: mark.color ?? HIGHLIGHT_COLOURS.Yellow }}>

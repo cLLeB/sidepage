@@ -1,4 +1,4 @@
-import { baseName, loadNote, saveNote } from './platform'
+import { baseName, loadNote, loadNoteFile, picturesIn, saveNote, saveNoteFile } from './platform'
 import { bookmarksFile } from './reading'
 
 // A .sidepage file is a zip holding one book and everything written beside it:
@@ -22,11 +22,19 @@ export async function packBundle(book: File): Promise<Uint8Array> {
   }
   for (const file of [...NOTE_FILES, bookmarksFile(book.name)]) await add(file)
   for (let page = 2; await add(`canvas-${page}.excalidraw`); page++);
+  const pictures: string[] = []
+  for (const name of picturesIn((await loadNote(notebook, 'notes.md')) ?? '')) {
+    const picture = await loadNoteFile(notebook, name)
+    if (!picture) continue
+    zip.file(`notes/${name}`, await picture.arrayBuffer())
+    pictures.push(name)
+  }
   zip.file(`book/${book.name}`, await book.arrayBuffer())
   zip.file('sidepage.json', JSON.stringify({
     format: 1,
     book: book.name,
     notes,
+    pictures,
     place: localStorage.getItem(`sidepage:place:${book.name}`),
     saved: new Date().toISOString(),
   }, null, 2))
@@ -37,10 +45,13 @@ export async function packBundle(book: File): Promise<Uint8Array> {
 export async function unpackBundle(bundle: File): Promise<File> {
   const { default: JSZip } = await import('jszip')
   const zip = await JSZip.loadAsync(await bundle.arrayBuffer())
-  const manifest = JSON.parse(await zip.file('sidepage.json')!.async('string')) as { book: string; notes: string[]; place?: string | null }
+  const manifest = JSON.parse(await zip.file('sidepage.json')!.async('string')) as { book: string; notes: string[]; pictures?: string[]; place?: string | null }
   const notebook = baseName(manifest.book)
   for (const file of manifest.notes) {
     if ((await loadNote(notebook, file)) === null) await saveNote(notebook, file, await zip.file(`notes/${file}`)!.async('string'))
+  }
+  for (const name of manifest.pictures ?? []) {
+    if (!(await loadNoteFile(notebook, name))) await saveNoteFile(notebook, name, await zip.file(`notes/${name}`)!.async('blob'))
   }
   const placeKey = `sidepage:place:${manifest.book}`
   if (manifest.place && !localStorage.getItem(placeKey)) localStorage.setItem(placeKey, manifest.place)

@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { Selection } from '@milkdown/kit/prose/state'
+import { imageBlockSchema } from '@milkdown/kit/component/image-block'
 import { insert } from '@milkdown/kit/utils'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 import {
-  baseName, debounce, goToPlace, loadNote, noteLink, noteLinks, onFindInNotes, onQuote, openBookByName, parseNoteLink,
+  baseName, debounce, goToPlace, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
   parsePlaceLink, placeLink, saveNote, shelf,
 } from '../lib/platform'
 
@@ -29,10 +30,33 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     let crepe: Crepe | undefined
     let cancelled = false
     let stopQuotes = () => {}
+    const shown = new Map<string, string>()
     const save = debounce((markdown: string) => { void saveNote(notebook, 'notes.md', markdown) }, 500)
     loadNote(notebook, 'notes.md').then(async saved => {
       if (cancelled || !host.current) return
-      const editor = new Crepe({ root: host.current, defaultValue: saved ?? `# ${notebook}\n\n` })
+      const editor = new Crepe({
+        root: host.current,
+        defaultValue: saved ?? `# ${notebook}\n\n`,
+        featureConfigs: {
+          [Crepe.Feature.ImageBlock]: {
+            // A picture put into the note is kept in the notebook, and the note refers to it by its file name.
+            onUpload: async picture => {
+              const name = `picture-${Date.now().toString(36)}.${picture.name.split('.').pop() || 'png'}`
+              await saveNoteFile(notebook, name, picture)
+              return name
+            },
+            // …and that name is turned back into the picture whenever the note is shown.
+            proxyDomURL: async url => {
+              if (!/^(clip|picture)-[\w.-]+$/.test(url)) return url
+              if (!shown.has(url)) {
+                const picture = await loadNoteFile(notebook, url)
+                if (picture) shown.set(url, URL.createObjectURL(picture))
+              }
+              return shown.get(url) ?? url
+            },
+          },
+        },
+      })
       editor.on(listener => listener.markdownUpdated((_, markdown) => save(markdown)))
       await editor.create()
       if (cancelled) return void editor.destroy()
@@ -51,6 +75,21 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         })
         editor.editor.action(insert(`\n${quoted}\n>\n> — ${credit}\n\n`))
       })
+    })
+
+    // A clip from a page goes in the same way as a quote: at the end, with its source linking back.
+    const stopClips = onClip(async ({ image, source, book, place }) => {
+      if (baseName(book) !== notebook || !crepe) return
+      const name = `clip-${Date.now().toString(36)}.jpg`
+      await saveNoteFile(notebook, name, await (await fetch(image)).blob())
+      // The picture goes in as a picture block at the end of the note, then its source on the line after.
+      crepe.editor.action(ctx => {
+        const view = ctx.get(editorViewCtx)
+        const picture = imageBlockSchema.type(ctx).create({ src: name, caption: source })
+        view.dispatch(view.state.tr.insert(view.state.doc.content.size, picture))
+        view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)))
+      })
+      crepe.editor.action(insert(`\n— [${source}](${placeLink({ book, place })})\n\n`))
     })
 
     // Clicking a source link travels to that place in the book instead of leaving the app.
@@ -84,8 +123,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       cancelled = true
       stopQuotes()
       stopFinding()
+      stopClips()
       root?.removeEventListener('click', follow, true)
       void crepe?.destroy()
+      shown.forEach(url => URL.revokeObjectURL(url))
     }
   }, [notebook])
 

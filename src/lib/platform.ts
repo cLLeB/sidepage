@@ -9,7 +9,7 @@ export const PICTURE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', '
 
 export const BOOK_EXTENSIONS = [
   'pdf', 'epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt', 'djvu', 'djv',
-  'docx', 'doc', 'rtf', 'odt', 'pptx', 'ppt', 'pps', 'sidepage', 'txt', 'md', 'markdown', 'html', 'htm',
+  'docx', 'doc', 'rtf', 'odt', 'pptx', 'ppt', 'pps', 'sidepage', 'zip', 'txt', 'md', 'markdown', 'html', 'htm',
   ...PICTURE_EXTENSIONS,
 ]
 
@@ -92,7 +92,10 @@ async function useFolder(handle: Folder) {
   const { entries } = await import('idb-keyval')
   for (const [key, text] of await entries<string, string>()) {
     const match = typeof key === 'string' && key.match(/^sidepage:(.+)\/([^/]+)$/)
-    if (match && (await loadNote(match[1], match[2])) === null) await saveNote(match[1], match[2], text)
+    if (!match) continue
+    if ((text as unknown) instanceof Blob) {
+      if (!(await loadNoteFile(match[1], match[2]))) await saveNoteFile(match[1], match[2], text as unknown as Blob)
+    } else if ((await loadNote(match[1], match[2])) === null) await saveNote(match[1], match[2], text)
   }
   folderListeners.forEach(listener => listener())
 }
@@ -156,6 +159,45 @@ export async function saveNote(notebook: string, file: string, text: string): Pr
   await writable.close()
 }
 
+// A picture kept in a notebook, beside its notes.
+export async function saveNoteFile(notebook: string, file: string, data: Blob): Promise<void> {
+  if (usesComputerFiles) {
+    const { writeFile, mkdir, BaseDirectory } = await import('@tauri-apps/plugin-fs')
+    await mkdir(`${ROOT}/${safe(notebook)}`, { baseDir: BaseDirectory.Document, recursive: true })
+    return writeFile(`${ROOT}/${safe(notebook)}/${file}`, new Uint8Array(await data.arrayBuffer()), { baseDir: BaseDirectory.Document })
+  }
+  if (!folder) {
+    const { set } = await import('idb-keyval')
+    return set(localKey(notebook, file), data)
+  }
+  const dir = await folder.getDirectoryHandle(safe(notebook), { create: true })
+  const writable = await (await dir.getFileHandle(file, { create: true })).createWritable()
+  await writable.write(data)
+  await writable.close()
+}
+
+export async function loadNoteFile(notebook: string, file: string): Promise<Blob | null> {
+  try {
+    if (usesComputerFiles) {
+      const { readFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs')
+      const path = `${ROOT}/${safe(notebook)}/${file}`
+      if (!(await exists(path, { baseDir: BaseDirectory.Document }))) return null
+      return new Blob([await readFile(path, { baseDir: BaseDirectory.Document })])
+    }
+    if (!folder) {
+      const { get } = await import('idb-keyval')
+      return (await get<Blob>(localKey(notebook, file))) ?? null
+    }
+    const dir = await folder.getDirectoryHandle(safe(notebook))
+    return await (await dir.getFileHandle(file)).getFile()
+  } catch {
+    return null
+  }
+}
+
+// The pictures a note refers to that live in its notebook (not ones on the web).
+export const picturesIn = (markdown: string) => [...markdown.matchAll(/!\[[^\]]*\]\(((?:clip|picture)-[\w.-]+)(?:\s+"[^"]*")?\)/g)].map(match => match[1])
+
 export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number) {
   let timer: ReturnType<typeof setTimeout> | undefined
   return (...args: A) => {
@@ -183,6 +225,10 @@ function channel<T>(name: string) {
 // ("page=12" or an EPUB CFI), which makes the note's source line a link back to that spot.
 export type Quote = { text: string; source: string; book?: string; place?: string }
 export const [sendQuote, onQuote] = channel<Quote>('sidepage:quote')
+
+// A piece of a page (a figure, a formula) cut out as a picture, for the notes.
+export type Clip = { image: string; source: string; book: string; place: string }
+export const [sendClip, onClip] = channel<Clip>('sidepage:clip')
 
 // Note → book: open this place. Book → note: show the note that quotes this passage.
 export type Place = { book: string; place: string }

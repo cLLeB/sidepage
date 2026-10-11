@@ -526,3 +526,27 @@ button.primary:hover:not(:disabled) { background: var(--accent); filter: brightn
 .review-grades button { min-width: 84px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border); }
 .review-empty { max-width: 46ch; text-align: center; color: var(--muted); line-height: 1.55; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .review-empty h2 { margin: 0; color: var(--text); font-size: 20px; }
+
+/* PDF highlights: coloured strips over the page, under its text */
+.pdf-mark { position: absolute; pointer-events: none; opacity: 0.42; border-radius: 2px; }
+/* Clip: while it is on, the page waits for a box to be dragged over it */
+.clip-layer { position: absolute; inset: 0; z-index: 8; cursor: crosshair; touch-action: none; background: rgb(0 0 0 / 0.06); }
+.clip-box { position: fixed; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); border-radius: 4px; pointer-events: none; }
+.written-note .milkdown img { max-width: 100%; height: auto; border-radius: 6px; }
+
+/* Home: reading time, and finding a book among many */
+.reading-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 22px; margin: 22px 0 0 !important; color: var(--muted); }
+.reading-stats b { color: var(--text); font-weight: 650; }
+.shelf-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: min(760px, 100%); margin-top: 28px; }
+.shelf-head .shelf-title { margin: 0; width: auto; }
+.shelf-search { font: inherit; color: inherit; width: min(260px, 60%); padding: 8px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; }
+.shelf-search:focus { outline: none; border-color: var(--accent-ring); }
+.shelf-more { margin-top: 10px; color: var(--muted); }
+.welcome { justify-content: flex-start; padding-top: max(24px, 8vh); }
+
+/* A short message that goes away by itself */
+.notice {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70;
+  max-width: min(560px, 92vw); padding: 12px 18px; line-height: 1.45;
+  background: var(--text); color: var(--panel); border-radius: 14px; box-shadow: var(--shadow);
+}

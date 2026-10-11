@@ -29,6 +29,7 @@ export async function detectExtension(file: File): Promise<string | null> {
     if (start.includes('application/vnd.oasis.opendocument.text')) return 'odt'
     const names = text(new Uint8Array(await file.slice(0, 256 * 1024).arrayBuffer()))
       + text(new Uint8Array(await file.slice(Math.max(0, file.size - 256 * 1024)).arrayBuffer()))
+    if (names.includes('sidepage-backup.json')) return 'sidepage-backup'
     if (names.includes('sidepage.json')) return 'sidepage'
     if (names.includes('word/document.xml')) return 'docx'
     if (names.includes('ppt/presentation.xml')) return 'pptx'

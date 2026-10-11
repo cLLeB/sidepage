@@ -7,10 +7,10 @@ import { BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Vol
 import { Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
 import { canSpeak, useReadAloud } from '../lib/speech'
-import { FONTS, saveCover, setProgress, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
+import { FONTS, loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
-  baseName, extensionOf, findInNotes, loadNote, onGoToPlace, prefersFlip, rememberFlip, saveNote, sendQuote,
+  baseName, extensionOf, findInNotes, onGoToPlace, prefersFlip, rememberFlip, sendQuote,
 } from '../lib/platform'
 
 type TocItem = { label: string; href: string; subitems?: TocItem[] }
@@ -117,7 +117,7 @@ export default function BookView({ file }: { file: File }) {
     const isArchive = ['cbr', 'cb7', 'cbt'].includes(extensionOf(file.name))
     Promise.resolve(isArchive ? openComicArchive(file) : file).then(book => view.open(book)).then(async () => {
       if (closed) return
-      marks.current = JSON.parse((await loadNote(baseName(file.name), 'highlights.json')) ?? '[]')
+      marks.current = await loadHighlights(baseName(file.name), 'book')
       setHighlights(marks.current)
       setToc(flatten(view.book.toc ?? []))
       view.renderer.setStyles?.(bookCSS(themeAtStart.current, textAtStart.current))
@@ -205,7 +205,7 @@ export default function BookView({ file }: { file: File }) {
   const saveMarks = (next: Highlight[]) => {
     marks.current = next
     setHighlights(next)
-    void saveNote(baseName(file.name), 'highlights.json', JSON.stringify(next))
+    void saveHighlights(baseName(file.name), 'book', next)
   }
 
   // The selected passage and its address in the book, whichever way the book is being shown. `cfi` is empty

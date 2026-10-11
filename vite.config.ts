@@ -41,7 +41,7 @@ export default defineConfig({
     include: [
       'jszip', 'docx-preview', 'page-flip', 'pdfjs-dist',
       'pdfjs-dist/web/pdf_viewer.mjs', '@excalidraw/excalidraw', 'mind-elixir',
-      '@milkdown/crepe', '@milkdown/kit/utils', '@milkdown/kit/core', '@milkdown/kit/prose/state',
+      '@milkdown/crepe', '@milkdown/kit/utils', '@milkdown/kit/core', '@milkdown/kit/prose/state', '@milkdown/kit/component/image-block',
       'idb-keyval', 'dockview-react', 'rtf.js', 'odf-kit/odt/to-html', 'dompurify', 'libarchive.js', '@file-viewer/doc', '@extend-ai/react-pptx', 'react-error-boundary', 'force-graph', 'ts-fsrs', 'lucide-react',
     ],
   },

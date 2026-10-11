@@ -5,13 +5,13 @@ import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
-import { BookOpen, ChevronLeft, ChevronRight, Download, Highlighter, Pencil, Square, TextQuote, Volume2, ZoomIn, ZoomOut } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Crop, Download, Pencil, Square, TextQuote, Volume2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Tool } from '../ui'
-import { BookmarksMenu, ContentsMenu } from './ReaderMenus'
-import { saveCover, setProgress, useBookmarks } from '../lib/reading'
+import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
+import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, type Highlight } from '../lib/reading'
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { pageFilter, useTheme } from '../lib/theme'
-import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendQuote } from '../lib/platform'
+import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendClip, sendQuote } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -65,6 +65,101 @@ export default function PdfView({ file }: { file: File }) {
   const [error, setError] = useState('')
   const [tool, setTool] = useState<'none' | 'highlight' | 'draw'>('none')
   const bookmarks = useBookmarks(file.name)
+
+  // The reader's highlights. Each is drawn over its page as coloured strips, under the text so the text can
+  // still be selected. The list is kept twice: in a ref for the viewer's own events, and in state for showing.
+  const marks = useRef<Highlight[]>([])
+  const [highlights, setHighlights] = useState<Highlight[]>([])
+  const pageOf = (place: string) => Number(place.match(/page=(\d+)/)?.[1]) || 1
+  const paint = (pageDiv: HTMLElement) => {
+    const wrapper = pageDiv.querySelector('.canvasWrapper')
+    if (!wrapper) return
+    wrapper.querySelectorAll('.pdf-mark').forEach(old => old.remove())
+    for (const mark of marks.current) {
+      if (mark.index !== Number(pageDiv.dataset.pageNumber)) continue
+      for (const [x, y, w, h] of mark.rects ?? []) {
+        const strip = document.createElement('div')
+        strip.className = 'pdf-mark'
+        strip.style.cssText = `left:${x * 100}%;top:${y * 100}%;width:${w * 100}%;height:${h * 100}%;background:${mark.color ?? HIGHLIGHT_COLOURS.Yellow}`
+        wrapper.append(strip)
+      }
+    }
+  }
+  const saveMarks = (next: Highlight[]) => {
+    marks.current = next
+    setHighlights(next)
+    void saveHighlights(baseName(file.name), 'pdf', next)
+    container.current?.querySelectorAll<HTMLElement>('.page').forEach(paint)
+  }
+  useEffect(() => {
+    let cancelled = false
+    void loadHighlights(baseName(file.name), 'pdf').then(saved => {
+      if (cancelled) return
+      marks.current = saved
+      setHighlights(saved)
+      container.current?.querySelectorAll<HTMLElement>('.page').forEach(paint)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file])
+
+  // The selected passage: its words, its page, and where on the page each line of it lies.
+  const selectedPassage = () => {
+    const selection = window.getSelection()
+    const text = selection?.toString().trim()
+    if (!selection || !text || !selection.rangeCount) return null
+    const range = selection.getRangeAt(0)
+    const pageDiv = range.startContainer.parentElement?.closest<HTMLElement>('.page')
+    const box = pageDiv?.querySelector('.canvasWrapper')?.getBoundingClientRect()
+    if (!pageDiv || !box || !container.current?.contains(pageDiv)) return null
+    const rects: number[][] = []
+    for (const r of range.getClientRects()) {
+      if (r.width < 2 || r.height < 2 || r.bottom < box.top || r.top > box.bottom) continue
+      const next = [(r.left - box.left) / box.width, (r.top - box.top) / box.height, r.width / box.width, r.height / box.height]
+      // The text layer reports some lines twice; one strip per stretch of text is enough.
+      const repeat = rects.some(([x, y, w, h]) => Math.abs(y - next[1]) < h / 2 && next[0] >= x - 0.002 && next[0] + next[2] <= x + w + 0.002)
+      if (!repeat) rects.push(next)
+    }
+    selection.removeAllRanges()
+    const number = Number(pageDiv.dataset.pageNumber)
+    return { text, page: number, rects, place: `page=${number}&id=${Date.now().toString(36)}` }
+  }
+  const highlight = (color?: string) => {
+    const passage = selectedPassage()
+    if (passage?.rects.length) saveMarks([...marks.current, { cfi: passage.place, index: passage.page, text: passage.text, rects: passage.rects, color }])
+    return passage
+  }
+  const changeHighlight = (place: string, change: Partial<Highlight>) => saveMarks(marks.current.map(mark => (mark.cfi === place ? { ...mark, ...change } : mark)))
+  const removeHighlight = (place: string) => saveMarks(marks.current.filter(mark => mark.cfi !== place))
+
+  // Clip: drag a box over part of a page and it goes to the notes as a picture, linked back to its page.
+  const [clipping, setClipping] = useState(false)
+  const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
+  const clip = (area: { x0: number; y0: number; x1: number; y1: number }) => {
+    const [left, right, top, bottom] = [Math.min(area.x0, area.x1), Math.max(area.x0, area.x1), Math.min(area.y0, area.y1), Math.max(area.y0, area.y1)]
+    if (right - left < 12 || bottom - top < 12) return
+    // The page the box mostly lies on.
+    let best: { canvas: HTMLCanvasElement; page: number; overlap: number } | null = null
+    for (const pageDiv of container.current?.querySelectorAll<HTMLElement>('.page') ?? []) {
+      const canvas = pageDiv.querySelector<HTMLCanvasElement>('.canvasWrapper canvas:not(.picture-keep)')
+      if (!canvas) continue
+      const r = canvas.getBoundingClientRect()
+      const overlap = Math.max(0, Math.min(right, r.right) - Math.max(left, r.left)) * Math.max(0, Math.min(bottom, r.bottom) - Math.max(top, r.top))
+      if (overlap > (best?.overlap ?? 0)) best = { canvas, page: Number(pageDiv.dataset.pageNumber), overlap }
+    }
+    if (!best) return
+    const r = best.canvas.getBoundingClientRect()
+    const scale = best.canvas.width / r.width
+    const [sx, sy] = [Math.max(0, left - r.left) * scale, Math.max(0, top - r.top) * scale]
+    const [sw, sh] = [(Math.min(right, r.right) - Math.max(left, r.left)) * scale, (Math.min(bottom, r.bottom) - Math.max(top, r.top)) * scale]
+    // Kept to a sensible size: it is stored inside the note.
+    const shrink = Math.min(1, 1100 / sw)
+    const cut = document.createElement('canvas')
+    cut.width = Math.round(sw * shrink)
+    cut.height = Math.round(sh * shrink)
+    cut.getContext('2d')!.drawImage(best.canvas, sx, sy, sw, sh, 0, 0, cut.width, cut.height)
+    sendClip({ image: cut.toDataURL('image/jpeg', 0.88), source: `${baseName(file.name)}, p. ${best.page}`, book: file.name, place: `page=${best.page}` })
+  }
   // Read aloud: the page that is open, then the next, and so on to the end.
   const voice = useReadAloud()
   const readAloud = () => {
@@ -132,6 +227,7 @@ export default function PdfView({ file }: { file: File }) {
       if (!wrapper || !canvas || !pdfPage) return
       // Drawn at the page canvas's own pixel size, which is finer than the page's size on screen.
       const exact = pdfPage.getViewport({ scale: viewport.scale * (canvas.width / viewport.width), rotation: viewport.rotation })
+      paint(div)
       const pictures = await picturesOf(pdfPage, exact, canvas).catch(() => null)
       wrapper.querySelectorAll('.picture-keep').forEach(old => old.remove())
       if (!pictures || !canvas.isConnected) return
@@ -278,7 +374,7 @@ export default function PdfView({ file }: { file: File }) {
   useEffect(() => onGoToPlace(({ book, place }) => {
     if (book !== file.name || !viewerRef.current) return
     setMode('scroll')
-    viewerRef.current.currentPageNumber = Number(place.replace('page=', '')) || 1
+    viewerRef.current.currentPageNumber = Number(place.match(/page=(\d+)/)?.[1]) || 1
   }), [file])
 
   // Find in the PDF with PDF.js's own find controller: every match is highlighted, Enter steps through them.
@@ -298,9 +394,10 @@ export default function PdfView({ file }: { file: File }) {
     requestAnimationFrame(() => { if (viewerRef.current) viewerRef.current.currentPageNumber = page })
   }
 
+  // Quote: highlight the passage and send it to the notes with a link back to its page.
   const quote = () => {
-    const text = window.getSelection()?.toString().trim()
-    if (text) sendQuote({ text, source: `${baseName(file.name)}, p. ${page}`, book: file.name, place: `page=${page}` })
+    const passage = highlight()
+    if (passage) sendQuote({ text: passage.text, source: `${baseName(file.name)}, p. ${passage.page}`, book: file.name, place: `page=${passage.page}` })
   }
 
   const go = (delta: number) => {
@@ -326,7 +423,8 @@ export default function PdfView({ file }: { file: File }) {
           <Tool quiet icon={ZoomIn} label="Zoom in" onClick={() => zoomBy(1.2)} />
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
-          <Tool icon={Highlighter} label="Highlight" hint="Select text to highlight it" on={tool === 'highlight'} onClick={() => setTool(t => (t === 'highlight' ? 'none' : 'highlight'))} />
+          <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
+          <Tool icon={Crop} label="Clip" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping} onClick={() => setClipping(!clipping)} />
           <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
           <Tool icon={Download} label="Save copy" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
           <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
@@ -344,6 +442,20 @@ export default function PdfView({ file }: { file: File }) {
         >
           <div className="pdfViewer" />
         </div>
+        {clipping && mode === 'scroll' && (
+          <div
+            className="clip-layer"
+            onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); setBox({ x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY }) }}
+            onPointerMove={e => { if (box) setBox({ ...box, x1: e.clientX, y1: e.clientY }) }}
+            onPointerUp={() => {
+              if (box) clip(box)
+              setBox(null)
+              setClipping(false)
+            }}
+          >
+            {box && <div className="clip-box" style={{ left: Math.min(box.x0, box.x1), top: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }} />}
+          </div>
+        )}
         {mode === 'flip' && (flip
           ? <FlipBook pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {
               setPage(flip.first + i)

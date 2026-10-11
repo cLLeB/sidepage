@@ -3,7 +3,7 @@ import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, t
 import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
-  FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, Workflow, X,
+  Archive, ArchiveRestore, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, X,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -17,7 +17,9 @@ import {
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
-import { setTheme, THEMES, useTheme, type Theme } from './lib/theme'
+import { setTheme, THEME_CHOICES, useThemeChoice, type ThemeChoice } from './lib/theme'
+import { BACKUP_EXTENSION, packBackup, restoreBackup } from './lib/backup'
+import { addReadingTime, asTime, readingStats } from './lib/reading'
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
@@ -58,7 +60,8 @@ function viewerFor(name: string) {
 const LAYOUTS = { auto: 'Automatic', side: 'Side by side', stacked: 'Book above notes', tabs: 'One at a time' } as const
 type Layout = keyof typeof LAYOUTS
 const LAYOUT_ICONS = { auto: LayoutDashboard, side: Columns2, stacked: Rows2, tabs: PanelTop } as const
-const THEME_ICONS = { light: Sun, sepia: Coffee, dark: Moon } as const
+const THEME_ICONS = { auto: SunMoon, light: Sun, sepia: Coffee, dark: Moon } as const
+const THEME_NAMES = { auto: 'Follow the device', light: 'Light', sepia: 'Sepia', dark: 'Dark' } as const
 // The choice after this one, going round.
 const next = <T,>(all: readonly T[], current: T) => all[(all.indexOf(current) + 1) % all.length]
 const chosenLayout = () => (localStorage.getItem('sidepage:layout') as Layout) || 'auto'
@@ -105,7 +108,33 @@ export default function App() {
   const [notebook, setNotebook] = useState('My notebook')
   const [paper, setPaper] = useState<Paper>(() => (localStorage.getItem('sidepage:paper') as Paper) || 'lined')
   const [empty, setEmpty] = useState(true)
-  const theme = useTheme()
+  const theme = useThemeChoice()
+  // A short message after something has been done out of sight (a backup made, notes restored).
+  const [notice, setNotice] = useState('')
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(''), 6000)
+    return () => clearTimeout(timer)
+  }, [notice])
+  const [wanted, setWanted] = useState('')
+  const [showAll, setShowAll] = useState(false)
+
+  // Reading time: a half-minute is counted whenever a book is open, the app is in view and the reader has
+  // touched it in the last two minutes.
+  const touched = useRef(Date.now())
+  useEffect(() => {
+    const touch = () => { touched.current = Date.now() }
+    const events = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
+    events.forEach(name => window.addEventListener(name, touch, { capture: true, passive: true }))
+    const timer = setInterval(() => {
+      const reading = !!api.current?.panels.some(panel => panel.id.startsWith('doc:'))
+      if (reading && document.visibilityState === 'visible' && Date.now() - touched.current < 120_000) addReadingTime(0.5)
+    }, 30_000)
+    return () => {
+      events.forEach(name => window.removeEventListener(name, touch, { capture: true }))
+      clearInterval(timer)
+    }
+  }, [])
   const [folder, setFolder] = useState(notesFolder)
   const [books, setBooks] = useState<Shelved[]>([])
   // On narrow screens the less-used controls fold into a "More" menu, so nothing runs off the edge.
@@ -228,6 +257,10 @@ export default function App() {
   const openFile = useCallback(async (picked: File) => {
     // A file whose name does not say what it is (usual on phones) is recognised by its contents.
     const file = await withDetectedType(picked, ext => ext === BUNDLE_EXTENSION || !!viewerFor(`x.${ext}`))
+    if (extensionOf(file.name) === BACKUP_EXTENSION) {
+      const { restored, kept } = await restoreBackup(file)
+      return setNotice(`Backup restored: ${restored} file${restored === 1 ? '' : 's'} put back${kept ? `, ${kept} already here and left as they were` : ''}. A book's notes show up when you open that book.`)
+    }
     const book = extensionOf(file.name) === BUNDLE_EXTENSION ? await unpackBundle(file) : file
     openBook(book)
     await shelve(book)
@@ -242,7 +275,7 @@ export default function App() {
     if (panel) return panel.api.setActive()
     const file = await fromShelf(book)
     if (!file) return
-    localStorage.setItem(`sidepage:place:${book}`, place.replace(/^page=/, ''))
+    localStorage.setItem(`sidepage:place:${book}`, (place.match(/^page=(\d+)/)?.[1] ?? place))
     void openFile(file)
   }), [openFile])
 
@@ -361,12 +394,22 @@ export default function App() {
         <NotesSearch />
         <Tool quiet icon={Maximize2} label="Focus" hint="Hide everything but the page and your notes" disabled={empty} onClick={() => setFocus(true)} />
         <Tool quiet icon={LAYOUT_ICONS[layout]} label={`Layout: ${LAYOUTS[layout]}`} hint={`Layout: ${LAYOUTS[layout]}. Tap to change.`} onClick={() => setLayout(next(Object.keys(LAYOUTS) as Layout[], layout))} />
-        <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${theme}`} hint={`Theme: ${theme}. Tap to change.`} onClick={() => setTheme(next(THEMES, theme))} />
+        <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${THEME_NAMES[theme]}`} hint={`Theme: ${THEME_NAMES[theme]}. Tap to change.`} onClick={() => setTheme(next(THEME_CHOICES, theme))} />
         <Tool quiet icon={Ellipsis} label="More" on={more} onClick={() => setMore(!more)} />
         {more && <>
           <div className="menu-backdrop" onClick={() => setMore(false)} />
           <div className="menu" onClick={e => { if ((e.target as HTMLElement).closest('button')) setMore(false) }}>
             <Tool icon={Package} label="Save as one file" hint="Save the book and all its notes together as one .sidepage file" disabled={empty} onClick={() => void saveWhole()} />
+            <Tool
+              icon={Archive}
+              label="Back up all notes"
+              hint="Save the notes, drawings, highlights and bookmarks of every book as one file"
+              onClick={() => void packBackup().then(async ({ data, notebooks }) => {
+                await saveFileAs(`Sidepage backup ${new Date().toISOString().slice(0, 10)}.zip`, data)
+                setNotice(`Backed up the notes of ${notebooks} book${notebooks === 1 ? '' : 's'}.`)
+              })}
+            />
+            <Tool icon={ArchiveRestore} label="Restore a backup" hint="Put back notes from a backup file. Nothing already here is overwritten." onClick={() => void browse()} />
             <Tool icon={FileDown} label="Export notes" hint="Save this book's notes, highlights and bookmarks as one Markdown file" disabled={empty} onClick={() => void exportNotes()} />
             {canPickNotesFolder && (
               <Tool
@@ -390,14 +433,15 @@ export default function App() {
             </label>
             <label className="menu-row">
               Theme
-              <select value={theme} onChange={e => setTheme(e.target.value as Theme)}>
-                {THEMES.map(t => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}
+              <select value={theme} onChange={e => setTheme(e.target.value as ThemeChoice)}>
+                {THEME_CHOICES.map(t => <option key={t} value={t}>{THEME_NAMES[t]}</option>)}
               </select>
             </label>
           </div>
         </>}
       </header>
       {focus && <button className="focus-exit" title="Show the toolbars again" aria-label="Leave focus" onClick={() => setFocus(false)}><Minimize2 size={18} aria-hidden /></button>}
+      {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">
         <DockviewReact components={components} onReady={onReady} theme={themeLight} defaultRenderer="always" />
         {empty && (
@@ -406,10 +450,25 @@ export default function App() {
             <h1>Read on one side, think on the other.</h1>
             <p>Open a book, a document, a slide deck or a picture. Your notes open beside it.</p>
             <button className="primary" onClick={() => void browse()}><FolderOpen size={18} aria-hidden /> Open a book</button>
-            {books.length > 0 && <h2 className="shelf-title">Recent</h2>}
+            {(() => {
+              const stats = readingStats()
+              return stats.week > 0 && (
+                <p className="reading-stats">
+                  <span><b>{asTime(stats.today)}</b> today</span>
+                  <span><b>{asTime(stats.week)}</b> this week</span>
+                  {stats.streak > 1 && <span><b>{stats.streak} days</b> in a row</span>}
+                </p>
+              )
+            })()}
+            {books.length > 0 && (
+              <div className="shelf-head">
+                <h2 className="shelf-title">{wanted ? 'Found' : 'Recent'}</h2>
+                {books.length > 6 && <input className="shelf-search" value={wanted} placeholder={`Search your ${books.length} books`} onChange={e => setWanted(e.target.value)} />}
+              </div>
+            )}
             {books.length > 0 && (
               <ul className="shelf">
-                {books.slice(0, 12).map(book => (
+                {books.filter(book => book.name.toLowerCase().includes(wanted.trim().toLowerCase())).slice(0, wanted || showAll ? undefined : 12).map(book => (
                   <li key={book.name}>
                     <button className="shelf-book" onClick={() => void fromShelf(book.name).then(file => { if (file) void openFile(file) })}>
                       {covers[book.name]
@@ -426,6 +485,7 @@ export default function App() {
                 ))}
               </ul>
             )}
+            {books.length > 12 && !wanted && !showAll && <button className="shelf-more" onClick={() => setShowAll(true)}>Show all {books.length} books</button>}
             <p className="hint">PDF · EPUB · MOBI · AZW3 · FB2 · DJVU · CBZ · CBR · DOCX · DOC · RTF · ODT · PPTX · PPT · TXT · Markdown · HTML · pictures</p>
           </div>
         )}
