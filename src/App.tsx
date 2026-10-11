@@ -78,6 +78,8 @@ export default function App() {
   const theme = useTheme()
   const [folder, setFolder] = useState(notesFolder)
   const [books, setBooks] = useState<Shelved[]>([])
+  // On narrow screens the less-used controls fold into a "More" menu, so nothing runs off the edge.
+  const [more, setMore] = useState(false)
 
   useEffect(() => {
     void restoreNotesFolder()
@@ -236,6 +238,9 @@ export default function App() {
         {(Object.keys(NOTE_KINDS) as NoteKind[]).map(kind => (
           <button key={kind} onClick={() => openNote(kind, notebook)}>{NOTE_KINDS[kind].title}</button>
         ))}
+        <span className="spacer" />
+        <button className={more ? 'more-toggle on' : 'more-toggle'} onClick={() => setMore(!more)} aria-expanded={more} title="More">More</button>
+        <div className={more ? 'more open' : 'more'} onClick={e => { if ((e.target as HTMLElement).closest('button')) setMore(false) }}>
         <button onClick={openGraph} title="How your books' notes link to each other">Graph</button>
         <span className="divider" />
         <button onClick={() => void saveWhole()} disabled={empty} title="Save the book and all its notes together as one .sidepage file">Save as one file</button>
@@ -257,6 +262,7 @@ export default function App() {
             {PAPERS.map(p => <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>)}
           </select>
         </label>
+        </div>
       </header>
       <main className="workspace">
         <DockviewReact components={components} onReady={onReady} theme={themeLight} defaultRenderer="always" />

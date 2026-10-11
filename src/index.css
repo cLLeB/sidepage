@@ -159,7 +159,8 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
-.viewer-bar { overflow-x: auto; scrollbar-width: none; }
+/* A reader's tools wrap onto a second row in a narrow panel, so every tool stays in sight. */
+.viewer-bar { flex-wrap: wrap; row-gap: 4px; }
 .viewer-bar > * { flex-shrink: 0; white-space: nowrap; }
 .viewer-bar select { max-width: 220px; }
 .viewer-pos { color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 4px; }
@@ -279,7 +280,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 /* Written notes: a slim bar for links, then the page */
 .written-wrap { display: flex; flex-direction: column; overflow: hidden; }
 .written-wrap .written-note { position: relative; flex: 1; min-height: 0; overflow: auto; }
-.note-bar { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; }
+.note-bar { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; row-gap: 4px; }
 .note-bar > * { flex-shrink: 0; white-space: nowrap; }
 .note-bar select { max-width: 200px; }
 .graph-view { background: var(--paper-bg); overflow: hidden; }
@@ -311,10 +312,30 @@ button:disabled { opacity: 0.45; cursor: default; }
 .shelf-remove { color: var(--muted); padding: 0 10px; }
 
 /* Phones, tablets and other touch screens */
-.topbar { overflow-x: auto; scrollbar-width: none; }
-.topbar > * { flex-shrink: 0; white-space: nowrap; }
+.topbar { position: relative; flex-wrap: wrap; row-gap: 6px; }
+.topbar > *, .more > * { flex-shrink: 0; white-space: nowrap; }
+/* Wide screens: the extra controls sit in the bar itself. */
+.more { display: contents; }
+.more-toggle { display: none; }
+.topbar > .spacer:first-of-type { display: none; }
+/* Narrow screens: they fold into a menu under "More". */
+@media (max-width: 1150px) {
+  .more-toggle { display: inline-block; }
+  .topbar > .spacer:first-of-type { display: block; }
+  .more { display: none; }
+  .more.open {
+    display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+    position: absolute; top: calc(100% + 4px); right: 8px; z-index: 30;
+    padding: 8px; min-width: 220px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.22);
+  }
+  .more.open .divider, .more.open .spacer { display: none; }
+  .more.open .paper-picker { justify-content: space-between; }
+}
+/* Fingers and styluses need bigger targets than a mouse pointer. */
 @media (pointer: coarse) {
-  button, select { min-height: 36px; padding: 6px 12px; }
+  button, select { min-height: 44px; padding: 8px 14px; }
+  .dockview-theme-light { --dv-tabs-and-actions-container-height: 44px; }
 }
 @media (max-width: 700px) {
   :root { --margin-x: 28px; }
