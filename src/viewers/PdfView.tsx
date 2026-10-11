@@ -12,33 +12,38 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
 const FLIP_CHUNK = 80
 
-type Box = [left: number, top: number, right: number, bottom: number]
-
-// Where the pictures sit on a page, as fractions of its width and height. Read from the page's drawing
-// instructions: each picture is a unit square placed by the transform in force when it is painted.
-async function pictureBoxes(page: pdfjs.PDFPageProxy): Promise<Box[]> {
-  const { OPS, Util } = pdfjs
-  const viewport = page.getViewport({ scale: 1 })
-  const { fnArray, argsArray } = await page.getOperatorList()
-  const stack: number[][] = []
-  let matrix = viewport.transform
-  const boxes: Box[] = []
-  fnArray.forEach((fn, i) => {
-    const args = argsArray[i]
-    if (fn === OPS.save || fn === OPS.beginGroup) stack.push(matrix)
-    else if (fn === OPS.restore || fn === OPS.endGroup || fn === OPS.paintFormXObjectEnd) matrix = stack.pop() ?? matrix
-    else if (fn === OPS.transform) matrix = Util.transform(matrix, args)
-    else if (fn === OPS.paintFormXObjectBegin) {
-      stack.push(matrix)
-      if (args?.[0]) matrix = Util.transform(matrix, args[0])
-    } else if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject || fn === OPS.paintImageXObjectRepeat) {
-      const corners = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => [matrix[0] * x + matrix[2] * y + matrix[4], matrix[1] * x + matrix[3] * y + matrix[5]])
-      const xs = corners.map(c => c[0] / viewport.width)
-      const ys = corners.map(c => c[1] / viewport.height)
-      boxes.push([Math.max(0, Math.min(...xs)), Math.max(0, Math.min(...ys)), Math.min(1, Math.max(...xs)), Math.min(1, Math.max(...ys))])
-    }
-  })
-  return boxes
+// The pictures of a page, cut out of the finished page exactly along their own outlines.
+// PDF.js draws the page a second time doing nothing but its pictures, on a clear sheet; that gives the precise
+// shape of every picture, soft edges and see-through parts included. The finished page is then kept only where
+// that shape is. Laid over a page shaded for the dark theme, the result puts each picture back in its real
+// colours and leaves everything else, including whatever shows through a picture's clear parts, dark.
+async function picturesOf(page: pdfjs.PDFPageProxy, viewport: pdfjs.PageViewport, finished: HTMLCanvasElement) {
+  const { OPS } = pdfjs
+  const isPicture = (fn: number) => fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject || fn === OPS.paintImageXObjectRepeat
+  // Everything that puts ink on the page without being a picture: text, lines, fills, shadings, stencils.
+  const ink = new Set<number>([
+    OPS.stroke, OPS.closeStroke, OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke,
+    OPS.closeEOFillStroke, OPS.shadingFill, OPS.showText, OPS.showSpacedText, OPS.nextLineShowText,
+    OPS.nextLineSetSpacingShowText, OPS.paintImageMaskXObject, OPS.paintImageMaskXObjectGroup,
+    OPS.paintImageMaskXObjectRepeat, OPS.paintSolidColorImageMask,
+  ])
+  const list = await page.getOperatorList()
+  if (!list.fnArray.some(isPicture)) return null
+  const cut = document.createElement('canvas')
+  cut.width = finished.width
+  cut.height = finished.height
+  await page.render({
+    canvas: cut,
+    canvasContext: cut.getContext('2d')!,
+    viewport,
+    background: 'rgba(0,0,0,0)',
+    // A path is kept only when it is there to clip (it ends without painting); state and clipping always stay.
+    operationsFilter: (i, ops) => (ops.fnArray[i] === OPS.constructPath ? ops.argsArray[i]?.[0] === OPS.endPath : !ink.has(ops.fnArray[i])),
+  }).promise
+  const ctx = cut.getContext('2d')!
+  ctx.globalCompositeOperation = 'source-in'
+  ctx.drawImage(finished, 0, 0, cut.width, cut.height)
+  return cut
 }
 
 export default function PdfView({ file }: { file: File }) {
@@ -79,18 +84,19 @@ export default function PdfView({ file }: { file: File }) {
     })
     viewerRef.current = viewer
     const placeKey = `sidepage:place:${file.name}`
-    // Mark where each page's pictures are, so a dark theme can leave them in their real colours (see index.css).
-    eventBus.on('pagerendered', async (e: { pageNumber: number; source: { div: HTMLElement; pdfPage?: pdfjs.PDFPageProxy } }) => {
-      const wrapper = e.source.div.querySelector('.canvasWrapper')
-      if (!wrapper || !e.source.pdfPage) return
-      const boxes = await pictureBoxes(e.source.pdfPage).catch(() => [])
+    // Keep each page's pictures aside, so a dark theme can show them in their real colours (see index.css).
+    type RenderedPage = { div: HTMLElement; canvas?: HTMLCanvasElement; pdfPage?: pdfjs.PDFPageProxy; viewport: pdfjs.PageViewport }
+    eventBus.on('pagerendered', async (e: { source: RenderedPage }) => {
+      const { div, canvas, pdfPage, viewport } = e.source
+      const wrapper = div.querySelector('.canvasWrapper')
+      if (!wrapper || !canvas || !pdfPage) return
+      // Drawn at the page canvas's own pixel size, which is finer than the page's size on screen.
+      const exact = pdfPage.getViewport({ scale: viewport.scale * (canvas.width / viewport.width), rotation: viewport.rotation })
+      const pictures = await picturesOf(pdfPage, exact, canvas).catch(() => null)
       wrapper.querySelectorAll('.picture-keep').forEach(old => old.remove())
-      for (const [left, top, right, bottom] of boxes) {
-        const keep = document.createElement('div')
-        keep.className = 'picture-keep'
-        keep.style.cssText = `left:${left * 100}%;top:${top * 100}%;width:${(right - left) * 100}%;height:${(bottom - top) * 100}%`
-        wrapper.append(keep)
-      }
+      if (!pictures || !canvas.isConnected) return
+      pictures.className = 'picture-keep'
+      wrapper.append(pictures)
     })
     eventBus.on('pagesinit', () => {
       viewer.currentScaleValue = 'page-width'
@@ -154,10 +160,8 @@ export default function PdfView({ file }: { file: File }) {
         ink.drawImage(canvas, 0, 0)
         ink.filter = 'none'
         if (theme === 'dark') {
-          for (const [left, top, right, bottom] of await pictureBoxes(pdfPage).catch(() => [])) {
-            const [x, y, w, h] = [left * canvas.width, top * canvas.height, (right - left) * canvas.width, (bottom - top) * canvas.height]
-            if (w >= 1 && h >= 1) ink.drawImage(canvas, x, y, w, h, x, y, w, h)
-          }
+          const pictures = await picturesOf(pdfPage, viewport, canvas).catch(() => null)
+          if (pictures) ink.drawImage(pictures, 0, 0)
         }
         const blob = await new Promise<Blob | null>(resolve => shaded.toBlob(resolve, 'image/jpeg', 0.85))
         if (blob) urls.push(URL.createObjectURL(blob))

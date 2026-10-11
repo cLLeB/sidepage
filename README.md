@@ -11,7 +11,6 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | PDF reader | [PDF.js](https://github.com/mozilla/pdf.js) | Apache-2.0 |
 | DjVu books | [DjVu.js](https://github.com/RussCoder/djvujs) (vendored in `public/djvu`) | GPL-2.0 |
 | Word documents | [docx-preview](https://github.com/VolodymyrBaydalka/docxjs) | Apache-2.0 |
-| PowerPoint slides as turnable pages | [PptxViewJS](https://github.com/gptsci/pptxviewjs) | MIT |
 | Page-turn effect | [StPageFlip](https://github.com/Nodlik/StPageFlip) | MIT |
 | Written notes (Markdown) | [Milkdown Crepe](https://github.com/Milkdown/milkdown) | MIT |
 | Drawing and handwriting canvas | [Excalidraw](https://github.com/excalidraw/excalidraw) | MIT |
@@ -38,7 +37,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   The choice is remembered, and no scrollbars are shown anywhere.
 - Search inside a book or PDF; each match leads to its place.
 - Light, sepia and dark themes for the whole workspace. On dark PDF and document pages the text turns
-  light-on-dark while photographs keep their real colours.
+  light-on-dark while photographs keep their real colours, cut out along their own outlines.
 - Stylus friendly: touch the canvas or a PDF page with a pencil and the pen tool is picked up for you.
 - Link one book's notes to another's, see which notes link back ("Linked from"), and view all of it as a graph.
 - Highlight and draw on PDF pages, and save a copy with the marks in it.

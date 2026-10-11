@@ -1,23 +1,26 @@
-import { lazy, Suspense, useState } from 'react'
-import { ReactPptxViewer, setWasmSource } from '@extend-ai/react-pptx'
+import { useState } from 'react'
+import { ReactPptxViewer, setWasmSource, type PptxViewerController } from '@extend-ai/react-pptx'
 import wasmUrl from '@extend-ai/react-pptx/pptx_wasm_bg.wasm?url'
 import '@extend-ai/react-pptx/styles.css'
-import { baseName, extensionOf, prefersFlip, rememberFlip, sendQuote } from '../lib/platform'
-
-const SlidesView = lazy(() => import('./SlidesView'))
+import SlidesView from './SlidesView'
+import { baseName, prefersFlip, rememberFlip, sendQuote } from '../lib/platform'
 
 setWasmSource(new URL(wasmUrl, document.baseURI).href)
 
-// PowerPoint decks (.pptx and the older .ppt), read natively by react-pptx. A .pptx can also be leafed through
-// as a book; that view draws the slides as pictures with PptxViewJS.
+// PowerPoint decks (.pptx and the older .ppt), read natively by react-pptx: real text to select and quote.
+// "Flip" leafs through the same slides as pages (SlidesView).
 export default function PptView({ file }: { file: File }) {
   const [slide, setSlide] = useState(0)
   const [count, setCount] = useState(0)
   const [error, setError] = useState('')
-  const canFlip = extensionOf(file.name) === 'pptx'
-  const [flip, setFlip] = useState(() => canFlip && prefersFlip())
+  const [controller, setController] = useState<PptxViewerController | null>(null)
+  const [flip, setFlip] = useState(prefersFlip)
+  const turning = flip && !!controller && count > 0
+
   const toggleFlip = () => {
     rememberFlip(!flip)
+    // Leaving the page-turn view: bring the scrolling view to the slide that was open.
+    if (flip) void controller?.goToSlide(slide)
     setFlip(!flip)
   }
 
@@ -26,7 +29,6 @@ export default function PptView({ file }: { file: File }) {
     if (text) sendQuote({ text, source: `${baseName(file.name)}, slide ${slide + 1}` })
   }
 
-  if (flip) return <Suspense fallback={<div className="viewer-message">Loading…</div>}><SlidesView file={file} onLeave={toggleFlip} /></Suspense>
   if (error) return <div className="viewer-message">Could not open these slides: {error}</div>
 
   return (
@@ -35,19 +37,24 @@ export default function PptView({ file }: { file: File }) {
         <span className="viewer-pos">{count ? `${slide + 1} / ${count}` : '…'}</span>
         <span className="spacer" />
         <button onClick={quote} title="Copy the selected text into your notes">Quote</button>
-        {canFlip && <button onClick={toggleFlip} title="Turn slides like pages">Flip</button>}
+        <button onClick={toggleFlip} className={flip ? 'on' : ''} title="Turn slides like pages">Flip</button>
       </div>
-      <div className="viewer-body ppt-host">
-        <ReactPptxViewer
-          source={file}
-          defaultZoom="fit-width"
-          showToolbar={false}
-          showThumbnails={false}
-          height="100%"
-          onLoad={presentation => setCount(presentation.document.slides.length)}
-          onSlideChange={setSlide}
-          onError={e => setError(e.message)}
-        />
+      <div className="viewer-body">
+        {/* The scrolling view stays in place underneath: the page-turn view draws its slides through it. */}
+        <div className="ppt-host" style={{ visibility: turning ? 'hidden' : 'visible' }}>
+          <ReactPptxViewer
+            source={file}
+            defaultZoom="fit-width"
+            showToolbar={false}
+            showThumbnails={false}
+            height="100%"
+            onReady={setController}
+            onLoad={presentation => setCount(presentation.document.slides.length)}
+            onSlideChange={index => { if (!turning) setSlide(index) }}
+            onError={e => setError(e.message)}
+          />
+        </div>
+        {turning && <SlidesView controller={controller} count={count} start={slide} onSlide={setSlide} />}
       </div>
     </div>
   )

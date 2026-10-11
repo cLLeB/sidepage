@@ -1,7 +1,7 @@
 {
   "name": "sidepage",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,7 +19,6 @@
     "@tauri-apps/api": "^2.12.2",
     "@tauri-apps/plugin-dialog": "^2.8.1",
     "@tauri-apps/plugin-fs": "^2.6.0",
-    "chart.js": "^4.5.1",
     "djvujs-dist": "^0.5.4",
     "dockview-react": "^8.4.1",
     "docx-preview": "^0.4.1",
@@ -33,7 +32,6 @@
     "odf-kit": "^0.14.4",
     "page-flip": "^2.0.7",
     "pdfjs-dist": "^6.4.299",
-    "pptxviewjs": "^1.1.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-error-boundary": "^6.1.6",
