@@ -12,6 +12,10 @@ on:
       tag:
         description: Release tag to attach the builds to, e.g. v0.4.0
         required: true
+      only_android:
+        description: Build only the Android APK
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -21,6 +25,7 @@ env:
 
 jobs:
   desktop:
+    if: ${{ !inputs.only_android }}
     strategy:
       fail-fast: false
       matrix:
@@ -72,11 +77,8 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
-      - name: Install the Android NDK
-        run: |
-          sdkmanager "ndk;27.0.12077973" "platforms;android-34" "build-tools;34.0.0"
-          echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+      # GitHub's Linux machines already carry the Android SDK and NDK; Tauri only needs to be told where the NDK is.
+      - run: echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
