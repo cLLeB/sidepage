@@ -278,15 +278,25 @@ export default function BookView({ file }: { file: File }) {
 
   // Read aloud: the page that is open, then the next, and so on to the end of the book.
   const readAloud = () => {
-    if (voice.speaking) return voice.stop()
+    const renderer = viewRef.current?.renderer
+    // While reading, pages change at once: the sliding turn waits for the screen to draw, and the screen may be
+    // off or the app in the background while the voice carries on.
+    if (voice.speaking) {
+      renderer?.setAttribute('animated', '')
+      return voice.stop()
+    }
+    renderer?.removeAttribute('animated')
     let first = true
     void voice.start(async () => {
       const view = viewRef.current
       if (!first) {
         const before = placeNow.current
-        await view.next()
+        await Promise.race([view.next(), new Promise(resolve => setTimeout(resolve, 3000))])
         await new Promise(resolve => setTimeout(resolve, 450))
-        if (placeNow.current === before) return null
+        if (placeNow.current === before) {
+          renderer?.setAttribute('animated', '')
+          return null
+        }
       }
       first = false
       // The page's words, with each heading and paragraph on its own line.

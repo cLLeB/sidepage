@@ -10,7 +10,9 @@ const [url, file, width = '1280', height = '800', shot] = process.argv.slice(2)
 const port = 9334
 quit()
 const edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', [
-  '--headless=new', `--remote-debugging-port=${port}`, `--window-size=${width},${height}`,
+  '--headless=new', `--remote-debugging-port=${port}`,
+  // A headless page counts as hidden, which would slow its timers and stop its animations; the app is tested as it runs in front of someone.
+  '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', `--window-size=${width},${height}`,
   `--user-data-dir=${mkdtempSync(join(tmpdir(), 'sidepage-edge-'))}`, '--no-first-run', url,
 ], { stdio: 'ignore' })
 const sleep = ms => new Promise(r => setTimeout(r, ms))
