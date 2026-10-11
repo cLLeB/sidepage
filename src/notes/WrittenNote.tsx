@@ -71,7 +71,9 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     const squash = (text: string) => text.replace(/\s+/g, ' ').trim()
     const stopFinding = onFindInNotes(({ text }) => {
       const start = squash(text).slice(0, 60)
-      const block = [...(root?.querySelectorAll('blockquote') ?? [])].find(quote => squash(quote.textContent ?? '').includes(start))
+      const blocks = [...(root?.querySelectorAll<HTMLElement>('.ProseMirror > *') ?? [])]
+      const block = blocks.find(part => part.matches('blockquote') && squash(part.textContent ?? '').includes(start))
+        ?? blocks.find(part => squash(part.textContent ?? '').includes(start))
       if (!block) return
       block.scrollIntoView({ block: 'center', behavior: 'smooth' })
       // An animation, not a class: the editor owns this element's attributes and would strip one.

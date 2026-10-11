@@ -1,4 +1,5 @@
 import { baseName, loadNote, saveNote } from './platform'
+import { bookmarksFile } from './reading'
 
 // A .sidepage file is a zip holding one book and everything written beside it:
 //   sidepage.json     what is inside
@@ -19,7 +20,7 @@ export async function packBundle(book: File): Promise<Uint8Array> {
     notes.push(file)
     return true
   }
-  for (const file of NOTE_FILES) await add(file)
+  for (const file of [...NOTE_FILES, bookmarksFile(book.name)]) await add(file)
   for (let page = 2; await add(`canvas-${page}.excalidraw`); page++);
   zip.file(`book/${book.name}`, await book.arrayBuffer())
   zip.file('sidepage.json', JSON.stringify({

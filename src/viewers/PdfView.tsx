@@ -5,8 +5,10 @@ import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
-import { BookOpen, ChevronLeft, ChevronRight, Download, Highlighter, Pencil, TextQuote } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Download, Highlighter, Pencil, TextQuote, ZoomIn, ZoomOut } from 'lucide-react'
 import { Tool } from '../ui'
+import { BookmarksMenu, ContentsMenu } from './ReaderMenus'
+import { saveCover, setProgress, useBookmarks } from '../lib/reading'
 import { pageFilter, useTheme } from '../lib/theme'
 import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendQuote } from '../lib/platform'
 
@@ -61,6 +63,22 @@ export default function PdfView({ file }: { file: File }) {
   const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
   const [error, setError] = useState('')
   const [tool, setTool] = useState<'none' | 'highlight' | 'draw'>('none')
+  const bookmarks = useBookmarks(file.name)
+  const links = useRef<PDFLinkService | null>(null)
+  const [contents, setContents] = useState<{ label: string; depth: number; go(): void }[]>([])
+  // Zoom: the page fills the panel's width until the reader zooms; after that their zoom is kept.
+  const fitted = useRef(true)
+  const [zoom, setZoom] = useState(100)
+  const zoomBy = (factor: number) => {
+    const viewer = viewerRef.current
+    if (!viewer?.pdfDocument) return
+    fitted.current = false
+    viewer.currentScale = Math.max(0.3, Math.min(5, viewer.currentScale * factor))
+  }
+  const fitWidth = () => {
+    fitted.current = true
+    if (viewerRef.current?.pdfDocument) viewerRef.current.currentScaleValue = 'page-width'
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -77,7 +95,9 @@ export default function PdfView({ file }: { file: File }) {
       annotationEditorHighlightColors: 'yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F',
     })
     linkService.setViewer(viewer)
+    links.current = linkService
     bus.current = eventBus
+    eventBus.on('scalechanging', (e: { scale: number }) => setZoom(Math.round(e.scale * 100)))
     eventBus.on('updatefindmatchescount', (e: { matchesCount: { current: number; total: number } }) => {
       setMatches(e.matchesCount.total ? `${e.matchesCount.current} / ${e.matchesCount.total}` : 'No matches')
     })
@@ -109,12 +129,30 @@ export default function PdfView({ file }: { file: File }) {
     eventBus.on('pagechanging', (e: { pageNumber: number }) => {
       setPage(e.pageNumber)
       localStorage.setItem(placeKey, String(e.pageNumber))
+      setProgress(file.name, viewer.pagesCount > 1 ? (e.pageNumber - 1) / (viewer.pagesCount - 1) : 1)
     })
 
     const resize = new ResizeObserver(() => {
-      if (viewer.pdfDocument && container.current?.clientWidth) viewer.currentScaleValue = 'page-width'
+      if (viewer.pdfDocument && container.current?.clientWidth && fitted.current) viewer.currentScaleValue = 'page-width'
     })
     resize.observe(container.current!)
+
+    // Two fingers spread or pinched on the page zoom it.
+    const surface = container.current!
+    let pinch: { distance: number; scale: number } | null = null
+    const spread = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+    const onTouchStart = (e: TouchEvent) => { if (e.touches.length === 2) pinch = { distance: spread(e), scale: viewer.currentScale } }
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return
+      e.preventDefault()
+      fitted.current = false
+      const scale = Math.max(0.3, Math.min(5, pinch.scale * (spread(e) / pinch.distance)))
+      if (Math.abs(scale - viewer.currentScale) / viewer.currentScale > 0.04) viewer.currentScale = scale
+    }
+    const onTouchEnd = () => { pinch = null }
+    surface.addEventListener('touchstart', onTouchStart, { passive: true })
+    surface.addEventListener('touchmove', onTouchMove, { passive: false })
+    surface.addEventListener('touchend', onTouchEnd)
 
     let task: pdfjs.PDFDocumentLoadingTask | undefined
     file.arrayBuffer().then(data => {
@@ -125,12 +163,31 @@ export default function PdfView({ file }: { file: File }) {
         viewer.setDocument(pdf)
         linkService.setDocument(pdf)
         setDoc(pdf)
+        // The PDF's own table of contents, where it has one.
+        type Entry = { title: string; dest: string | unknown[] | null; items: Entry[] }
+        const flat = (items: Entry[], depth = 0): { label: string; depth: number; go(): void }[] => items.flatMap(item => [
+          { label: item.title, depth, go: () => { if (item.dest) void linkService.goToDestination(item.dest as string) } },
+          ...flat(item.items ?? [], depth + 1),
+        ])
+        void pdf.getOutline().then(outline => { if (!cancelled) setContents(flat((outline ?? []) as Entry[])) }).catch(() => {})
+        // The first page, small, as the book's cover on the home screen.
+        void pdf.getPage(1).then(async first => {
+          const viewport = first.getViewport({ scale: 320 / first.getViewport({ scale: 1 }).width })
+          const cover = document.createElement('canvas')
+          cover.width = viewport.width
+          cover.height = viewport.height
+          await first.render({ canvas: cover, canvasContext: cover.getContext('2d')!, viewport }).promise
+          await saveCover(file.name, cover)
+        }).catch(() => {})
       })
     }).catch(e => setError(String(e?.message ?? e)))
 
     return () => {
       cancelled = true
       resize.disconnect()
+      surface.removeEventListener('touchstart', onTouchStart)
+      surface.removeEventListener('touchmove', onTouchMove)
+      surface.removeEventListener('touchend', onTouchEnd)
       task?.destroy()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -242,9 +299,14 @@ export default function PdfView({ file }: { file: File }) {
           <Tool quiet icon={ChevronLeft} label="Previous page" onClick={() => go(-1)} />
           <Tool quiet icon={ChevronRight} label="Next page" onClick={() => go(1)} />
         </>}
+        {mode === 'scroll' && <ContentsMenu items={contents} onGo={() => {}} />}
         <span className="viewer-pos">{page} / {doc?.numPages ?? '…'}</span>
         <span className="spacer" />
         {mode === 'scroll' && <>
+          <Tool quiet icon={ZoomOut} label="Zoom out" onClick={() => zoomBy(1 / 1.2)} />
+          <button className="zoom-level" title="Fit the page to the panel's width" onClick={fitWidth}>{zoom}%</button>
+          <Tool quiet icon={ZoomIn} label="Zoom in" onClick={() => zoomBy(1.2)} />
+          <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <Tool icon={Highlighter} label="Highlight" hint="Select text to highlight it" on={tool === 'highlight'} onClick={() => setTool(t => (t === 'highlight' ? 'none' : 'highlight'))} />
           <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />

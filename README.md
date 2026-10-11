@@ -39,6 +39,11 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   columns and hands the pages to StPageFlip (this part is Sidepage's own, in `src/viewers/CurlBook.tsx`).
   The choice is remembered, and no scrollbars are shown anywhere.
 - Search inside a book or PDF; each match leads to its place.
+- Reading comfort: text size, line spacing and typeface for books; zoom for PDFs, with buttons or two fingers.
+- Bookmarks in books and PDFs, and a contents menu for both (a PDF's own outline, where it has one).
+- Search across the written notes of every book; a result opens the book and shows the line.
+- Focus mode hides everything but the page and your notes.
+- The home screen shows each recent book with its cover and how far you have read.
 - Light, sepia and dark themes for the whole workspace. On dark PDF and document pages the text turns
   light-on-dark while photographs keep their real colours, cut out along their own outlines.
 - Stylus friendly: touch the canvas or a PDF page with a pencil and the pen tool is picked up for you.

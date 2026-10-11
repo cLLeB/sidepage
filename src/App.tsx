@@ -3,8 +3,10 @@ import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, t
 import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
-  Share2, Sun, Workflow, X,
+  Maximize2, Minimize2, Share2, Sun, Workflow, X,
 } from 'lucide-react'
+import NotesSearch from './notes/NotesSearch'
+import { coverOf, progressOf } from './lib/reading'
 import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
@@ -104,6 +106,25 @@ export default function App() {
   // On narrow screens the less-used controls fold into a "More" menu, so nothing runs off the edge.
   const [more, setMore] = useState(false)
   const [layout, setLayout] = useState<Layout>(chosenLayout)
+  // Covers for the home screen, by book.
+  const [covers, setCovers] = useState<Record<string, string>>({})
+  useEffect(() => {
+    if (!empty) return
+    let cancelled = false
+    void Promise.all(books.map(async book => [book.name, await coverOf(book.name)] as const)).then(found => {
+      if (!cancelled) setCovers(Object.fromEntries(found.filter(([, cover]) => cover)) as Record<string, string>)
+    })
+    return () => { cancelled = true }
+  }, [books, empty])
+
+  // Focus: nothing on screen but the page and the notes. Escape, or the corner button, brings the bars back.
+  const [focus, setFocus] = useState(false)
+  useEffect(() => {
+    if (!focus) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFocus(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [focus])
 
   // Put the open panels where the layout says: every book in one group, every note in another, and the notes
   // beside the books, below them, or in the same tab strip. Turning a tablet does this by itself, and the Layout
@@ -283,7 +304,7 @@ export default function App() {
 
   return (
     <div
-      className="app"
+      className={focus ? 'app focus' : 'app'}
       // Dropped files are books for Sidepage; they stop here so PDF.js does not also try to paste them into a page.
       onDragOver={e => {
         if (!e.dataTransfer.types.includes('Files')) return
@@ -308,6 +329,8 @@ export default function App() {
           <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
         </div>
         <span className="spacer" />
+        <NotesSearch />
+        <Tool quiet icon={Maximize2} label="Focus" hint="Hide everything but the page and your notes" disabled={empty} onClick={() => setFocus(true)} />
         <Tool quiet icon={LAYOUT_ICONS[layout]} label={`Layout: ${LAYOUTS[layout]}`} hint={`Layout: ${LAYOUTS[layout]}. Tap to change.`} onClick={() => setLayout(next(Object.keys(LAYOUTS) as Layout[], layout))} />
         <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${theme}`} hint={`Theme: ${theme}. Tap to change.`} onClick={() => setTheme(next(THEMES, theme))} />
         <Tool quiet icon={Ellipsis} label="More" on={more} onClick={() => setMore(!more)} />
@@ -344,6 +367,7 @@ export default function App() {
           </div>
         </>}
       </header>
+      {focus && <button className="focus-exit" title="Show the toolbars again" aria-label="Leave focus" onClick={() => setFocus(false)}><Minimize2 size={18} aria-hidden /></button>}
       <main className="workspace">
         <DockviewReact components={components} onReady={onReady} theme={themeLight} defaultRenderer="always" />
         {empty && (
@@ -358,8 +382,14 @@ export default function App() {
                 {books.slice(0, 12).map(book => (
                   <li key={book.name}>
                     <button className="shelf-book" onClick={() => void fromShelf(book.name).then(file => { if (file) void openFile(file) })}>
-                      <span className="shelf-kind">{extensionOf(book.name)}</span>
-                      <span className="shelf-name">{baseName(book.name)}</span>
+                      {covers[book.name]
+                        ? <img className="shelf-cover" src={covers[book.name]} alt="" />
+                        : <span className="shelf-cover blank">{extensionOf(book.name)}</span>}
+                      <span className="shelf-text">
+                        <span className="shelf-name">{baseName(book.name)}</span>
+                        <span className="shelf-meta">{extensionOf(book.name).toUpperCase()} · {Math.round(progressOf(book.name) * 100)}% read</span>
+                        <span className="shelf-bar"><i style={{ width: `${Math.round(progressOf(book.name) * 100)}%` }} /></span>
+                      </span>
                     </button>
                     <button className="shelf-remove" title="Remove from this list" aria-label="Remove from this list" onClick={() => void unshelve(book.name).then(shelf).then(setBooks)}><X size={15} aria-hidden /></button>
                   </li>

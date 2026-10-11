@@ -5,6 +5,8 @@ import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
 import { BookOpen, ChevronLeft, ChevronRight, ScrollText, TextQuote } from 'lucide-react'
 import { Tool } from '../ui'
+import { BookmarksMenu, ContentsMenu, TextMenu } from './ReaderMenus'
+import { FONTS, saveCover, setProgress, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
   baseName, extensionOf, findInNotes, loadNote, onGoToPlace, prefersFlip, rememberFlip, saveNote, sendQuote,
@@ -14,12 +16,15 @@ type TocItem = { label: string; href: string; subitems?: TocItem[] }
 
 const bookColours = { light: '#1c1d21', sepia: '#40372b', dark: '#d7dade' } as const
 
-const bookCSS = (theme: Theme) => `
+const bookCSS = (theme: Theme, text: TextStyle) => `
   @namespace epub "http://www.idpf.org/2007/ops";
   /* The page itself stays see-through, so the panel's themed background shows behind the text. */
   html { color: ${bookColours[theme]}; }
   a:any-link { color: ${theme === 'dark' ? '#8ab4f8' : '#1a56c4'}; }
-  p, li, blockquote, dd { line-height: 1.6; text-align: start; hyphens: auto; }
+  /* The reader's own choice of size, spacing and typeface. */
+  html { font-size: ${text.size}% !important; }
+  p, li, blockquote, dd { line-height: ${text.spacing} !important; text-align: start; hyphens: auto; }
+  ${FONTS[text.font].css ? `body, p, li, blockquote, dd, div, span, td { font-family: ${FONTS[text.font].css} !important; }` : ''}
   pre { white-space: pre-wrap !important; }
 `
 
@@ -47,7 +52,11 @@ export default function BookView({ file }: { file: File }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const viewRef = useRef<any>(null)
   const [toc, setToc] = useState<(TocItem & { depth: number })[]>([])
-  const [where, setWhere] = useState({ fraction: 0, label: '' })
+  const [where, setWhere] = useState({ fraction: 0, label: '', cfi: '' })
+  const text = useTextStyle()
+  const textAtStart = useRef(text)
+  textAtStart.current = text
+  const bookmarks = useBookmarks(file.name)
   const [scrolled, setScrolled] = useState(false)
   const [error, setError] = useState('')
   const marks = useRef<{ cfi: string; index: number; text: string }[]>([])
@@ -72,7 +81,8 @@ export default function BookView({ file }: { file: File }) {
     let closed = false
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     view.addEventListener('relocate', (e: any) => {
-      setWhere({ fraction: e.detail.fraction ?? 0, label: e.detail.tocItem?.label ?? '' })
+      setWhere({ fraction: e.detail.fraction ?? 0, label: e.detail.tocItem?.label ?? '', cfi: e.detail.cfi ?? '' })
+      setProgress(file.name, e.detail.fraction ?? 0)
       if (e.detail.cfi) localStorage.setItem(`sidepage:place:${file.name}`, e.detail.cfi)
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -101,7 +111,8 @@ export default function BookView({ file }: { file: File }) {
       if (closed) return
       marks.current = JSON.parse((await loadNote(baseName(file.name), 'highlights.json')) ?? '[]')
       setToc(flatten(view.book.toc ?? []))
-      view.renderer.setStyles?.(bookCSS(themeAtStart.current))
+      view.renderer.setStyles?.(bookCSS(themeAtStart.current, textAtStart.current))
+      void Promise.resolve(view.book.getCover?.()).then(cover => saveCover(file.name, cover)).catch(() => {})
       view.renderer.setAttribute('animated', '')
       // Where the reader is, chapter by chapter. A jump made elsewhere (contents, a link in a note) moves the
       // paper pages too; a page turned by hand is already there, so its echo is ignored.
@@ -126,8 +137,8 @@ export default function BookView({ file }: { file: File }) {
   }, [file])
 
   useEffect(() => {
-    viewRef.current?.renderer?.setStyles?.(bookCSS(theme))
-  }, [theme])
+    viewRef.current?.renderer?.setStyles?.(bookCSS(theme, text))
+  }, [theme, text])
 
   useEffect(() => {
     viewRef.current?.renderer?.setAttribute('flow', scrolled ? 'scrolled' : 'paginated')
@@ -228,24 +239,27 @@ export default function BookView({ file }: { file: File }) {
       <div className="viewer-bar">
         <Tool quiet icon={ChevronLeft} label="Previous page" onClick={() => (turning ? curlRef.current?.previous() : viewRef.current?.goLeft())} />
         <Tool quiet icon={ChevronRight} label="Next page" onClick={() => (turning ? curlRef.current?.next() : viewRef.current?.goRight())} />
-        {toc.length > 0 && (
-          <select value="" onChange={e => viewRef.current?.goTo(e.target.value)} title="Contents">
-            <option value="" disabled>{where.label || 'Contents'}</option>
-            {toc.map((item, i) => (
-              <option key={i} value={item.href}>{'  '.repeat(item.depth) + item.label}</option>
-            ))}
-          </select>
-        )}
-        <span className="viewer-pos">{Math.round(where.fraction * 100)}%</span>
+        <ContentsMenu items={toc.map(item => ({ label: item.label, depth: item.depth, go: item.href }))} onGo={href => void viewRef.current?.goTo(href)} />
+        <span className="viewer-pos" title={where.label}>{where.label ? `${where.label} · ` : ''}{Math.round(where.fraction * 100)}%</span>
         <span className="spacer" />
         <SearchBox onSearch={query => void search(query)} onClear={clearSearch} status={searching} hits={hits} />
+        <BookmarksMenu
+          marks={bookmarks}
+          here={where.cfi ? { place: where.cfi, label: `${where.label || 'Page'} · ${Math.round(where.fraction * 100)}%` } : null}
+          onGo={place => void viewRef.current?.goTo(place)}
+        />
+        {canCurl && <TextMenu />}
         <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={() => void quote()} />
         {!turning && <Tool icon={ScrollText} label="Scroll" hint="Read as one long scroll" on={scrolled} onClick={() => setScrolled(s => !s)} />}
         {canCurl && <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={curl} onClick={toggleCurl} />}
       </div>
-      <div className="viewer-body">
+      <div
+        className="viewer-body"
+        // The paper pages take their text size, spacing and typeface from here (see index.css).
+        style={{ '--book-scale': text.size / 100, '--book-spacing': text.spacing, ...(FONTS[text.font].css ? { '--book-font': FONTS[text.font].css } : {}) } as React.CSSProperties}
+      >
         <div ref={host} className="book-host" style={{ visibility: turning ? 'hidden' : undefined }} />
-        {turning && <CurlBook key={curlStart.key} ref={curlRef} sections={sections} start={curlStart.place} onPlace={onCurlPlace} />}
+        {turning && <CurlBook key={`${curlStart.key}/${text.size}/${text.spacing}/${text.font}`} ref={curlRef} sections={sections} start={curlStart.place} onPlace={onCurlPlace} />}
       </div>
     </div>
   )
