@@ -3,13 +3,15 @@ import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, t
 import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
-  Maximize2, Minimize2, Share2, Sun, Workflow, X,
+  FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, Workflow, X,
 } from 'lucide-react'
+import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
 import { coverOf, progressOf } from './lib/reading'
 import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
+  loadNote,
   baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, launchFile, notesFolder, onFindInNotes, onGoToPlace, onOpenBookByName,
   onNotesFolderChange, pickFile, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
@@ -28,6 +30,7 @@ const WrittenNote = lazy(() => import('./notes/WrittenNote'))
 const CanvasNote = lazy(() => import('./notes/CanvasNote'))
 const MindMapNote = lazy(() => import('./notes/MindMapNote'))
 const GraphView = lazy(() => import('./notes/GraphView'))
+const ReviewView = lazy(() => import('./notes/ReviewView'))
 
 const PAPERS = ['blank', 'lined', 'grid', 'dots'] as const
 type Paper = (typeof PAPERS)[number]
@@ -93,7 +96,9 @@ function NotePanel({ params }: IDockviewPanelProps<{ kind: NoteKind; notebook: s
 
 const GraphPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><GraphView /></Suspense></ErrorBoundary>
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel }
+const ReviewPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><ReviewView /></Suspense></ErrorBoundary>
+
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -261,6 +266,29 @@ export default function App() {
     dock.addPanel({ id: 'graph', component: 'graph', title: 'Graph', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
   }, [])
 
+  const openReview = useCallback(() => {
+    const dock = api.current
+    if (!dock) return
+    const existing = dock.getPanel('review')
+    if (existing) return existing.api.setActive()
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    dock.addPanel({ id: 'review', component: 'review', title: 'Review', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
+  }, [])
+
+  // The open book's notes on their own, as one Markdown file: what was written, then the highlights with their
+  // comments, then the bookmarks.
+  const exportNotes = useCallback(async () => {
+    const dock = api.current
+    const file = (dock?.activePanel?.params as { file?: File } | undefined)?.file
+      ?? dock?.panels.map(p => (p.params as { file?: File } | undefined)?.file).find(f => f && baseName(f.name) === notebook)
+    const parts = [(await loadNote(notebook, 'notes.md'))?.trim() || `# ${notebook}`]
+    const highlights: { text: string; note?: string }[] = JSON.parse((await loadNote(notebook, 'highlights.json')) ?? '[]')
+    if (highlights.length) parts.push('## Highlights', ...highlights.map(mark => `> ${mark.text.replace(/\n+/g, ' ')}${mark.note?.trim() ? `\n\n${mark.note.trim()}` : ''}`))
+    const bookmarks: { label: string }[] = file ? JSON.parse((await loadNote(notebook, bookmarksFile(file.name))) ?? '[]') : []
+    if (bookmarks.length) parts.push('## Bookmarks', bookmarks.map(mark => `- ${mark.label}`).join('\n'))
+    await saveFileAs(`${notebook} notes.md`, new TextEncoder().encode(parts.join('\n\n') + '\n'))
+  }, [notebook])
+
   // A highlight clicked in the book brings its notebook forward.
   useEffect(() => onFindInNotes(() => api.current?.getPanel(`note:written:${notebook}`)?.api.setActive()), [notebook])
 
@@ -327,6 +355,7 @@ export default function App() {
           <Tool icon={PenLine} label="Canvas" hint="Draw and handwrite" onClick={() => openNote('canvas', notebook)} />
           <Tool icon={Workflow} label="Mind map" onClick={() => openNote('mindmap', notebook)} />
           <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
+          <Tool icon={GraduationCap} label="Review" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
         </div>
         <span className="spacer" />
         <NotesSearch />
@@ -338,6 +367,7 @@ export default function App() {
           <div className="menu-backdrop" onClick={() => setMore(false)} />
           <div className="menu" onClick={e => { if ((e.target as HTMLElement).closest('button')) setMore(false) }}>
             <Tool icon={Package} label="Save as one file" hint="Save the book and all its notes together as one .sidepage file" disabled={empty} onClick={() => void saveWhole()} />
+            <Tool icon={FileDown} label="Export notes" hint="Save this book's notes, highlights and bookmarks as one Markdown file" disabled={empty} onClick={() => void exportNotes()} />
             {canPickNotesFolder && (
               <Tool
                 icon={FolderCog}

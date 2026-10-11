@@ -15,6 +15,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 | Written notes (Markdown) | [Milkdown Crepe](https://github.com/Milkdown/milkdown) | MIT |
 | Drawing and handwriting canvas | [Excalidraw](https://github.com/excalidraw/excalidraw) | MIT |
 | Graph of linked notebooks | [force-graph](https://github.com/vasturiano/force-graph) | MIT |
+| Flashcard scheduling | [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) | MIT |
 | Mind maps | [Mind Elixir](https://github.com/SSShooter/mind-elixir-core) | MIT |
 | Icons | [Lucide](https://github.com/lucide-icons/lucide) | ISC |
 | Side-by-side panels and tabs | [Dockview](https://github.com/mathuo/dockview) | MIT |
@@ -43,6 +44,11 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Bookmarks in books and PDFs, and a contents menu for both (a PDF's own outline, where it has one).
 - Search across the written notes of every book; a result opens the book and shows the line.
 - Focus mode hides everything but the page and your notes.
+- Highlight passages in four colours and add a comment to each; they are listed in the book's Highlight menu.
+- Read aloud: books and PDFs are read page by page with the device's own voices, where it has them.
+- Review: flashcards make themselves from your highlights (the passage, then your comment) and from "Q:" / "A:"
+  lines in your notes, and come back when [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) says it is time.
+- Export notes: a book's notes, highlights and bookmarks as one Markdown file.
 - The home screen shows each recent book with its cover and how far you have read.
 - Light, sepia and dark themes for the whole workspace. On dark PDF and document pages the text turns
   light-on-dark while photographs keep their real colours, cut out along their own outlines.

@@ -1,4 +1,4 @@
-import { ALargeSmall, Bookmark, BookmarkCheck, BookmarkMinus, BookmarkPlus, List, X } from 'lucide-react'
+import { ALargeSmall, Bookmark, BookmarkCheck, BookmarkMinus, BookmarkPlus, Highlighter, List, X } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { FONTS, setTextStyle, useTextStyle, type Bookmark as Mark, type useBookmarks } from '../lib/reading'
 
@@ -26,6 +26,55 @@ export function BookmarksMenu({ marks, here, onGo }: {
           <button className="stay menu-x" title="Remove" aria-label="Remove bookmark" onClick={() => marks.remove(mark.place)}><X size={14} aria-hidden /></button>
         </div>
       ))}
+    </Menu>
+  )
+}
+
+export const HIGHLIGHT_COLOURS = { Yellow: '#ffd84d', Green: '#8fe3a0', Blue: '#8ecbff', Pink: '#ffa8c7' } as const
+export type Highlight = { cfi: string; index: number; text: string; color?: string; note?: string }
+
+// Highlight the selected passage in a colour, and look after the highlights already made: each can carry a
+// comment, which also becomes the back of its flashcard.
+export function HighlightsMenu({ marks, onHighlight, onGo, onChange, onRemove }: {
+  marks: Highlight[]
+  onHighlight(color: string): void
+  onGo(cfi: string): void
+  onChange(cfi: string, change: Partial<Highlight>): void
+  onRemove(cfi: string): void
+}) {
+  return (
+    <Menu icon={Highlighter} label="Highlight" hint="Highlight the selected text, and see your highlights">
+      <div className="menu-row">
+        Highlight selection
+        <span className="swatches">
+          {Object.entries(HIGHLIGHT_COLOURS).map(([name, color]) => (
+            <button key={name} className="swatch" style={{ background: color }} title={name} aria-label={`Highlight in ${name.toLowerCase()}`} onClick={() => onHighlight(color)} />
+          ))}
+        </span>
+      </div>
+      {marks.length === 0 && <p className="menu-note">Select some text in the book, then pick a colour.</p>}
+      <div className="menu-scroll">
+        {marks.map(mark => (
+          <div className="highlight" key={mark.cfi} style={{ borderColor: mark.color ?? HIGHLIGHT_COLOURS.Yellow }}>
+            <div className="menu-line">
+              <button className="menu-item" onClick={() => onGo(mark.cfi)}>{mark.text.length > 120 ? `${mark.text.slice(0, 120)}…` : mark.text}</button>
+              <button className="stay menu-x" title="Remove" aria-label="Remove highlight" onClick={() => onRemove(mark.cfi)}><X size={14} aria-hidden /></button>
+            </div>
+            <span className="swatches small">
+              {Object.entries(HIGHLIGHT_COLOURS).map(([name, color]) => (
+                <button key={name} className="stay swatch" style={{ background: color }} title={name} aria-label={`Make it ${name.toLowerCase()}`} onClick={() => onChange(mark.cfi, { color })} />
+              ))}
+            </span>
+            <textarea
+              className="highlight-note"
+              rows={2}
+              placeholder="Add a comment"
+              defaultValue={mark.note ?? ''}
+              onBlur={e => { if (e.target.value !== (mark.note ?? '')) onChange(mark.cfi, { note: e.target.value }) }}
+            />
+          </div>
+        ))}
+      </div>
     </Menu>
   )
 }

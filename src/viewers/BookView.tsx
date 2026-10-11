@@ -3,9 +3,10 @@ import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
 import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
-import { BookOpen, ChevronLeft, ChevronRight, ScrollText, TextQuote } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2 } from 'lucide-react'
 import { Tool } from '../ui'
-import { BookmarksMenu, ContentsMenu, TextMenu } from './ReaderMenus'
+import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
+import { canSpeak, useReadAloud } from '../lib/speech'
 import { FONTS, saveCover, setProgress, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
@@ -59,7 +60,13 @@ export default function BookView({ file }: { file: File }) {
   const bookmarks = useBookmarks(file.name)
   const [scrolled, setScrolled] = useState(false)
   const [error, setError] = useState('')
-  const marks = useRef<{ cfi: string; index: number; text: string }[]>([])
+  // The reader's highlights. The list is kept twice: here for the book's own event handlers, which outlive a
+  // render, and in `highlights` for showing.
+  const marks = useRef<Highlight[]>([])
+  const [highlights, setHighlights] = useState<Highlight[]>([])
+  const shownRange = useRef<Range | null>(null)
+  const placeNow = useRef('')
+  const voice = useReadAloud()
   const theme = useTheme()
   const themeAtStart = useRef(theme)
   themeAtStart.current = theme
@@ -83,6 +90,7 @@ export default function BookView({ file }: { file: File }) {
     view.addEventListener('relocate', (e: any) => {
       setWhere({ fraction: e.detail.fraction ?? 0, label: e.detail.tocItem?.label ?? '', cfi: e.detail.cfi ?? '' })
       setProgress(file.name, e.detail.fraction ?? 0)
+      placeNow.current = e.detail.cfi ?? ''
       if (e.detail.cfi) localStorage.setItem(`sidepage:place:${file.name}`, e.detail.cfi)
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -96,10 +104,10 @@ export default function BookView({ file }: { file: File }) {
     // Quoted passages stay highlighted in the book; clicking one shows the note that quotes it.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     view.addEventListener('create-overlay', (e: any) => {
-      for (const mark of marks.current) if (mark.index === e.detail.index) view.addAnnotation({ value: mark.cfi })
+      for (const mark of marks.current) if (mark.index === e.detail.index) view.addAnnotation({ value: mark.cfi, color: mark.color })
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    view.addEventListener('draw-annotation', (e: any) => e.detail.draw(Overlayer.highlight, { color: '#ffd84d' }))
+    view.addEventListener('draw-annotation', (e: any) => e.detail.draw(Overlayer.highlight, { color: e.detail.annotation.color ?? HIGHLIGHT_COLOURS.Yellow }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     view.addEventListener('show-annotation', (e: any) => {
       const mark = marks.current.find(m => m.cfi === e.detail.value)
@@ -110,6 +118,7 @@ export default function BookView({ file }: { file: File }) {
     Promise.resolve(isArchive ? openComicArchive(file) : file).then(book => view.open(book)).then(async () => {
       if (closed) return
       marks.current = JSON.parse((await loadNote(baseName(file.name), 'highlights.json')) ?? '[]')
+      setHighlights(marks.current)
       setToc(flatten(view.book.toc ?? []))
       view.renderer.setStyles?.(bookCSS(themeAtStart.current, textAtStart.current))
       void Promise.resolve(view.book.getCover?.()).then(cover => saveCover(file.name, cover)).catch(() => {})
@@ -119,6 +128,7 @@ export default function BookView({ file }: { file: File }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       view.renderer.addEventListener('relocate', (e: any) => {
         here.current = { index: e.detail.index ?? 0, fraction: e.detail.fraction ?? 0 }
+        shownRange.current = e.detail.range ?? null
         if (Date.now() - turnedAt.current > 1500) setCurlStart(s => ({ place: here.current, key: s.key + 1 }))
       })
       // Reopen where the reader left off.
@@ -192,22 +202,21 @@ export default function BookView({ file }: { file: File }) {
     viewRef.current?.clearSearch()
   }
 
-  // Keep a quoted passage: highlight it in the book and send it to the notes with a link back to its place.
-  const keep = (text: string, index: number, cfi: string) => {
-    marks.current.push({ cfi, index, text })
-    void saveNote(baseName(file.name), 'highlights.json', JSON.stringify(marks.current))
-    void viewRef.current.addAnnotation({ value: cfi })
-    sendQuote({ text, source: [baseName(file.name), where.label].filter(Boolean).join(', '), book: file.name, place: cfi })
+  const saveMarks = (next: Highlight[]) => {
+    marks.current = next
+    setHighlights(next)
+    void saveNote(baseName(file.name), 'highlights.json', JSON.stringify(next))
   }
 
-  const quote = async () => {
+  // The selected passage and its address in the book, whichever way the book is being shown. `cfi` is empty
+  // when the address cannot be worked out; the words are still returned.
+  const selectedPassage = async (): Promise<{ text: string; index: number; cfi: string } | null> => {
     const view = viewRef.current
     if (turning) {
-      // The paper pages are a copy of the chapter, so the selection is found again in the chapter itself
-      // to get its true address in the book.
+      // The paper pages are a copy of the chapter, so the selection is found again in the chapter itself.
       const picked = curlRef.current?.selection()
-      if (!picked) return
-      const source = [baseName(file.name), where.label].filter(Boolean).join(', ')
+      if (!picked) return null
+      document.getSelection()?.removeAllRanges()
       try {
         const doc: Document = await sections[picked.index].createDocument()
         const find = (path: number[]) => path.reduce<Node>((node, i) => node.childNodes[i], doc.body)
@@ -215,21 +224,77 @@ export default function BookView({ file }: { file: File }) {
         range.setStart(find(picked.start.path), picked.start.offset)
         range.setEnd(find(picked.end.path), picked.end.offset)
         if (range.toString().trim() !== picked.text) throw new Error('selection not found in chapter')
-        keep(picked.text, picked.index, view.getCFI(picked.index, range))
+        return { text: picked.text, index: picked.index, cfi: view.getCFI(picked.index, range) }
       } catch {
-        sendQuote({ text: picked.text, source, book: file.name })
+        return { text: picked.text, index: picked.index, cfi: '' }
       }
-      document.getSelection()?.removeAllRanges()
-      return
     }
     const contents: { doc: Document; index: number }[] = view?.renderer?.getContents?.() ?? []
     for (const { doc, index } of contents) {
       const selection = doc.getSelection()
       const text = selection?.toString().trim()
       if (!selection || !text) continue
-      keep(text, index, view.getCFI(index, selection.getRangeAt(0)))
-      return selection.removeAllRanges()
+      const cfi: string = view.getCFI(index, selection.getRangeAt(0))
+      selection.removeAllRanges()
+      return { text, index, cfi }
     }
+    return null
+  }
+
+  // Highlight the selected passage. A passage already highlighted takes the new colour.
+  const highlight = async (color: string) => {
+    const passage = await selectedPassage()
+    if (!passage?.cfi) return null
+    const known = marks.current.find(mark => mark.cfi === passage.cfi)
+    saveMarks(known
+      ? marks.current.map(mark => (mark === known ? { ...mark, color } : mark))
+      : [...marks.current, { cfi: passage.cfi, index: passage.index, text: passage.text, color }])
+    void viewRef.current.addAnnotation({ value: passage.cfi, color })
+    return passage
+  }
+
+  const changeHighlight = (cfi: string, change: Partial<Highlight>) => {
+    saveMarks(marks.current.map(mark => (mark.cfi === cfi ? { ...mark, ...change } : mark)))
+    if (change.color) void viewRef.current.addAnnotation({ value: cfi, color: change.color })
+  }
+
+  const removeHighlight = (cfi: string) => {
+    saveMarks(marks.current.filter(mark => mark.cfi !== cfi))
+    void viewRef.current.deleteAnnotation({ value: cfi })
+  }
+
+  // Quote: highlight the passage and send it to the notes with a link back to its place.
+  const quote = async () => {
+    const source = [baseName(file.name), where.label].filter(Boolean).join(', ')
+    const passage = await selectedPassage()
+    if (!passage) return
+    if (!passage.cfi) return sendQuote({ text: passage.text, source, book: file.name })
+    if (!marks.current.some(mark => mark.cfi === passage.cfi)) {
+      saveMarks([...marks.current, { cfi: passage.cfi, index: passage.index, text: passage.text }])
+      void viewRef.current.addAnnotation({ value: passage.cfi })
+    }
+    sendQuote({ text: passage.text, source, book: file.name, place: passage.cfi })
+  }
+
+  // Read aloud: the page that is open, then the next, and so on to the end of the book.
+  const readAloud = () => {
+    if (voice.speaking) return voice.stop()
+    let first = true
+    void voice.start(async () => {
+      const view = viewRef.current
+      if (!first) {
+        const before = placeNow.current
+        await view.next()
+        await new Promise(resolve => setTimeout(resolve, 450))
+        if (placeNow.current === before) return null
+      }
+      first = false
+      // The page's words, with each heading and paragraph on its own line.
+      const shown = document.createElement('div')
+      if (shownRange.current) shown.append(shownRange.current.cloneContents())
+      shown.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, div, br').forEach(block => block.append('\n'))
+      return shown.textContent ?? ''
+    })
   }
 
   if (error) return <div className="viewer-message">Could not open this book: {error}</div>
@@ -248,7 +313,9 @@ export default function BookView({ file }: { file: File }) {
           here={where.cfi ? { place: where.cfi, label: `${where.label || 'Page'} · ${Math.round(where.fraction * 100)}%` } : null}
           onGo={place => void viewRef.current?.goTo(place)}
         />
+        {canCurl && <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={cfi => void viewRef.current?.goTo(cfi)} onChange={changeHighlight} onRemove={removeHighlight} />}
         {canCurl && <TextMenu />}
+        {canCurl && canSpeak && !turning && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
         <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={() => void quote()} />
         {!turning && <Tool icon={ScrollText} label="Scroll" hint="Read as one long scroll" on={scrolled} onClick={() => setScrolled(s => !s)} />}
         {canCurl && <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={curl} onClick={toggleCurl} />}

@@ -5,10 +5,11 @@ import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
-import { BookOpen, ChevronLeft, ChevronRight, Download, Highlighter, Pencil, TextQuote, ZoomIn, ZoomOut } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Download, Highlighter, Pencil, Square, TextQuote, Volume2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu } from './ReaderMenus'
 import { saveCover, setProgress, useBookmarks } from '../lib/reading'
+import { canSpeak, useReadAloud } from '../lib/speech'
 import { pageFilter, useTheme } from '../lib/theme'
 import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendQuote } from '../lib/platform'
 
@@ -64,6 +65,23 @@ export default function PdfView({ file }: { file: File }) {
   const [error, setError] = useState('')
   const [tool, setTool] = useState<'none' | 'highlight' | 'draw'>('none')
   const bookmarks = useBookmarks(file.name)
+  // Read aloud: the page that is open, then the next, and so on to the end.
+  const voice = useReadAloud()
+  const readAloud = () => {
+    if (voice.speaking || !doc) return voice.stop()
+    let number = page
+    let first = true
+    void voice.start(async () => {
+      if (!first) {
+        if (number >= doc.numPages) return null
+        number++
+        if (viewerRef.current) viewerRef.current.currentPageNumber = number
+      }
+      first = false
+      const content = await (await doc.getPage(number)).getTextContent()
+      return content.items.map(item => ('str' in item ? item.str : '')).join(' ')
+    })
+  }
   const links = useRef<PDFLinkService | null>(null)
   const [contents, setContents] = useState<{ label: string; depth: number; go(): void }[]>([])
   // Zoom: the page fills the panel's width until the reader zooms; after that their zoom is kept.
@@ -312,6 +330,7 @@ export default function PdfView({ file }: { file: File }) {
           <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
           <Tool icon={Download} label="Save copy" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
           <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
+          {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
         </>}
         <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={mode === 'flip'} onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} />
       </div>
