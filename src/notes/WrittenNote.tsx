@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { ListTree, Printer } from 'lucide-react'
+import {
+  ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, Highlighter, Italic, ListTree, PenLine, Printer, RemoveFormatting,
+  Strikethrough, Underline,
+} from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
@@ -12,6 +15,20 @@ import {
   baseName, debounce, goToPlace, isMobile, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
   parsePlaceLink, placeLink, saveNote, shelf,
 } from '../lib/platform'
+import {
+  FACES, INKS, MARKER_COLOURS, TEXT_COLOURS, TEXT_FACES, TEXT_SIZES, WRITING_SIZES, addLooks, clearLooks, setAlign, setLook, setWriting, toggleLook, useWriting,
+  type Writing,
+} from './writing'
+
+// A notebook made before 0.11 had the book's name put on its first line. Nobody wrote that, so it is left out.
+const withoutMadeTitle = (note: string, notebook: string) => {
+  const [first, ...rest] = note.split('\n')
+  return first.startsWith('# ') && first.slice(2).replace(/\\/g, '').trim() === notebook ? rest.join('\n').replace(/^\n+/, '') : note
+}
+
+// On a touch screen the device shows its own Cut / Copy / Paste bubble over the selection, right where the
+// editor's floating toolbar would be. There the note's own bar does that work instead.
+const touch = matchMedia('(pointer: coarse)').matches
 
 // Ready-made layouts for a note. "Question and answer" lines become flashcards (see lib/review.ts).
 const TEMPLATES = {
@@ -24,7 +41,10 @@ const TEMPLATES = {
 // Typed notes in Markdown (Milkdown Crepe), saved as notes.md.
 export default function WrittenNote({ notebook }: { notebook: string }) {
   const host = useRef<HTMLDivElement>(null)
+  const probe = useRef<HTMLDivElement>(null)
   const editorRef = useRef<Crepe | null>(null)
+  const writing = useWriting()
+  const rule = writing.size * 2
   // Other books to link to, and the books whose notes link here.
   const [others, setOthers] = useState<string[]>([])
   const [backlinks, setBacklinks] = useState<string[]>([])
@@ -46,8 +66,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       if (cancelled || !host.current) return
       const editor = new Crepe({
         root: host.current,
-        defaultValue: saved ?? `# ${notebook}\n\n`,
+        defaultValue: withoutMadeTitle(saved ?? '', notebook),
+        features: { [Crepe.Feature.Toolbar]: !touch },
         featureConfigs: {
+          [Crepe.Feature.Placeholder]: { text: 'Write here…' },
           [Crepe.Feature.ImageBlock]: {
             // A picture put into the note is kept in the notebook, and the note refers to it by its file name.
             onUpload: async picture => {
@@ -67,11 +89,13 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           },
         },
       })
+      addLooks(editor)
       editor.on(listener => listener.markdownUpdated((_, markdown) => save(markdown)))
       await editor.create()
       if (cancelled) return void editor.destroy()
       crepe = editor
       editorRef.current = editor
+      setReady(true)
       stopQuotes = onQuote(({ text, source, book, place }) => {
         // Each book's quotes go to its own notebook.
         if (book && baseName(book) !== notebook) return
@@ -142,6 +166,37 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     }
   }, [notebook])
 
+  // The rules of the paper are laid where the writing actually falls: one rule to each row of text, just under
+  // the letters. A hidden row of the same writing is measured for that, so it holds for any typeface and size,
+  // and on devices that scale text themselves.
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    const page = host.current, sample = probe.current
+    if (!page || !sample) return
+    const lay = () => {
+      const sheet = page.querySelector<HTMLElement>('.ProseMirror')
+      const box = sample.getBoundingClientRect()
+      if (!sheet || !box.height) return
+      const step = box.height / 2
+      const baseline = sample.firstElementChild!.getBoundingClientRect().bottom - box.top
+      const first = sheet.getBoundingClientRect().top + parseFloat(getComputedStyle(sheet).paddingTop) - (page.getBoundingClientRect().top - page.scrollTop)
+      page.style.setProperty('--step', `${step}px`)
+      // How far a letter's foot sits below the middle of its row, as a share of the letter's size: headings,
+      // being larger, are lifted by this much to stand on the rule too.
+      page.style.setProperty('--foot', String((baseline - step / 2) / parseFloat(getComputedStyle(sample).fontSize)))
+      page.style.setProperty('--paper-y', `${(first + baseline + 2) % step}px`)
+    }
+    lay()
+    const watch = new ResizeObserver(lay)
+    watch.observe(sample)
+    watch.observe(page)
+    void document.fonts.ready.then(lay)
+    document.fonts.addEventListener('loadingdone', lay)
+    return () => { watch.disconnect(); document.fonts.removeEventListener('loadingdone', lay) }
+  }, [ready, writing])
+
+  const crepe = () => editorRef.current
+
   // The note's headings, to jump by.
   const headings = () => [...(host.current?.querySelectorAll<HTMLElement>('.ProseMirror :is(h1, h2, h3, h4)') ?? [])]
     .filter(heading => heading.textContent?.trim())
@@ -169,8 +224,13 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   }
 
   return (
-    <div className="note written-wrap">
-      <div className="note-bar">
+    <div
+      className="note written-wrap"
+      data-ink={writing.ink}
+      style={{ '--rule': `${rule}px`, '--note-size': `${writing.size}px`, '--note-face': FACES[writing.face].css } as React.CSSProperties}
+    >
+      {/* A button pressed in the bar must not take the cursor out of the note. */}
+      <div className="note-bar" onMouseDown={e => { if (!(e.target as HTMLElement).closest('select, input')) e.preventDefault() }}>
         <Menu quiet icon={ListTree} label="Outline" hint="Jump to a heading in this note">
           {() => {
             const found = headings()
@@ -183,6 +243,65 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
               : <p className="menu-note">Headings you write in this note are listed here.</p>
           }}
         </Menu>
+        <Menu quiet icon={PenLine} label="Writing" hint="The typeface, size and ink of your writing">
+          <label className="menu-row">Typeface
+            <select value={writing.face} onChange={e => setWriting({ face: e.target.value as Writing['face'] })}>
+              {Object.entries(FACES).map(([id, face]) => <option key={id} value={id}>{face.name}</option>)}
+            </select>
+          </label>
+          <label className="menu-row">Size
+            <select value={writing.size} onChange={e => setWriting({ size: Number(e.target.value) })}>
+              {Object.entries(WRITING_SIZES).map(([name, size]) => <option key={name} value={size}>{name}</option>)}
+            </select>
+          </label>
+          <label className="menu-row">Ink
+            <select value={writing.ink} onChange={e => setWriting({ ink: e.target.value as Writing['ink'] })}>
+              {Object.entries(INKS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </label>
+          <p className="menu-note">The lines of the paper follow the size you choose.</p>
+        </Menu>
+        <span className="divider" />
+        <Tool quiet icon={Bold} label="Bold" onClick={() => toggleLook(crepe(), 'strong')} />
+        <Tool quiet icon={Italic} label="Italic" onClick={() => toggleLook(crepe(), 'emphasis')} />
+        <Tool quiet icon={Underline} label="Underline" onClick={() => toggleLook(crepe(), 'underline')} />
+        <Tool quiet icon={Strikethrough} label="Strike through" onClick={() => toggleLook(crepe(), 'strike_through')} />
+        <Menu quiet icon={Baseline} label="Text colour" hint="Colour the selected words">
+          <span className="swatches">
+            {Object.entries(TEXT_COLOURS).map(([name, colour]) => (
+              <button key={name} className="swatch" style={{ background: colour }} title={name} aria-label={`${name} text`} onClick={() => setLook(crepe(), 'ink', colour)} />
+            ))}
+          </span>
+          <button className="menu-item" onClick={() => setLook(crepe(), 'ink', null)}>The page's own ink</button>
+        </Menu>
+        <Menu quiet icon={Highlighter} label="Marker" hint="Run a marker over the selected words">
+          <span className="swatches">
+            {Object.entries(MARKER_COLOURS).map(([name, colour]) => (
+              <button key={name} className="swatch" style={{ background: colour }} title={name} aria-label={`${name} marker`} onClick={() => setLook(crepe(), 'marker', colour)} />
+            ))}
+          </span>
+          <button className="menu-item" onClick={() => setLook(crepe(), 'marker', null)}>No marker</button>
+        </Menu>
+        <Menu quiet icon={ALargeSmall} label="Size and typeface" hint="Make the selected words larger or smaller, or set them in another typeface">
+          <p className="menu-head">Size</p>
+          <button className="menu-item" onClick={() => setLook(crepe(), 'size', null)}>Normal</button>
+          {Object.entries(TEXT_SIZES).map(([name, size]) => (
+            <button key={name} className="menu-item" onClick={() => setLook(crepe(), 'size', size)}><span style={{ fontSize: size }}>{name}</span></button>
+          ))}
+          <p className="menu-head">Typeface</p>
+          <button className="menu-item" onClick={() => setLook(crepe(), 'face', null)}>The page's own</button>
+          {Object.entries(TEXT_FACES).map(([name, face]) => (
+            <button key={name} className="menu-item" onClick={() => setLook(crepe(), 'face', face)}><span data-face={face}>{name}</span></button>
+          ))}
+        </Menu>
+        <Menu quiet icon={AlignLeft} label="Alignment" hint="Which side the paragraph leans to">
+          <Tool icon={AlignLeft} label="Left" onClick={() => setAlign(crepe(), 'left')} />
+          <Tool icon={AlignCenter} label="Centre" onClick={() => setAlign(crepe(), 'center')} />
+          <Tool icon={AlignRight} label="Right" onClick={() => setAlign(crepe(), 'right')} />
+          <Tool icon={AlignJustify} label="Fill the line" onClick={() => setAlign(crepe(), 'justify')} />
+        </Menu>
+        <Tool quiet icon={RemoveFormatting} label="Plain writing" hint="Take the colour, size and other looks off the selected words" onClick={() => clearLooks(crepe())} />
+        <span className="divider" />
         <select
           value=""
           onFocus={() => void refreshLinks()}
@@ -205,6 +324,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         {backlinks.map(name => <button key={name} onClick={() => openBookByName(name)}>{baseName(name)}</button>)}
       </div>
       <div ref={host} className="written-note paper" />
+      <div ref={probe} className="rule-probe" aria-hidden><i />x<br />x</div>
     </div>
   )
 }

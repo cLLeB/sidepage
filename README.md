@@ -34,7 +34,12 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   by its contents.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
-- Paper styles for notes: blank, lined (exercise book), grid and dots.
+- Paper styles for notes: blank, lined (exercise book), grid and dots. Writing sits on the rules as it does in
+  an exercise book, whatever its size or typeface, and a new note is an empty page.
+- Writing tools in the note's own bar: bold, italic, underline, strike through, text colour, marker, larger and
+  smaller words, typeface (plain, book, handwriting, typewriter), and left / centre / right / full alignment.
+  The page as a whole has its own typeface, size and ink. All of it is kept inside the Markdown note as small
+  pieces of HTML, so the note stays one plain file.
 - "Flip" turns PDFs, slide decks, DjVu books and your canvas notebook into a book you leaf through, with a paper
   curl as each page turns. EPUB, MOBI and FB2 text curls the same way: Sidepage lays the chapter out in page-wide
   columns and hands the pages to StPageFlip (this part is Sidepage's own, in `src/viewers/CurlBook.tsx`).

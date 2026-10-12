@@ -261,7 +261,13 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 /* Written notes sit on the rules like handwriting in an exercise book. */
 .written-note { background-attachment: local; }
 .written-note .milkdown { background: transparent; }
-.written-note .milkdown .ProseMirror { padding: var(--rule) 48px calc(var(--rule) * 4) calc(var(--margin-x) + 24px); }
+.written-note .milkdown .ProseMirror {
+  padding: var(--step) 48px calc(var(--step) * 4) calc(var(--margin-x) + 24px);
+  font-family: var(--note-face); font-size: var(--note-size); line-height: var(--rule);
+}
+/* The same writing, out of sight, measured to find where the rules belong. */
+.rule-probe { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; white-space: pre; font-family: var(--note-face); font-size: var(--note-size); line-height: var(--rule); }
+.rule-probe i { display: inline-block; }
 [data-paper='lined'] .written-note::before {
   content: '';
   position: absolute;
@@ -271,8 +277,39 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
   height: 100%;
   background: var(--paper-margin);
 }
-.written-note .milkdown .ProseMirror :is(p, li, blockquote) { line-height: var(--rule); margin-block: 0; padding-block: 0; }
-.written-note .milkdown .ProseMirror :is(h1, h2, h3, h4) { line-height: calc(var(--rule) * 2); margin-block: 0; padding-block: 0; }
+.written-note .milkdown .ProseMirror > * { margin-block: 0; }
+.written-note .milkdown .ProseMirror :is(p, li, ul, ol, blockquote, h1, h2, h3, h4, h5, h6) { font-family: inherit; line-height: var(--rule); margin-block: 0; padding-block: 0; }
+.written-note .milkdown .ProseMirror :is(p, li) { font-size: inherit; }
+/* A heading is larger writing on a rule of its own, with an empty rule above it. */
+.written-note .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 700; padding-top: var(--step);
+  transform: translateY(calc((var(--note-size) - 1em) * var(--foot, 0.4)));
+}
+.written-note .milkdown .ProseMirror > :is(h1, h2, h3, h4, h5, h6):first-child { padding-top: 0; }
+.written-note .milkdown .ProseMirror h1 { font-size: 1.5em; }
+.written-note .milkdown .ProseMirror h2 { font-size: 1.3em; }
+.written-note .milkdown .ProseMirror h3 { font-size: 1.15em; }
+.written-note .milkdown .ProseMirror :is(h4, h5, h6) { font-size: 1em; }
+/* Words in another size or typeface share the row they are in instead of pushing it taller. */
+.written-note .milkdown .ProseMirror :is(span[data-size], span[data-face], code, sup, sub) { line-height: 0; }
+.written-note span[data-marker] { color: #1c1d21; border-radius: 3px; padding: 1px 0; }
+[data-face='sans-serif'] { font-family: system-ui, 'Segoe UI', Roboto, sans-serif; }
+[data-face='serif'] { font-family: Georgia, 'Times New Roman', serif; }
+[data-face='cursive'] { font-family: 'Sidepage Hand', 'Segoe Print', 'Bradley Hand', cursive; }
+[data-face='monospace'] { font-family: 'Courier New', ui-monospace, monospace; }
+@font-face { font-family: 'Sidepage Hand'; src: url('/excalidraw/fonts/Virgil/Virgil-Regular.woff2') format('woff2'); font-display: swap; }
+/* Ink for the whole page. */
+.written-wrap[data-ink='blue'] .ProseMirror { color: #2450b8; }
+.written-wrap[data-ink='black'] .ProseMirror { color: #111; }
+.written-wrap[data-ink='green'] .ProseMirror { color: #1f7a3a; }
+.written-wrap[data-ink='red'] .ProseMirror { color: #c62828; }
+:root[data-theme='dark'] .written-wrap[data-ink='blue'] .ProseMirror { color: #8ab4f8; }
+:root[data-theme='dark'] .written-wrap[data-ink='black'] .ProseMirror { color: #f2f2f2; }
+:root[data-theme='dark'] .written-wrap[data-ink='green'] .ProseMirror { color: #81c995; }
+:root[data-theme='dark'] .written-wrap[data-ink='red'] .ProseMirror { color: #f28b82; }
+.note-bar .swatches { padding: 6px 8px; }
+/* A table is its own sheet laid on the page: the rules do not run through it. */
+.written-note .milkdown-table-block table { background: var(--paper-bg); }
 
 .canvas-note { display: flex; flex-direction: column; overflow: hidden; }
 .canvas-page { position: relative; flex: 1; min-height: 0; }

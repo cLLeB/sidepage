@@ -30,6 +30,9 @@ class MainActivity : TauriActivity() {
 
   override fun onWebViewCreate(webView: WebView) {
     webView.addJavascriptInterface(Files(), "SidepageAndroid")
+    // The device's "font size" setting would stretch the writing but not the paper's rules under it.
+    // Sidepage has its own text sizes, for books and for notes.
+    webView.settings.textZoom = 100
   }
 
   // Android's file picker hands a book over as an internal reference ("document:19111"), not by name.

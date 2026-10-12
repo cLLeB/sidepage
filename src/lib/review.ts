@@ -27,7 +27,7 @@ export async function allCards(): Promise<Flashcard[]> {
     for (const mark of highlights) {
       cards.push({ id: idOf(`${book.name}|${mark.cfi}`), book: book.name, front: mark.text, back: mark.note?.trim() || '', place: mark.cfi })
     }
-    const lines = ((await loadNote(notebook, 'notes.md')) ?? '').split('\n').map(line => line.replace(/^[\s>*\-+]+/, '').trim())
+    const lines = ((await loadNote(notebook, 'notes.md')) ?? '').split('\n').map(line => line.replace(/<\/?(?:span|u|div)\b[^>]*>/g, '').replace(/^[\s>*\-+]+/, '').trim())
     lines.forEach((line, i) => {
       const question = line.match(/^Q[:.]\s*(.+)/i)?.[1]
       const answer = lines.slice(i + 1).find(Boolean)?.match(/^A[:.]\s*(.+)/i)?.[1]

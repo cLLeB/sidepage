@@ -19,7 +19,7 @@ function branchesOf(markdown: string): Branch[] {
     const heading = raw.match(/^(#{1,6})\s+(.+)/)
     const bullet = raw.match(/^\s*(?:[-*+]|\d+\.)\s+(.+)/)
     const question = raw.match(/^\s*Q[:.]\s*(.+)/i)
-    const clean = (text: string) => text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '').trim().slice(0, 90)
+    const clean = (text: string) => text.replace(/<\/?(?:span|u|div)\b[^>]*>/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '').trim().slice(0, 90)
     if (heading) {
       const level = heading[1].length
       const node = branch(clean(heading[2]))
