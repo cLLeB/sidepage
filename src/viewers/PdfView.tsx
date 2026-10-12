@@ -8,8 +8,9 @@ import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
 import {
   BookA, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, Eye, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
-  Volume2, ZoomIn, ZoomOut,
+  ScanText, Volume2, ZoomIn, ZoomOut,
 } from 'lucide-react'
+import { readText } from '../lib/ocr'
 import { lookUp } from '../Extras'
 import { Menu, Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
@@ -17,7 +18,7 @@ import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, t
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { hasWords, keepWords, type Stretch } from '../lib/library'
 import { pageFilter, useTheme } from '../lib/theme'
-import { baseName, debounce, loadNoteFile, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, saveNoteFile, sendClip, sendQuote } from '../lib/platform'
+import { baseName, debounce, loadNoteFile, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, saveNoteFile, sendClip, sendQuote, tellPlace } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -142,6 +143,39 @@ export default function PdfView({ file }: { file: File }) {
 
   // Clip: drag a box over part of a page and it goes to the notes as a picture, linked back to its page.
   const [clipping, setClipping] = useState(false)
+  // Read text: the same box, but what comes out is the words in it, not a picture of it.
+  const [reading, setReading] = useState(false)
+  const [busy, setBusy] = useState('')
+  const wordsFrom = async (picture: HTMLCanvasElement, pageNumber: number) => {
+    setBusy('Reading the text…')
+    try {
+      const text = await readText(picture, share => setBusy(`Reading the text… ${Math.round(share * 100)}%`))
+      if (text) sendQuote({ text, source: `${baseName(file.name)}, p. ${pageNumber}`, book: file.name, place: `page=${pageNumber}` })
+      setBusy(text ? '' : 'No words found there')
+    } catch {
+      setBusy('The text reader could not be fetched. It needs the internet the first time.')
+    }
+    setTimeout(() => setBusy(''), 6000)
+  }
+  // Small print on screen is too coarse to read reliably, so the page is drawn again, large, for the reader.
+  // `part` is the share of the page wanted (0 to 1 each way); without it, the whole page.
+  const readPage = async (pageNumber: number, part = { x: 0, y: 0, w: 1, h: 1 }) => {
+    if (!doc) return
+    setBusy('Reading the text…')
+    const pdfPage = await doc.getPage(pageNumber)
+    const base = pdfPage.getViewport({ scale: 1 })
+    const viewport = pdfPage.getViewport({ scale: Math.min(3, 2600 / Math.max(base.width, base.height)) })
+    const sharp = document.createElement('canvas')
+    sharp.width = viewport.width
+    sharp.height = viewport.height
+    await pdfPage.render({ canvas: sharp, canvasContext: sharp.getContext('2d')!, viewport }).promise
+    const cut = document.createElement('canvas')
+    cut.width = Math.max(1, Math.round(sharp.width * part.w))
+    cut.height = Math.max(1, Math.round(sharp.height * part.h))
+    cut.getContext('2d')!.drawImage(sharp, sharp.width * part.x, sharp.height * part.y, cut.width, cut.height, 0, 0, cut.width, cut.height)
+    await wordsFrom(cut, pageNumber)
+  }
+  const readWholePage = () => void readPage(page)
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const clip = (area: { x0: number; y0: number; x1: number; y1: number }) => {
     const [left, right, top, bottom] = [Math.min(area.x0, area.x1), Math.max(area.x0, area.x1), Math.min(area.y0, area.y1), Math.max(area.y0, area.y1)]
@@ -161,11 +195,12 @@ export default function PdfView({ file }: { file: File }) {
     const [sx, sy] = [Math.max(0, left - r.left) * scale, Math.max(0, top - r.top) * scale]
     const [sw, sh] = [(Math.min(right, r.right) - Math.max(left, r.left)) * scale, (Math.min(bottom, r.bottom) - Math.max(top, r.top)) * scale]
     // Kept to a sensible size: it is stored inside the note.
-    const shrink = Math.min(1, 1100 / sw)
+    const shrink = reading ? 1 : Math.min(1, 1100 / sw)
     const cut = document.createElement('canvas')
     cut.width = Math.round(sw * shrink)
     cut.height = Math.round(sh * shrink)
     cut.getContext('2d')!.drawImage(best.canvas, sx, sy, sw, sh, 0, 0, cut.width, cut.height)
+    if (reading) return void readPage(best.page, { x: Math.max(0, left - r.left) / r.width, y: Math.max(0, top - r.top) / r.height, w: sw / scale / r.width, h: sh / scale / r.height })
     sendClip({ image: cut.toDataURL('image/jpeg', 0.88), source: `${baseName(file.name)}, p. ${best.page}`, book: file.name, place: `page=${best.page}` })
   }
   // Read aloud: the page that is open, then the next, and so on to the end.
@@ -250,6 +285,7 @@ export default function PdfView({ file }: { file: File }) {
     })
     eventBus.on('pagechanging', (e: { pageNumber: number }) => {
       setPage(e.pageNumber)
+      tellPlace({ book: file.name, place: `page=${e.pageNumber}` })
       localStorage.setItem(placeKey, String(e.pageNumber))
       setProgress(file.name, viewer.pagesCount > 1 ? (e.pageNumber - 1) / (viewer.pagesCount - 1) : 1)
     })
@@ -510,6 +546,7 @@ export default function PdfView({ file }: { file: File }) {
             <Tool icon={Maximize} label="Fit the whole page" onClick={fitPage} />
             <Tool icon={BookCopy} label={spread ? 'One page at a time' : 'Two pages side by side'} on={spread} onClick={toggleSpread} />
             <Tool icon={RotateCw} label="Turn the pages a quarter" onClick={rotate} />
+            <Tool icon={ScanText} label="Read the text of this whole page" hint="For a scanned page: put its words into your notes" onClick={readWholePage} />
             <p className="menu-head">Scroll by itself</p>
             <div className="menu-line">
               {[['Off', 0], ['Slow', 1], ['Steady', 2], ['Fast', 4]].map(([name, speed]) => (
@@ -522,7 +559,9 @@ export default function PdfView({ file }: { file: File }) {
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
-          <Tool icon={Crop} label="Clip" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping} onClick={() => setClipping(!clipping)} />
+          <Tool icon={Crop} label="Clip" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading} onClick={() => { setReading(false); setClipping(!clipping) }} />
+          <Tool icon={ScanText} label="Read text" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setReading(true); setClipping(!(clipping && reading)) }} />
+          {busy && <span className="viewer-pos">{busy}</span>}
           <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
           <Tool icon={Download} label="Save copy" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
           <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
@@ -559,6 +598,7 @@ export default function PdfView({ file }: { file: File }) {
         {mode === 'flip' && (flip
           ? <FlipBook pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {
               setPage(flip.first + i)
+              tellPlace({ book: file.name, place: `page=${flip.first + i}` })
               localStorage.setItem(`sidepage:place:${file.name}`, String(flip.first + i))
             }} />
           : <div className="viewer-message">Preparing pages…</div>)}

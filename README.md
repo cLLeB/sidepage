@@ -50,6 +50,15 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   highlights each day.
 - A PDF remembers the page you jumped from. A picture can be turned and put into your notes. A line in a note
   can be moved, copied or removed. Flashcards can be practised whether due or not; highlights can be searched.
+- Study guide: for the page in front of you, the few sentences that carry its weight; the terms the book turns
+  on and the pages each is thickest; and the passages in your other books closest to it in subject. Worked out
+  on the device from the books' own words (word counts and rarity, no service asked).
+- Read text: drag a box over a scanned page or a picture, or take a whole page, and its words go into your
+  notes ([Tesseract.js](https://github.com/naptha/tesseract.js), Apache-2.0, fetched from the internet the first
+  time). The language is chosen in the More menu.
+- Sound beside a note: record a lecture or yourself; each new line you write meanwhile is stamped with its
+  moment, and tapping a stamp plays the recording from there. Recordings travel in the one-file bundle and backup.
+- Notes keep pace with a PDF: turn to a page and the note moves to what you quoted or clipped from it.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots. Writing sits on the rules as it does in

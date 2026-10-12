@@ -91,6 +91,8 @@ jobs:
       - run: npx tauri icon public/favicon.svg
       # Sidepage's own Android screen: keeps the app clear of the status bar, navigation bar and keyboard.
       - run: cp src-tauri/android/MainActivity.kt "$(find src-tauri/gen/android -name MainActivity.kt | head -1)"
+      # Leave to use the microphone, for recording sound beside a note.
+      - run: node scripts/android-manifest.mjs
       - run: npx tauri android build --apk --target aarch64 --target armv7
       # Android only installs signed apps. This is a test build, so it is signed with a key made on the spot and
       # thrown away: installing a later test build means removing the earlier one first.

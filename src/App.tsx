@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  BookOpenText, Home as HomeIcon, NotebookText, Ruler,
+  BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -12,6 +12,7 @@ import { coverOf } from './lib/reading'
 import Home from './Home'
 import { Comfort, FocusClock, LookUp, Palette, StudyTimer, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
+import { OCR_LANGUAGES } from './lib/ocr'
 import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
@@ -40,6 +41,8 @@ const CanvasNote = lazy(() => import('./notes/CanvasNote'))
 const MindMapNote = lazy(() => import('./notes/MindMapNote'))
 const GraphView = lazy(() => import('./notes/GraphView'))
 const ReviewView = lazy(() => import('./notes/ReviewView'))
+const GuideView = lazy(() => import('./notes/GuideView'))
+const GuidePanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><GuideView /></Suspense></ErrorBoundary>
 
 const PAPERS = ['blank', 'lined', 'grid', 'dots'] as const
 type Paper = (typeof PAPERS)[number]
@@ -110,7 +113,7 @@ const HighlightsView = lazy(() => import('./notes/HighlightsView'))
 const HighlightsPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><HighlightsView /></Suspense></ErrorBoundary>
 const ReviewPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><ReviewView /></Suspense></ErrorBoundary>
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel }
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -131,6 +134,7 @@ export default function App() {
   const [dim, setDim] = usePref('dim', 0)
   const [ruler, setRuler] = usePref('ruler', false)
   const [awake, setAwake] = usePref('awake', true)
+  const [ocrLanguage, setOcrLanguage] = usePref('ocr-language', 'eng')
 
   // Reading time: a half-minute is counted whenever a book is open, the app is in view and the reader has
   // touched it in the last two minutes.
@@ -337,6 +341,19 @@ export default function App() {
     dock.addPanel({ id: 'highlights', component: 'highlights', title: 'Highlights', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
   }, [])
 
+  const openGuide = useCallback(() => {
+    const dock = api.current
+    if (!dock) return
+    const existing = dock.getPanel('guide')
+    if (existing) return existing.api.setActive()
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    const reference = dock.panels.find(p => p.id.startsWith('doc:'))
+    dock.addPanel({
+      id: 'guide', component: 'guide', title: 'Study guide',
+      position: sibling ? { referencePanel: sibling.id, direction: 'within' } : reference ? { referencePanel: reference.id, direction: besideBook() } : undefined,
+    })
+  }, [])
+
   // Home: favourite books come first; the rest in the order chosen. A daily reading goal, if one is set.
   const [favourites, setFavourites] = useState<string[]>(() => JSON.parse(localStorage.getItem('sidepage:favourites') ?? '[]'))
   const toggleFavourite = (name: string) => {
@@ -446,6 +463,7 @@ export default function App() {
     { group: 'Write', name: 'Notes for this book', hint: 'Ctrl+1', icon: NotebookPen, run: () => openNote('written', notebook) },
     { group: 'Write', name: 'Canvas: draw and handwrite', hint: 'Ctrl+2', icon: PenLine, run: () => openNote('canvas', notebook) },
     { group: 'Write', name: 'Mind map', hint: 'Ctrl+3', icon: Workflow, run: () => openNote('mindmap', notebook) },
+    { group: 'Study', name: 'Study guide for this page', icon: Sparkles, run: openGuide },
     { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
     { group: 'Study', name: 'Graph of linked notes', icon: Share2, run: openGraph },
@@ -500,6 +518,7 @@ export default function App() {
           <Tool icon={Workflow} label="Mind map" hint="Mind map (Ctrl+3)" onClick={() => openNote('mindmap', notebook)} />
           <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
           <Tool icon={Highlighter} label="Highlights" hint="Every highlight from every book" onClick={openHighlights} />
+          <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, and kindred places in your other books" onClick={openGuide} />
           <Tool icon={GraduationCap} label="Review" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
         </div>
         <span className="spacer" />
@@ -546,6 +565,11 @@ export default function App() {
             <label className="menu-row">Keep the screen on<input type="checkbox" checked={awake} onChange={e => setAwake(e.target.checked)} /></label>
             <VoiceSettings />
             <p className="menu-head">Reading</p>
+            <label className="menu-row">Text in pictures
+              <select value={ocrLanguage} onChange={e => setOcrLanguage(e.target.value)} title="The language “Read text” looks for in scans and pictures">
+                {Object.entries(OCR_LANGUAGES).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            </label>
             <label className="menu-row">
               Daily goal
               <select value={goal} onChange={e => { setGoal(Number(e.target.value)); localStorage.setItem('sidepage:goal', e.target.value) }}>

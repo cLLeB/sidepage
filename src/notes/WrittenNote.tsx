@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
   List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
-  AlignVerticalJustifyCenter, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
+  AlignVerticalJustifyCenter, Footprints, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
@@ -13,7 +13,7 @@ import { insert } from '@milkdown/kit/utils'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 import {
-  baseName, debounce, goToPlace, isMobile, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
+  baseName, debounce, onPlace, goToPlace, isMobile, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
   parsePlaceLink, placeLink, saveFileAs, saveNote, shelf,
 } from '../lib/platform'
 import {
@@ -66,6 +66,80 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   const [swap, setSwap] = useState('')
   const [found, setFound] = useState('')
   const [boxes, setBoxes] = useState({ done: 0, all: 0 })
+  // Keeping pace: as the book's pages turn, the note moves to what was written about that page.
+  const [pace, setPace] = usePref('pace', false)
+  useEffect(() => {
+    if (!pace) return
+    return onPlace(({ book, place }) => {
+      const page = place.match(/^page=(\d+)/)?.[1]
+      if (!page || baseName(book) !== notebook) return
+      const links = [...(host.current?.querySelectorAll<HTMLAnchorElement>('a[href^="#sidepage-open"]') ?? [])]
+      const first = links.find(link => parsePlaceLink(link.getAttribute('href') ?? '')?.place.match(/^page=(\d+)/)?.[1] === page)
+      const block = first?.closest('.ProseMirror > *') as HTMLElement | null | undefined
+      if (!block) return
+      block.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      block.animate([{ backgroundColor: 'color-mix(in srgb, var(--accent) 22%, transparent)' }, { backgroundColor: 'transparent' }], { duration: 1600 })
+    })
+  }, [pace, notebook])
+
+  // Sound: a lecture or your own voice recorded beside the note. While it records, each new line you start is
+  // stamped with the moment it was written; tap a stamp later to hear what was being said just then.
+  const [recording, setRecording] = useState<{ name: string; started: number; stop(): void } | null>(null)
+  const recordingNow = useRef(recording)
+  recordingNow.current = recording
+  const [elapsed, setElapsed] = useState(0)
+  const [player, setPlayer] = useState<{ url: string; at: number } | null>(null)
+  const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds) % 60).padStart(2, '0')}`
+  useEffect(() => {
+    if (!recording) return
+    const tick = setInterval(() => setElapsed((Date.now() - recording.started) / 1000), 500)
+    return () => clearInterval(tick)
+  }, [recording])
+  // A stamp: a small link at the start of the line (or where the cursor is) that knows its moment.
+  const stamp = (lineStart: boolean) => {
+    const now = recordingNow.current
+    if (!now) return
+    const seconds = Math.max(0, Math.round((Date.now() - now.started) / 1000) - 2)
+    editorRef.current?.editor.action(ctx => {
+      const view = ctx.get(editorViewCtx)
+      const { schema, selection } = view.state
+      const link = schema.marks.link?.create({ href: `#sidepage-sound?file=${now.name}&t=${seconds}` })
+      if (!link) return
+      const at = lineStart ? selection.$from.start() : selection.from
+      view.dispatch(view.state.tr.insert(at, [schema.text(`▸ ${clock(seconds)}`, [link]), schema.text(' ')]))
+    })
+  }
+  const record = async () => {
+    if (recording) return recording.stop()
+    let stream: MediaStream
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) } catch { setSoundNote('The microphone is not available to Sidepage on this device.'); return }
+    const recorder = new MediaRecorder(stream)
+    const name = `sound-${Date.now().toString(36)}.${recorder.mimeType.includes('mp4') ? 'm4a' : recorder.mimeType.includes('ogg') ? 'ogg' : 'webm'}`
+    const parts: Blob[] = []
+    recorder.ondataavailable = e => { if (e.data.size) parts.push(e.data) }
+    recorder.onstop = () => {
+      stream.getTracks().forEach(track => track.stop())
+      void saveNoteFile(notebook, name, new Blob(parts, { type: recorder.mimeType }))
+      setRecording(null)
+    }
+    recorder.start(1000)
+    setElapsed(0)
+    setSoundNote('')
+    const mine = { name, started: Date.now(), stop: () => recorder.stop() }
+    recordingNow.current = mine
+    setRecording(mine)
+    stamp(false)
+  }
+  const [soundNote, setSoundNote] = useState('')
+  const play = async (name: string, at: number) => {
+    const sound = await loadNoteFile(notebook, name)
+    if (!sound) return setSoundNote('That recording is not in this notebook any more.')
+    setPlayer(old => { if (old) URL.revokeObjectURL(old.url); return { url: URL.createObjectURL(sound), at } })
+  }
+  const playNow = useRef(play)
+  playNow.current = play
+  const stampNow = useRef(stamp)
+  stampNow.current = stamp
   // Other books to link to, and the books whose notes link here.
   const [others, setOthers] = useState<string[]>([])
   const [backlinks, setBacklinks] = useState<string[]>([])
@@ -116,7 +190,14 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         setBoxes(checklist(editor))
       }, 400)
       editor.on(listener => listener
-        .markdownUpdated((_, markdown) => { save(markdown); count() })
+        .markdownUpdated((_, markdown) => {
+          save(markdown)
+          count()
+          // While sound is recording, the first letter of a new line stamps that line with its moment.
+          if (!recordingNow.current) return
+          const line = editor.editor.action(ctx => ctx.get(editorViewCtx).state.selection.$from.parent)
+          if (line.type.name === 'paragraph' && line.textContent.length === 1) setTimeout(() => stampNow.current(true), 0)
+        })
         .selectionUpdated(() => {
           look(n => n + 1)
           if (typewriterNow.current && host.current) keepLineInPlace(editor, host.current)
@@ -165,6 +246,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       const href = (e.target as HTMLElement).closest('a')?.getAttribute('href') ?? ''
       const place = parsePlaceLink(href)
       const book = parseNoteLink(href)
+      const sound = href.match(/^#sidepage-sound\?file=(sound-[\w.-]+)&t=(\d+)/)
+      if (sound) { e.preventDefault(); e.stopPropagation(); return void playNow.current(sound[1], Number(sound[2])) }
       if (!place && !book) return
       e.preventDefault()
       e.stopPropagation()
@@ -446,6 +529,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         <Tool quiet icon={Replace} label="Find and replace" on={finding} onClick={() => setFinding(!finding)} />
         <Menu quiet icon={Ellipsis} label="More for this note">
           {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read this note aloud'} onClick={readAloud} />}
+          <Tool icon={Mic} label={recording ? 'Stop recording sound' : 'Record sound with this note'} hint="Record a lecture or yourself; lines you write meanwhile are stamped with their moment" on={!!recording} onClick={() => void record()} />
+          <Tool icon={Footprints} label={pace ? 'Keep pace with the book: on' : 'Keep pace with the book'} hint="As you turn the pages of a PDF, show what you wrote about that page" on={pace} onClick={() => setPace(!pace)} />
           <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
           <Tool icon={ClipboardCopy} label="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
           <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('doc')} />
@@ -457,6 +542,24 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         {backlinks.length > 0 && <span className="viewer-pos">Linked from</span>}
         {backlinks.map(name => <button key={name} onClick={() => openBookByName(name)}>{baseName(name)}</button>)}
       </div>
+      {(recording || player || soundNote) && (
+        <div className="find-strip" onMouseDown={e => { if (!(e.target as HTMLElement).closest('audio')) e.preventDefault() }}>
+          {recording && <>
+            <span className="rec-dot" aria-hidden />
+            <span className="viewer-pos">Recording {clock(elapsed)}</span>
+            <button onClick={() => stamp(false)}>Mark this moment</button>
+            <button onClick={() => recording.stop()}>Stop</button>
+          </>}
+          {player && !recording && <>
+            <audio
+              key={player.url + player.at} src={player.url} controls autoPlay
+              onLoadedMetadata={e => { e.currentTarget.currentTime = player.at }}
+            />
+            <Tool quiet icon={X} label="Close the player" onClick={() => setPlayer(null)} />
+          </>}
+          {soundNote && <span className="viewer-pos">{soundNote}</span>}
+        </div>
+      )}
       {finding && (
         <div className="find-strip" onMouseDown={e => { if (!(e.target as HTMLElement).closest('input')) e.preventDefault() }}>
           <input autoFocus value={wanted} placeholder="Find in this note" onChange={e => { setWanted(e.target.value); setFound('') }} onKeyDown={e => { if (e.key === 'Enter') seek(); if (e.key === 'Escape') setFinding(false) }} />

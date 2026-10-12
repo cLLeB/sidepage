@@ -196,7 +196,11 @@ export async function loadNoteFile(notebook: string, file: string): Promise<Blob
 }
 
 // The pictures a note refers to that live in its notebook (not ones on the web).
-export const picturesIn = (markdown: string) => [...markdown.matchAll(/!\[[^\]]*\]\(((?:clip|picture)-[\w.-]+)(?:\s+"[^"]*")?\)/g)].map(match => match[1])
+export const picturesIn = (markdown: string) => [...new Set([
+  ...[...markdown.matchAll(/!\[[^\]]*\]\(((?:clip|picture)-[\w.-]+)(?:\s+"[^"]*")?\)/g)].map(match => match[1]),
+  // …and the sound recordings its moments point into.
+  ...[...markdown.matchAll(/#sidepage-sound\?file=(sound-[\w.-]+)/g)].map(match => match[1]),
+])]
 
 export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number) {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -240,6 +244,18 @@ export const [sendClip, onClip] = channel<Clip>('sidepage:clip')
 export type Place = { book: string; place: string }
 export const [goToPlace, onGoToPlace] = channel<Place>('sidepage:goto')
 export const [findInNotes, onFindInNotes] = channel<{ text: string }>('sidepage:find')
+
+// Where the book in front is open just now (a page of a PDF, a part of a book), told by the readers as pages
+// turn, for whatever follows along: the study guide, notes that keep pace with the book.
+const [sayPlace, onPlaceSaid] = channel<Place>('sidepage:here')
+let latestPlace: Place | null = null
+export const tellPlace = (place: Place) => {
+  if (latestPlace?.book === place.book && latestPlace.place === place.place) return
+  latestPlace = place
+  sayPlace(place)
+}
+export const placeNow = () => latestPlace
+export const onPlace = onPlaceSaid
 
 // A hash link: editors and sanitisers leave it alone, and it is harmless if the note is opened elsewhere.
 const LINK = '#sidepage-open'

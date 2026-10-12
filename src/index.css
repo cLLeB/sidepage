@@ -824,3 +824,23 @@ button.viewer-pos { font-weight: 500; }
 .menu.settings select { max-width: 170px; }
 .highlight-filter .shelf-search { width: min(220px, 50%); padding: 7px 12px; }
 .image-host img { transition: transform 0.2s; }
+
+/* Study guide */
+.guide { padding: 20px clamp(16px, 4vw, 28px) 48px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
+.guide section { margin-top: 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.guide h3 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
+.guide-wait { margin: 0; color: var(--muted); line-height: 1.5; }
+.gist { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font: 15.5px/1.6 Georgia, 'Times New Roman', serif; }
+.gist li { padding-left: 14px; border-left: 3px solid var(--accent-ring); }
+.terms { display: flex; flex-wrap: wrap; gap: 6px; }
+.guide .chip { background: var(--bg); box-shadow: none; }
+.guide .chip.on { background: var(--text); }
+.term-places { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.kin { display: block; width: 100%; padding: 12px 14px; text-align: left; white-space: normal; line-height: 1.5; font-weight: 400; background: var(--bg); border-radius: 14px; font-family: Georgia, 'Times New Roman', serif; font-size: 14.5px; }
+.kin .hit-book { display: flex; align-items: center; gap: 6px; font-family: inherit; font: 600 11.5px/1.4 system-ui, sans-serif; }
+
+/* Sound beside a note */
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e5484d; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+.find-strip audio { flex: 1; min-width: 200px; height: 36px; }
+.written-note a[href^='#sidepage-sound'] { cursor: pointer; text-decoration: none; font-size: 0.78em; font-weight: 600; padding: 2px 7px; margin-right: 2px; border-radius: 999px; color: var(--muted); background: color-mix(in srgb, var(--accent) 12%, transparent); line-height: 0; }

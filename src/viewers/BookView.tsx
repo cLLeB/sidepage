@@ -12,7 +12,7 @@ import { hasWords, keepWords, type Stretch } from '../lib/library'
 import { FONTS, loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
-  baseName, extensionOf, findInNotes, onGoToPlace, prefersFlip, rememberFlip, sendQuote,
+  baseName, extensionOf, findInNotes, onGoToPlace, prefersFlip, rememberFlip, sendQuote, tellPlace,
 } from '../lib/platform'
 
 type TocItem = { label: string; href: string; subitems?: TocItem[] }
@@ -132,6 +132,7 @@ export default function BookView({ file }: { file: File }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       view.renderer.addEventListener('relocate', (e: any) => {
         here.current = { index: e.detail.index ?? 0, fraction: e.detail.fraction ?? 0 }
+        tellPlace({ book: file.name, place: `section=${e.detail.index ?? 0}` })
         shownRange.current = e.detail.range ?? null
         if (Date.now() - turnedAt.current > 1500) setCurlStart(s => ({ place: here.current, key: s.key + 1 }))
       })

@@ -1,6 +1,6 @@
 [package]
 name = "sidepage"
-version = "0.14.0"
+version = "0.15.0"
 description = "Read books, documents and slides with your notes alongside"
 authors = ["cLLeB"]
 license = "GPL-3.0-or-later"
