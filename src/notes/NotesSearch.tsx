@@ -7,7 +7,7 @@ import { placeName, searchBooks, type BookHit } from '../lib/library'
 type NoteHit = { book: string; line: string }
 
 // Markdown marks are dropped so a line reads, and can be found again in the note, as plain words.
-const plain = (line: string) => line.replace(/<\/?(?:span|u|div)\b[^>]*>/g, '').replace(/^[\s>#*\-+\d.]+/, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '').trim()
+const plain = (line: string) => line.replace(/<\/?(?:span|u|sup|sub|div)\b[^>]*>/g, '').replace(/^[\s>#*\-+\d.]+/, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '').trim()
 
 async function searchNotes(query: string): Promise<NoteHit[]> {
   const wanted = query.toLowerCase()

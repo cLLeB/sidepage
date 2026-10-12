@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BookOpen, RotateCcw } from 'lucide-react'
+import { BookOpen, FileDown, RotateCcw } from 'lucide-react'
 import { Tool } from '../ui'
-import { baseName, goToPlace, openBookByName } from '../lib/platform'
-import { dueCards, grade, Rating, type Flashcard } from '../lib/review'
+import { baseName, goToPlace, openBookByName, saveFileAs } from '../lib/platform'
+import { allCards, dueCards, grade, Rating, type Flashcard } from '../lib/review'
+
+// Every card, front and back on one line with a tab between: the form Anki and most flashcard apps import.
+const exportCards = async () => {
+  const flat = (text: string) => text.replace(/\s+/g, ' ').trim()
+  const lines = (await allCards()).filter(card => card.back).map(card => `${flat(card.front)}\t${flat(card.back)}\t${baseName(card.book)}`)
+  await saveFileAs('Sidepage flashcards.txt', new TextEncoder().encode(lines.join('\n') + '\n'))
+}
+
+const focusHere = (card: HTMLDivElement | null) => card?.focus({ preventScroll: true })
 
 const GRADES = [
   { rating: Rating.Again, name: 'Again', hint: 'I did not remember' },
@@ -43,6 +52,7 @@ export default function ReviewView() {
               : 'Cards make themselves from your reading: highlight a passage in a book and add a comment to it, or write a line starting “Q:” in your notes with a line starting “A:” under it.'}
           </p>
           <Tool icon={RotateCcw} label="Check again" onClick={load} />
+          {total > 0 && <Tool icon={FileDown} label="Save the cards for Anki" hint="A text file other flashcard apps can import" onClick={() => void exportCards()} />}
         </div>
       </div>
     )
@@ -62,7 +72,14 @@ export default function ReviewView() {
   }
 
   return (
-    <div className="note review">
+    <div
+      className="note review" tabIndex={0} ref={focusHere}
+      onKeyDown={e => {
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setTurned(true) }
+        const picked = GRADES[Number(e.key) - 1]
+        if (turned && picked) void answer(picked.rating)
+      }}
+    >
       <p className="review-count">{cards.length} to go · {baseName(card.book)}</p>
       <div className="review-card">
         <div className="review-front">{card.front}</div>
@@ -73,7 +90,11 @@ export default function ReviewView() {
             {GRADES.map(option => <button key={option.name} title={option.hint} onClick={() => void answer(option.rating)}>{option.name}</button>)}
           </div>
         : <button className="primary" onClick={() => setTurned(true)}>Show the other side</button>}
-      <Tool icon={BookOpen} label="Open in the book" onClick={openInBook} />
+      <div className="review-grades">
+        <Tool icon={BookOpen} label="Open in the book" onClick={openInBook} />
+        <Tool icon={FileDown} label="Save the cards for Anki" hint="A text file other flashcard apps can import" onClick={() => void exportCards()} />
+      </div>
+      <p className="review-note keys">Space turns the card · 1 to 4 say how it went</p>
     </div>
   )
 }

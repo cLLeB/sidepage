@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
   List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
+  AlignVerticalJustifyCenter, Ellipsis, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
@@ -13,13 +14,18 @@ import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 import {
   baseName, debounce, goToPlace, isMobile, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
-  parsePlaceLink, placeLink, saveNote, shelf,
+  parsePlaceLink, placeLink, saveFileAs, saveNote, shelf,
 } from '../lib/platform'
 import {
-  FACES, INKS, MARKER_COLOURS, TEXT_COLOURS, TEXT_FACES, TEXT_SIZES, WRITING_SIZES, addLooks, clearLooks, insertLine, insertTable, looksAt, redo, setAlign, setBlock,
+  FACES, INKS, MARKER_COLOURS, TEXT_COLOURS, TEXT_FACES, TEXT_SIZES, WRITING_SIZES, GAPS, TINTS, addLooks, checklist, clearLooks, findNext, insertLine, keepLineInPlace, replaceFound, insertTable, looksAt, redo, setAlign, setBlock,
   setLook, setWriting, toggleLook, undo, useWriting,
   type Writing,
 } from './writing'
+import { canSpeak, useReadAloud } from '../lib/speech'
+import { usePref } from '../lib/prefs'
+
+// Characters a keyboard does not have to hand.
+const SYMBOLS = '→ ← ↔ ⇒ ≈ ≠ ≤ ≥ ± × ÷ √ ∞ ∑ ∆ π µ θ λ Ω ° ′ ″ ½ ¼ ¾ ² ³ € £ ¥ © § ¶ † • … — ✓ ✗ ★'.split(' ')
 
 // A notebook made before 0.11 had the book's name put on its first line. Nobody wrote that, so it is left out.
 const withoutMadeTitle = (note: string, notebook: string) => {
@@ -49,7 +55,17 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   const [, look] = useState(0)
   const editorRef = useRef<Crepe | null>(null)
   const writing = useWriting()
-  const rule = writing.size * 2
+  const rule = Math.round(writing.size * writing.gap)
+  const voice = useReadAloud()
+  const [typewriter, setTypewriter] = usePref('typewriter', false)
+  const typewriterNow = useRef(typewriter)
+  typewriterNow.current = typewriter
+  // Find and replace: its own strip under the bar while it is in use.
+  const [finding, setFinding] = useState(false)
+  const [wanted, setWanted] = useState('')
+  const [swap, setSwap] = useState('')
+  const [found, setFound] = useState('')
+  const [boxes, setBoxes] = useState({ done: 0, all: 0 })
   // Other books to link to, and the books whose notes link here.
   const [others, setOthers] = useState<string[]>([])
   const [backlinks, setBacklinks] = useState<string[]>([])
@@ -95,10 +111,16 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         },
       })
       addLooks(editor)
-      const count = debounce(() => setWords(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0), 400)
+      const count = debounce(() => {
+        setWords(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0)
+        setBoxes(checklist(editor))
+      }, 400)
       editor.on(listener => listener
         .markdownUpdated((_, markdown) => { save(markdown); count() })
-        .selectionUpdated(() => look(n => n + 1)))
+        .selectionUpdated(() => {
+          look(n => n + 1)
+          if (typewriterNow.current && host.current) keepLineInPlace(editor, host.current)
+        }))
       await editor.create()
       if (cancelled) return void editor.destroy()
       crepe = editor
@@ -213,7 +235,42 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     view.dispatch(view.state.tr.insertText(text).scrollIntoView())
     view.focus()
   })
-  const put = (markdown: string) => editorRef.current?.editor.action(insert(markdown))
+  const put = (markdown: string, inline = false) => editorRef.current?.editor.action(insert(markdown, inline))
+  // A link to wherever the book is open just now: tap it later to come back to this page.
+  const linkToPage = async () => {
+    const book = (await shelf()).map(entry => entry.name).find(name => baseName(name) === notebook)
+    const where = book && localStorage.getItem(`sidepage:place:${book}`)
+    if (!book || !where) return put('*Open the book to a page first, then link to it.*')
+    const page = /^\d+$/.test(where)
+    put(`[${page ? `${notebook}, p. ${where}` : `${notebook}, where I was reading`}](${placeLink({ book, place: page ? `page=${where}` : where })})`, true)
+  }
+  // Read the note aloud, once through.
+  const readAloud = () => {
+    if (voice.speaking) return voice.stop()
+    let told = false
+    void voice.start(async () => (told ? null : (told = true, host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')))
+  }
+  // The note as a document other programs open: a Word file, or a web page. Pictures go inside it.
+  const saveAs = async (kind: 'doc' | 'html') => {
+    const page = host.current?.querySelector('.ProseMirror')?.cloneNode(true) as HTMLElement | undefined
+    if (!page) return
+    page.querySelectorAll('.ProseMirror-widget, [data-decoration], button, input').forEach(extra => extra.remove())
+    for (const picture of page.querySelectorAll('img')) {
+      try {
+        const blob = await (await fetch(picture.src)).blob()
+        picture.src = await new Promise<string>(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(blob) })
+      } catch { /* a picture that cannot be read stays as its link */ }
+    }
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${notebook}</title><style>
+      body { font: 12pt/1.6 ${FACES[writing.face].css}; color: #111; max-width: 46em; margin: 2em auto; padding: 0 1.2em; }
+      h1, h2, h3 { line-height: 1.25; } img { max-width: 100%; } a { color: inherit; }
+      blockquote { margin: 1em 0; padding-left: 1em; border-left: 3px solid #bbb; color: #333; }
+      table { border-collapse: collapse; } td, th { border: 1px solid #999; padding: 4px 8px; }
+    </style></head><body>${page.innerHTML}</body></html>`
+    await saveFileAs(`${notebook} notes.${kind}`, new TextEncoder().encode(html))
+  }
+  const seek = () => { const spot = findNext(crepe(), wanted); setFound(spot.of ? `${spot.at} of ${spot.of}` : wanted ? 'Not in this note' : '') }
+
   // A picture chosen from the device is kept in the notebook and set where the cursor is.
   const addPicture = async (picture: File) => {
     const name = `picture-${Date.now().toString(36)}.${picture.name.split('.').pop() || 'png'}`
@@ -254,6 +311,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     <div
       className="note written-wrap"
       data-ink={writing.ink}
+      data-tint={writing.tint}
       style={{ '--rule': `${rule}px`, '--note-size': `${writing.size}px`, '--note-face': FACES[writing.face].css } as React.CSSProperties}
     >
       {/* A button pressed in the bar must not take the cursor out of the note. */}
@@ -284,6 +342,16 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <label className="menu-row">Ink
             <select value={writing.ink} onChange={e => setWriting({ ink: e.target.value as Writing['ink'] })}>
               {Object.entries(INKS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </label>
+          <label className="menu-row">Lines
+            <select value={writing.gap} onChange={e => setWriting({ gap: Number(e.target.value) })}>
+              {Object.entries(GAPS).map(([name, gap]) => <option key={name} value={gap}>{name}</option>)}
+            </select>
+          </label>
+          <label className="menu-row">Paper
+            <select value={writing.tint} onChange={e => setWriting({ tint: e.target.value as Writing['tint'] })}>
+              {Object.entries(TINTS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
             </select>
           </label>
           <p className="menu-note">The lines of the paper follow the size you choose.</p>
@@ -322,6 +390,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <button className="menu-item" onClick={() => setLook(crepe(), 'marker', null)}>No marker</button>
         </Menu>
         <Menu quiet icon={ALargeSmall} label="Size and typeface" hint="Make the selected words larger or smaller, or set them in another typeface">
+          <div className="menu-line">
+            <Tool icon={Superscript} label="Raised" on={has.sup} onClick={() => toggleLook(crepe(), 'sup')} />
+            <Tool icon={Subscript} label="Lowered" on={has.sub} onClick={() => toggleLook(crepe(), 'sub')} />
+          </div>
           <p className="menu-head">Size</p>
           <button className="menu-item" onClick={() => setLook(crepe(), 'size', null)}>Normal</button>
           {Object.entries(TEXT_SIZES).map(([name, size]) => (
@@ -346,6 +418,9 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={Table} label="Table" onClick={() => insertTable(crepe())} />
           <Tool icon={Minus} label="Dividing line" onClick={() => insertLine(crepe())} />
           <Tool icon={CalendarDays} label="Today's date" onClick={() => type(new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} />
+          <Tool icon={Link2} label="Link to this page of the book" hint="A link back to where the book is open now" onClick={() => void linkToPage()} />
+          <p className="menu-head"><Omega size={12} aria-hidden /> Symbols</p>
+          <div className="symbols">{SYMBOLS.map(symbol => <button key={symbol} onClick={() => type(symbol)}>{symbol}</button>)}</div>
           <p className="menu-head">Layouts</p>
           {Object.keys(TEMPLATES).map(name => (
             <button key={name} className="menu-item" onClick={() => put(TEMPLATES[name as keyof typeof TEMPLATES])}>{name}</button>
@@ -353,7 +428,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           {others.length > 0 && <p className="menu-head">Link to another book's notes</p>}
           <div className="menu-scroll">
             {others.map(name => (
-              <button key={name} className="menu-item" onClick={() => put(`[${baseName(name)}](${noteLink(name)})`)}>{baseName(name)}</button>
+              <button key={name} className="menu-item" onClick={() => put(`[${baseName(name)}](${noteLink(name)})`, true)}>{baseName(name)}</button>
             ))}
           </div>
         </Menu>
@@ -361,11 +436,31 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           ref={picker} type="file" accept="image/*" hidden
           onChange={e => { const picture = e.target.files?.[0]; e.target.value = ''; if (picture) void addPicture(picture) }}
         />
-        {!isMobile && <Tool quiet icon={Printer} label="Print this note" onClick={print} />}
+        <Tool quiet icon={Replace} label="Find and replace" on={finding} onClick={() => setFinding(!finding)} />
+        <Menu quiet icon={Ellipsis} label="More for this note">
+          {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read this note aloud'} onClick={readAloud} />}
+          <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
+          <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('doc')} />
+          <Tool icon={Globe} label="Save as a web page" onClick={() => void saveAs('html')} />
+          {!isMobile && <Tool icon={Printer} label="Print this note" onClick={print} />}
+        </Menu>
+        {boxes.all > 0 && <span className="viewer-pos" title="Checklist boxes ticked">{boxes.done} of {boxes.all} done</span>}
         {words > 0 && <span className="viewer-pos" title="Words on this page">{words.toLocaleString()} {words === 1 ? 'word' : 'words'}</span>}
         {backlinks.length > 0 && <span className="viewer-pos">Linked from</span>}
         {backlinks.map(name => <button key={name} onClick={() => openBookByName(name)}>{baseName(name)}</button>)}
       </div>
+      {finding && (
+        <div className="find-strip" onMouseDown={e => { if (!(e.target as HTMLElement).closest('input')) e.preventDefault() }}>
+          <input autoFocus value={wanted} placeholder="Find in this note" onChange={e => { setWanted(e.target.value); setFound('') }} onKeyDown={e => { if (e.key === 'Enter') seek(); if (e.key === 'Escape') setFinding(false) }} />
+          <input value={swap} placeholder="Replace with" onChange={e => setSwap(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') setFinding(false) }} />
+          <button onClick={seek}>Next</button>
+          <button onClick={() => { replaceFound(crepe(), wanted, swap, false); seek() }}>Replace</button>
+          <button onClick={() => { const changed = replaceFound(crepe(), wanted, swap, true); setFound(changed ? `${changed} replaced` : 'Not in this note') }}>Replace all</button>
+          <span className="viewer-pos">{found}</span>
+          <span className="spacer" />
+          <Tool quiet icon={X} label="Close find and replace" onClick={() => setFinding(false)} />
+        </div>
+      )}
       <div ref={host} className="written-note paper" />
       <div ref={probe} className="rule-probe" aria-hidden><i />x<br />x</div>
     </div>

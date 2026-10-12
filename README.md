@@ -32,6 +32,18 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, DJVU, CBZ, CBR, CB7, CBT, DOCX, DOC, RTF, ODT, PPTX, PPT, TXT, Markdown, HTML
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
+- Home is a library: the book you were reading on top, your reading time, a twelve-week reading calendar,
+  shelves to filter by (favourites, reading, finished, kind of file), and cloth-bound covers for books that
+  have none. "Quick notes" is a notebook that belongs to no book.
+- Go to anything (Ctrl+K): every action and every book, found by typing a few letters.
+- Study timer with a chime; an accent colour of your choice; a warmer or dimmer screen; a reading ruler.
+- PDFs: fit the width or the whole page, two pages side by side, turn the pages on their side, scroll by
+  itself at three speeds, and type a page number to go there. "Look up" gives a selected word's meaning from a
+  free online dictionary and can put it in your notes.
+- Notes: find and replace, raised and lowered text, symbols, a link to the page the book is open at, paper
+  colours and narrow or wide lines, typewriter writing, checklist progress, read the note aloud, and save it as
+  a Word document or a web page.
+- Flashcards can be saved for Anki; highlights, a canvas page and the mind map can each be saved as a file.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots. Writing sits on the rules as it does in

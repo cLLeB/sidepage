@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import MindElixir from 'mind-elixir'
 import 'mind-elixir/style.css'
-import { ListTree } from 'lucide-react'
+import { FileDown, ListTree } from 'lucide-react'
 import { Tool } from '../ui'
-import { debounce, loadNote, saveNote } from '../lib/platform'
+import { debounce, loadNote, saveFileAs, saveNote } from '../lib/platform'
 import { useTheme } from '../lib/theme'
 
 type Branch = { id: string; topic: string; children: Branch[] }
@@ -19,7 +19,7 @@ function branchesOf(markdown: string): Branch[] {
     const heading = raw.match(/^(#{1,6})\s+(.+)/)
     const bullet = raw.match(/^\s*(?:[-*+]|\d+\.)\s+(.+)/)
     const question = raw.match(/^\s*Q[:.]\s*(.+)/i)
-    const clean = (text: string) => text.replace(/<\/?(?:span|u|div)\b[^>]*>/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '').trim().slice(0, 90)
+    const clean = (text: string) => text.replace(/<\/?(?:span|u|sup|sub|div)\b[^>]*>/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '').trim().slice(0, 90)
     if (heading) {
       const level = heading[1].length
       const node = branch(clean(heading[2]))
@@ -98,11 +98,21 @@ export default function MindMapNote({ notebook }: { notebook: string }) {
     await saveNote(notebook, 'mindmap.json', JSON.stringify(mind.getData()))
   }
 
+  // The map written out as an outline: each branch a point, its branches indented under it.
+  const saveOutline = async () => {
+    const mind = map.current
+    if (!mind) return
+    const root = mind.getData().nodeData as unknown as Branch
+    const lines = (node: Branch, depth: number): string[] => [`${'  '.repeat(depth)}- ${node.topic}`, ...(node.children ?? []).flatMap(child => lines(child, depth + 1))]
+    await saveFileAs(`${notebook} mind map.md`, new TextEncoder().encode(`# ${root.topic}\n\n${(root.children ?? []).flatMap(child => lines(child, 0)).join('\n')}\n`))
+  }
+
   return (
     <div className="note mindmap-wrap">
       <div ref={host} className="mindmap-note" />
       <div className="page-bar">
         <Tool icon={ListTree} label="Grow from my notes" hint="Add the headings and bullet points of this book's written notes as branches" onClick={() => void fromNotes()} />
+        <Tool icon={FileDown} label="Save as an outline" hint="The map as a Markdown file of nested points" onClick={() => void saveOutline()} />
       </div>
     </div>
   )

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { baseName, goToPlace, loadNote, openBookByName, shelf } from '../lib/platform'
+import { FileDown } from 'lucide-react'
+import { Tool } from '../ui'
+import { baseName, goToPlace, loadNote, openBookByName, saveFileAs, shelf } from '../lib/platform'
 import type { Highlight } from '../lib/reading'
 import { HIGHLIGHT_COLOURS } from '../viewers/ReaderMenus'
 
@@ -46,6 +48,9 @@ export default function HighlightsView() {
   const shown = marks.filter(mark => !colour || colourOf(mark) === colour)
   const books = [...new Set(shown.map(mark => mark.book))]
 
+  const save = () => void saveFileAs('Highlights.md', new TextEncoder().encode(books.map(book =>
+    `## ${baseName(book)}\n\n` + shown.filter(mark => mark.book === book).map(mark => `> ${mark.text.replace(/\s+/g, ' ')}${mark.note?.trim() ? `\n\n${mark.note.trim()}` : ''}`).join('\n\n')).join('\n\n') + '\n'))
+
   return (
     <div className="note all-highlights">
       <div className="highlight-filter">
@@ -55,6 +60,8 @@ export default function HighlightsView() {
             <span className="swatch" style={{ background: value }} /> {name} {marks.filter(mark => colourOf(mark) === value).length}
           </button>
         ))}
+        <span className="spacer" />
+        <Tool icon={FileDown} label="Save these as a file" onClick={save} />
       </div>
       {books.map(book => (
         <section key={book}>

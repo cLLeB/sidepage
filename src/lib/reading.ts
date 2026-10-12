@@ -107,3 +107,10 @@ export function readingStats() {
   return { today: Math.round(minutesOn(back(0))), week: Math.round(week), streak }
 }
 export const asTime = (minutes: number) => (minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`)
+
+// Minutes read on each of the last `days` days, oldest first: what the home screen's calendar is drawn from.
+export const readingDays = (days: number) =>
+  Array.from({ length: days }, (_, i) => {
+    const date = new Date(Date.now() - (days - 1 - i) * 86_400_000)
+    return { date, minutes: Math.round(minutesOn(date)) }
+  })

@@ -9,7 +9,7 @@ import {
 import { insertTableCommand } from '@milkdown/kit/preset/gfm'
 import { toggleMark } from '@milkdown/kit/prose/commands'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
-import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state'
+import { Plugin, PluginKey, Selection, TextSelection } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view'
 import { $markSchema, $prose, $remark } from '@milkdown/kit/utils'
 
@@ -27,9 +27,11 @@ export const FACES = {
 } as const
 export const WRITING_SIZES = { Small: 14, Medium: 16, Large: 18, Larger: 21, Largest: 24 } as const
 export const INKS = { pencil: 'Pencil', blue: 'Blue ink', black: 'Black ink', green: 'Green ink', red: 'Red ink' } as const
-export type Writing = { face: keyof typeof FACES; size: number; ink: keyof typeof INKS }
+export const GAPS = { Narrow: 1.7, Normal: 2, Wide: 2.5 } as const
+export const TINTS = { paper: 'The theme\'s own', white: 'White', cream: 'Cream', yellow: 'Legal yellow', blue: 'Pale blue', green: 'Pale green', pink: 'Pale pink' } as const
+export type Writing = { face: keyof typeof FACES; size: number; ink: keyof typeof INKS; gap: number; tint: keyof typeof TINTS }
 
-const DEFAULT_WRITING: Writing = { face: 'sans', size: 16, ink: 'pencil' }
+const DEFAULT_WRITING: Writing = { face: 'sans', size: 16, ink: 'pencil', gap: 2, tint: 'paper' }
 let writing: Writing = { ...DEFAULT_WRITING, ...JSON.parse(localStorage.getItem('sidepage:writing') ?? '{}') }
 const listeners = new Set<() => void>()
 export function setWriting(change: Partial<Writing>) {
@@ -56,6 +58,11 @@ const LOOKS = {
   face: { css: 'font-family', allowed: /^(sans-serif|serif|cursive|monospace)$/ },
 } as const
 type Look = keyof typeof LOOKS
+// Looks that are a plain tag round the words rather than a style.
+const TAGS = { underline: 'u', sup: 'sup', sub: 'sub' } as const
+type Tagged = keyof typeof TAGS
+const TAG_NAMES = Object.keys(TAGS) as Tagged[]
+const isTagged = (kind: string | undefined): kind is Tagged => !!kind && kind in TAGS
 const LOOK_NAMES = Object.keys(LOOKS) as Look[]
 
 type Mdast = { type: string; value?: string; children?: Mdast[]; kind?: string; look?: string; align?: string }
@@ -63,7 +70,8 @@ type Mdast = { type: string; value?: string; children?: Mdast[]; kind?: string; 
 const styledSpan = /^<span style="([^"<>]*)">$/
 // The looks an opening tag asks for, outermost first; nothing if it is not one of ours.
 function looksOf(tag: string): { kind: string; look: string }[] | null {
-  if (tag === '<u>') return [{ kind: 'underline', look: '' }]
+  const tagged = TAG_NAMES.find(name => tag === `<${TAGS[name]}>`)
+  if (tagged) return [{ kind: tagged, look: '' }]
   const style = styledSpan.exec(tag)?.[1]
   if (!style) return null
   const found: { kind: string; look: string }[] = []
@@ -94,7 +102,7 @@ function readLooks(node: Mdast) {
     if (align && tag === '</div>') { align = undefined; continue }
     const looks = child.type === 'html' ? looksOf(tag) : null
     if (looks) {
-      open.push({ at: out.length, close: tag === '<u>' ? '</u>' : '</span>', looks })
+      open.push({ at: out.length, close: isTagged(looks[0].kind) ? `</${TAGS[looks[0].kind]}>` : '</span>', looks })
       out.push(child)
       continue
     }
@@ -113,13 +121,13 @@ function readLooks(node: Mdast) {
 const remarkLooks = $remark('sidepageLooks', () => () => (tree: unknown) => { readLooks(tree as Mdast) })
 
 // One kind of mark for each look, so that a colour, a size and a marker can lie over the same words.
-const lookMark = (kind: Look | 'underline') => $markSchema(kind, () => ({
+const lookMark = (kind: Look | Tagged) => $markSchema(kind, () => ({
   attrs: { look: { default: '' } },
-  parseDOM: kind === 'underline'
-    ? [{ tag: 'u' }]
+  parseDOM: isTagged(kind)
+    ? [{ tag: TAGS[kind] }]
     : [{ tag: `span[data-${kind}]`, getAttrs: dom => ({ look: (dom as HTMLElement).getAttribute(`data-${kind}`) ?? '' }) }],
-  toDOM: mark => kind === 'underline'
-    ? ['u', 0]
+  toDOM: mark => isTagged(kind)
+    ? [TAGS[kind], 0]
     : ['span', { [`data-${kind}`]: mark.attrs.look, style: kind === 'face' ? undefined : `${LOOKS[kind].css}:${mark.attrs.look}` }, 0],
   parseMarkdown: {
     match: node => node.type === 'textStyle' && node.kind === kind,
@@ -134,7 +142,7 @@ const lookMark = (kind: Look | 'underline') => $markSchema(kind, () => ({
     runner: (state, mark) => { state.withMark(mark, 'textStyle', undefined, { kind, look: mark.attrs.look }) },
   },
 }))
-const marks = [...LOOK_NAMES, 'underline' as const].map(lookMark)
+const marks = [...LOOK_NAMES, ...TAG_NAMES].map(lookMark)
 
 // Writing a piece of styled text back into the note.
 type Stringify = {
@@ -143,8 +151,8 @@ type Stringify = {
   containerPhrasing(node: Mdast, info: object): string
 }
 const writeLook = Object.assign((node: Mdast, _parent: unknown, state: Stringify, info: unknown) => {
-  const [before, after] = node.kind === 'underline'
-    ? ['<u>', '</u>']
+  const [before, after] = isTagged(node.kind)
+    ? [`<${TAGS[node.kind]}>`, `</${TAGS[node.kind]}>`]
     : [`<span style="${LOOKS[node.kind as Look].css}:${node.look}">`, '</span>']
   const exit = state.enter('textStyle')
   const tracker = state.createTracker(info)
@@ -277,7 +285,7 @@ const withView = (crepe: Crepe | null, act: (view: EditorView) => void) => crepe
 })
 
 // Bold, italic, struck through, underlined: on if it was off, off if it was on.
-export const toggleLook = (crepe: Crepe | null, name: 'strong' | 'emphasis' | 'strike_through' | 'underline') => withView(crepe, view => {
+export const toggleLook = (crepe: Crepe | null, name: 'strong' | 'emphasis' | 'strike_through' | Tagged) => withView(crepe, view => {
   const type = view.state.schema.marks[name]
   if (type) toggleMark(type)(view.state, view.dispatch)
 })
@@ -311,7 +319,7 @@ export const clearLooks = (crepe: Crepe | null) => withView(crepe, view => {
   const { from, to, empty } = view.state.selection
   if (empty) return
   let tr = view.state.tr
-  for (const name of [...LOOK_NAMES, 'underline', 'strong', 'emphasis', 'strike_through']) {
+  for (const name of [...LOOK_NAMES, ...TAG_NAMES, 'strong', 'emphasis', 'strike_through']) {
     const type = view.state.schema.marks[name]
     if (type) tr = tr.removeMark(from, to, type)
   }
@@ -357,7 +365,7 @@ export function looksAt(crepe: Crepe | null): Record<string, boolean> & { align?
   crepe?.editor.action(ctx => {
     const { state } = ctx.get(editorViewCtx)
     const { from, to, empty, $from } = state.selection
-    for (const name of ['strong', 'emphasis', 'underline', 'strike_through']) {
+    for (const name of ['strong', 'emphasis', 'underline', 'strike_through', 'sup', 'sub']) {
       const type = state.schema.marks[name]
       if (type) found[name] = empty ? !!type.isInSet(state.storedMarks ?? $from.marks()) : state.doc.rangeHasMark(from, to, type)
     }
@@ -365,3 +373,66 @@ export function looksAt(crepe: Crepe | null): Record<string, boolean> & { align?
   })
   return found
 }
+
+// ── Find and replace ──
+// Every place the words occur, as positions in the note. (Words split by a change of look are not joined up.)
+function occurrences(view: EditorView, wanted: string) {
+  const found: { from: number; to: number }[] = []
+  const needle = wanted.toLowerCase()
+  if (!needle) return found
+  view.state.doc.descendants((node, at) => {
+    if (!node.isText || !node.text) return
+    const text = node.text.toLowerCase()
+    for (let i = text.indexOf(needle); i >= 0; i = text.indexOf(needle, i + needle.length)) found.push({ from: at + i, to: at + i + needle.length })
+  })
+  return found
+}
+// Select the next occurrence after the cursor (going round at the end). Says which one it is, and of how many.
+export function findNext(crepe: Crepe | null, wanted: string): { at: number; of: number } {
+  let result = { at: 0, of: 0 }
+  crepe?.editor.action(ctx => {
+    const view = ctx.get(editorViewCtx)
+    const found = occurrences(view, wanted)
+    if (!found.length) return
+    const after = view.state.selection.to
+    const index = Math.max(0, found.findIndex(spot => spot.from >= after))
+    const spot = found[index]
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, spot.from, spot.to)).scrollIntoView())
+    result = { at: index + 1, of: found.length }
+  })
+  return result
+}
+// Replace the selected occurrence, or all of them. Says how many were changed.
+export function replaceFound(crepe: Crepe | null, wanted: string, by: string, all: boolean): number {
+  let changed = 0
+  crepe?.editor.action(ctx => {
+    const view = ctx.get(editorViewCtx)
+    const { from, to } = view.state.selection
+    const spots = all ? occurrences(view, wanted) : occurrences(view, wanted).filter(spot => spot.from === from && spot.to === to)
+    let tr = view.state.tr
+    for (const spot of [...spots].reverse()) tr = by ? tr.insertText(by, spot.from, spot.to) : tr.delete(spot.from, spot.to)
+    if (spots.length) view.dispatch(tr)
+    changed = spots.length
+  })
+  return changed
+}
+
+// How many boxes of the note's checklists are ticked, and how many there are.
+export function checklist(crepe: Crepe | null) {
+  const boxes = { done: 0, all: 0 }
+  crepe?.editor.action(ctx => ctx.get(editorViewCtx).state.doc.descendants(node => {
+    if (node.type.name !== 'list_item' || node.attrs.checked == null) return
+    boxes.all++
+    if (node.attrs.checked) boxes.done++
+  }))
+  return boxes
+}
+
+// Typewriter writing: the line being written stays at the same height while the page moves under it.
+export const keepLineInPlace = (crepe: Crepe | null, page: HTMLElement) => crepe?.editor.action(ctx => {
+  const view = ctx.get(editorViewCtx)
+  if (!view.hasFocus()) return
+  const line = view.coordsAtPos(view.state.selection.head)
+  const box = page.getBoundingClientRect()
+  page.scrollTop += line.top - (box.top + box.height * 0.42)
+})

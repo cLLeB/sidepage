@@ -6,8 +6,12 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
-import { BookOpen, ChevronLeft, ChevronRight, Crop, Download, LayoutGrid, Pencil, Square, TextQuote, Volume2, ZoomIn, ZoomOut } from 'lucide-react'
-import { Tool } from '../ui'
+import {
+  BookA, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, Eye, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
+  Volume2, ZoomIn, ZoomOut,
+} from 'lucide-react'
+import { lookUp } from '../Extras'
+import { Menu, Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
 import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, type Highlight } from '../lib/reading'
 import { canSpeak, useReadAloud } from '../lib/speech'
@@ -434,6 +438,37 @@ export default function PdfView({ file }: { file: File }) {
     if (passage) sendQuote({ text: passage.text, source: `${baseName(file.name)}, p. ${passage.page}`, book: file.name, place: `page=${passage.page}` })
   }
 
+  // Hands-free reading: the page drifts upward by itself, slowly or faster, until it is touched off.
+  const [drift, setDrift] = useState(0)
+  useEffect(() => {
+    if (!drift || mode !== 'scroll') return
+    // Timed rather than tied to the screen's refresh, so the pace is the same on every device.
+    let carried = 0
+    const timer = setInterval(() => {
+      const pages = container.current
+      if (!pages) return
+      carried += drift * 0.32
+      const whole = Math.floor(carried)
+      if (whole) { pages.scrollTop += whole; carried -= whole }
+      if (pages.scrollTop + pages.clientHeight >= pages.scrollHeight - 2) setDrift(0)
+    }, 16)
+    return () => clearInterval(timer)
+  }, [drift, mode])
+
+  // Two pages side by side like an open book, and pages turned on their side.
+  const [spread, setSpread] = useState(false)
+  const toggleSpread = () => {
+    const viewer = viewerRef.current
+    if (!viewer?.pdfDocument) return
+    viewer.spreadMode = spread ? 0 : 1
+    setSpread(!spread)
+    viewer.currentScaleValue = 'page-fit'
+  }
+  const rotate = () => { const viewer = viewerRef.current; if (viewer?.pdfDocument) viewer.pagesRotation = (viewer.pagesRotation + 90) % 360 }
+  const fitPage = () => { fitted.current = false; if (viewerRef.current?.pdfDocument) viewerRef.current.currentScaleValue = 'page-fit' }
+  // Typing a page number into the counter goes there.
+  const [jumping, setJumping] = useState(false)
+
   const go = (delta: number) => {
     const viewer = viewerRef.current
     if (viewer) viewer.currentPageNumber = Math.min(Math.max(1, page + delta), doc?.numPages ?? 1)
@@ -450,12 +485,36 @@ export default function PdfView({ file }: { file: File }) {
         </>}
         {mode === 'scroll' && <ContentsMenu items={contents} onGo={() => {}} />}
         {mode === 'scroll' && <Tool quiet icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />}
-        <span className="viewer-pos">{page} / {doc?.numPages ?? '…'}</span>
+        {jumping
+          ? <input
+              className="page-jump" type="number" autoFocus min={1} max={doc?.numPages} defaultValue={page} aria-label="Go to page"
+              onBlur={() => setJumping(false)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') setJumping(false)
+                if (e.key !== 'Enter') return
+                go(Number(e.currentTarget.value) - page)
+                setJumping(false)
+              }}
+            />
+          : <button className="viewer-pos" title="Go to a page" onClick={() => mode === 'scroll' && setJumping(true)}>{page} / {doc?.numPages ?? '…'}</button>}
         <span className="spacer" />
         {mode === 'scroll' && <>
           <Tool quiet icon={ZoomOut} label="Zoom out" onClick={() => zoomBy(1 / 1.2)} />
           <button className="zoom-level" title="Fit the page to the panel's width" onClick={fitWidth}>{zoom}%</button>
           <Tool quiet icon={ZoomIn} label="Zoom in" onClick={() => zoomBy(1.2)} />
+          <Menu quiet icon={Eye} label="View" hint="How the pages are laid out" on={spread || drift > 0}>
+            <Tool icon={MoveHorizontal} label="Fit the width" onClick={fitWidth} />
+            <Tool icon={Maximize} label="Fit the whole page" onClick={fitPage} />
+            <Tool icon={BookCopy} label={spread ? 'One page at a time' : 'Two pages side by side'} on={spread} onClick={toggleSpread} />
+            <Tool icon={RotateCw} label="Turn the pages a quarter" onClick={rotate} />
+            <p className="menu-head">Scroll by itself</p>
+            <div className="menu-line">
+              {[['Off', 0], ['Slow', 1], ['Steady', 2], ['Fast', 4]].map(([name, speed]) => (
+                <button key={name} className={drift === speed ? 'menu-item on' : 'menu-item'} onClick={() => setDrift(speed as number)}>{name}</button>
+              ))}
+            </div>
+          </Menu>
+          {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
@@ -463,6 +522,7 @@ export default function PdfView({ file }: { file: File }) {
           <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
           <Tool icon={Download} label="Save copy" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
           <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
+          <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
           {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
         </>}
         <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={mode === 'flip'} onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} />

@@ -1,13 +1,17 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react'
+import { DockviewReact, type DockviewApi, type DockviewTheme, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react'
 import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
-  Archive, ArchiveRestore, Highlighter, Star, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, X,
+  Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
+  BookOpenText, Home as HomeIcon, NotebookText, Ruler,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
-import { coverOf, progressOf } from './lib/reading'
+import { coverOf } from './lib/reading'
+import Home from './Home'
+import { Comfort, LookUp, Palette, StudyTimer, type Command } from './Extras'
+import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
 import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
@@ -19,7 +23,10 @@ import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
 import { setTheme, THEME_CHOICES, useThemeChoice, type ThemeChoice } from './lib/theme'
 import { BACKUP_EXTENSION, packBackup, restoreBackup } from './lib/backup'
-import { addReadingTime, asTime, readingStats } from './lib/reading'
+import { addReadingTime, asTime } from './lib/reading'
+
+// The panels float a little apart, each a sheet of its own.
+const PANELS: DockviewTheme = { name: 'sidepage', className: 'dockview-theme-light', gap: 8, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
@@ -118,8 +125,11 @@ export default function App() {
     const timer = setTimeout(() => setNotice(''), 6000)
     return () => clearTimeout(timer)
   }, [notice])
-  const [wanted, setWanted] = useState('')
-  const [showAll, setShowAll] = useState(false)
+  const [palette, setPalette] = useState(false)
+  const [accent, setAccent] = usePref<Accent>('accent', 'graphite')
+  const [warmth, setWarmth] = usePref('warmth', 0)
+  const [dim, setDim] = usePref('dim', 0)
+  const [ruler, setRuler] = usePref('ruler', false)
 
   // Reading time: a half-minute is counted whenever a book is open, the app is in view and the reader has
   // touched it in the last two minutes.
@@ -317,11 +327,7 @@ export default function App() {
     setFavourites(now)
     localStorage.setItem('sidepage:favourites', JSON.stringify(now))
   }
-  const [order, setOrder] = useState(() => localStorage.getItem('sidepage:order') ?? 'recent')
   const [goal, setGoal] = useState(() => Number(localStorage.getItem('sidepage:goal')) || 0)
-  const arranged = [...books].sort((a, b) =>
-    Number(favourites.includes(b.name)) - Number(favourites.includes(a.name))
-    || (order === 'title' ? baseName(a.name).localeCompare(baseName(b.name)) : order === 'progress' ? progressOf(b.name) - progressOf(a.name) : b.opened - a.opened))
 
   const openReview = useCallback(() => {
     const dock = api.current
@@ -377,6 +383,7 @@ export default function App() {
       else if (key === 'l' && e.shiftKey) act(() => setLayout(current => next(Object.keys(LAYOUTS) as Layout[], current)))
       else if (key === 'd' && e.shiftKey) act(() => setTheme(next(THEME_CHOICES, theme)))
       else if (key === '.' && !e.shiftKey) act(() => setFocus(on => !on && !empty))
+      else if (key === 'k' && !e.shiftKey) act(() => setPalette(on => !on))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -411,6 +418,30 @@ export default function App() {
     })
   }, [openFile])
 
+  const goHome = () => { for (const panel of [...(api.current?.panels ?? [])]) panel.api.close() }
+  const openFromShelf = (name: string) => void fromShelf(name).then(file => { if (file) void openFile(file) })
+
+  // Everything the palette can do. Built when it opens, so the list of books is the current one.
+  const commands = (): Command[] => [
+    { group: 'Go to', name: 'Open a book or document…', hint: 'Ctrl+O', icon: FolderOpen, run: () => void browse() },
+    { group: 'Go to', name: 'Home: your library', icon: HomeIcon, run: goHome },
+    { group: 'Go to', name: 'Quick notes', icon: NotebookText, run: () => openNote('written', 'Quick notes') },
+    { group: 'Write', name: 'Notes for this book', hint: 'Ctrl+1', icon: NotebookPen, run: () => openNote('written', notebook) },
+    { group: 'Write', name: 'Canvas: draw and handwrite', hint: 'Ctrl+2', icon: PenLine, run: () => openNote('canvas', notebook) },
+    { group: 'Write', name: 'Mind map', hint: 'Ctrl+3', icon: Workflow, run: () => openNote('mindmap', notebook) },
+    { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
+    { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
+    { group: 'Study', name: 'Graph of linked notes', icon: Share2, run: openGraph },
+    { group: 'View', name: 'Focus: hide the toolbars', hint: 'Ctrl+.', icon: Maximize2, run: () => setFocus(!empty) },
+    { group: 'View', name: ruler ? 'Put the reading ruler away' : 'Reading ruler', icon: Ruler, run: () => setRuler(!ruler) },
+    ...(Object.keys(LAYOUTS) as Layout[]).map(key => ({ group: 'View', name: `Layout: ${LAYOUTS[key]}`, icon: LAYOUT_ICONS[key], run: () => setLayout(key) })),
+    ...THEME_CHOICES.map(choice => ({ group: 'View', name: `Theme: ${THEME_NAMES[choice]}`, icon: THEME_ICONS[choice], run: () => setTheme(choice) })),
+    ...PAPERS.map(kind => ({ group: 'View', name: `Paper: ${kind}`, icon: NotebookPen, run: () => setPaper(kind) })),
+    { group: 'Keep', name: 'Save the book and its notes as one file', icon: Package, run: () => void saveWhole() },
+    { group: 'Keep', name: 'Export this book\'s notes', icon: FileDown, run: () => void exportNotes() },
+    ...books.map(book => ({ group: 'Your books', name: baseName(book.name), icon: BookOpenText, run: () => openFromShelf(book.name) })),
+  ]
+
   const onReady = (event: DockviewReadyEvent) => {
     api.current = event.api
     void launchFile().then(file => { if (file) void openFile(file) })
@@ -441,8 +472,10 @@ export default function App() {
       }}
     >
       <header className="topbar">
-        <img className="brand-mark" src="./favicon.svg" alt="" />
-        <strong className="brand-name">Sidepage</strong>
+        <button className="brand" title="Home: your library" aria-label="Home" onClick={goHome}>
+          <img className="brand-mark" src="./favicon.svg" alt="" />
+          <strong className="brand-name">Sidepage</strong>
+        </button>
         <Tool icon={FolderOpen} label="Open" hint="Open a book, document, deck or picture (Ctrl+O)" onClick={() => void browse()} />
         <div className="segment" role="group" aria-label="Write beside the book">
           <Tool icon={NotebookPen} label="Notes" hint="Written notes (Ctrl+1)" onClick={() => openNote('written', notebook)} />
@@ -453,14 +486,15 @@ export default function App() {
           <Tool icon={GraduationCap} label="Review" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
         </div>
         <span className="spacer" />
+        <button className="jump" title="Go to anything (Ctrl+K)" onClick={() => setPalette(true)}><CommandIcon size={15} aria-hidden /><span>Go to…</span><kbd>Ctrl K</kbd></button>
         <NotesSearch />
+        <StudyTimer onNotice={setNotice} />
         <Tool quiet icon={Maximize2} label="Focus" hint="Hide everything but the page and your notes (Ctrl+.)" disabled={empty} onClick={() => setFocus(true)} />
-        <Tool quiet icon={LAYOUT_ICONS[layout]} label={`Layout: ${LAYOUTS[layout]}`} hint={`Layout: ${LAYOUTS[layout]}. Tap to change.`} onClick={() => setLayout(next(Object.keys(LAYOUTS) as Layout[], layout))} />
         <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${THEME_NAMES[theme]}`} hint={`Theme: ${THEME_NAMES[theme]}. Tap to change.`} onClick={() => setTheme(next(THEME_CHOICES, theme))} />
         <Tool quiet icon={Ellipsis} label="More" on={more} onClick={() => setMore(!more)} />
         {more && <>
           <div className="menu-backdrop" onClick={() => setMore(false)} />
-          <div className="menu" onClick={e => { if ((e.target as HTMLElement).closest('button')) setMore(false) }}>
+          <div className="menu settings" onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) setMore(false) }}>
             <Tool icon={Package} label="Save as one file" hint="Save the book and all its notes together as one .sidepage file" disabled={empty} onClick={() => void saveWhole()} />
             <Tool
               icon={Archive}
@@ -481,6 +515,18 @@ export default function App() {
                 onClick={() => void chooseNotesFolder()}
               />
             )}
+            <p className="menu-head">Look</p>
+            <div className="menu-row">Accent
+              <span className="swatches">
+                {(Object.keys(ACCENTS) as Accent[]).map(name => (
+                  <button key={name} className={accent === name ? 'swatch stay on' : 'swatch stay'} style={{ background: ACCENTS[name] || 'var(--muted)' }} title={name[0].toUpperCase() + name.slice(1)} aria-label={`${name} accent`} onClick={() => { setAccent(name); applyAccent(name) }} />
+                ))}
+              </span>
+            </div>
+            <label className="menu-row">Warmth<input type="range" min={0} max={100} step={5} value={warmth} onChange={e => setWarmth(Number(e.target.value))} /></label>
+            <label className="menu-row">Dim<input type="range" min={0} max={60} step={5} value={dim} onChange={e => setDim(Number(e.target.value))} /></label>
+            <label className="menu-row">Reading ruler<input type="checkbox" checked={ruler} onChange={e => setRuler(e.target.checked)} /></label>
+            <p className="menu-head">Reading</p>
             <label className="menu-row">
               Daily goal
               <select value={goal} onChange={e => { setGoal(Number(e.target.value)); localStorage.setItem('sidepage:goal', e.target.value) }}>
@@ -510,61 +556,19 @@ export default function App() {
         </>}
       </header>
       {focus && <button className="focus-exit" title="Show the toolbars again" aria-label="Leave focus" onClick={() => setFocus(false)}><Minimize2 size={18} aria-hidden /></button>}
+      <Comfort />
+      <LookUp />
+      {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">
-        <DockviewReact components={components} onReady={onReady} theme={themeLight} defaultRenderer="always" />
+        <DockviewReact components={components} onReady={onReady} theme={PANELS} defaultRenderer="always" />
         {empty && (
-          <div className="welcome">
-            <img className="welcome-mark" src="./favicon.svg" alt="" />
-            <h1>Read on one side, think on the other.</h1>
-            <p>Open a book, a document, a slide deck or a picture. Your notes open beside it.</p>
-            <button className="primary" onClick={() => void browse()}><FolderOpen size={18} aria-hidden /> Open a book</button>
-            {(() => {
-              const stats = readingStats()
-              return (stats.week > 0 || goal > 0) && (
-                <p className="reading-stats">
-                  {goal > 0
-                    ? <span className="goal"><b>{asTime(stats.today)}</b> of {asTime(goal)} today<span className="shelf-bar"><i style={{ width: `${Math.min(100, Math.round((stats.today / goal) * 100))}%` }} /></span></span>
-                    : <span><b>{asTime(stats.today)}</b> today</span>}
-                  <span><b>{asTime(stats.week)}</b> this week</span>
-                  {stats.streak > 1 && <span><b>{stats.streak} days</b> in a row</span>}
-                </p>
-              )
-            })()}
-            {books.length > 0 && (
-              <div className="shelf-head">
-                <h2 className="shelf-title">{wanted ? 'Found' : 'Your books'}</h2>
-                <select className="shelf-order" value={order} onChange={e => { setOrder(e.target.value); localStorage.setItem('sidepage:order', e.target.value) }} title="Order of the books">
-                  <option value="recent">Recently opened</option>
-                  <option value="title">By title</option>
-                  <option value="progress">Furthest read</option>
-                </select>
-                {books.length > 6 && <input className="shelf-search" value={wanted} placeholder={`Search your ${books.length} books`} onChange={e => setWanted(e.target.value)} />}
-              </div>
-            )}
-            {books.length > 0 && (
-              <ul className="shelf">
-                {arranged.filter(book => book.name.toLowerCase().includes(wanted.trim().toLowerCase())).slice(0, wanted || showAll ? undefined : 12).map(book => (
-                  <li key={book.name}>
-                    <button className="shelf-book" onClick={() => void fromShelf(book.name).then(file => { if (file) void openFile(file) })}>
-                      {covers[book.name]
-                        ? <img className="shelf-cover" src={covers[book.name]} alt="" />
-                        : <span className="shelf-cover blank">{extensionOf(book.name)}</span>}
-                      <span className="shelf-text">
-                        <span className="shelf-name">{baseName(book.name)}</span>
-                        <span className="shelf-meta">{extensionOf(book.name).toUpperCase()} · {Math.round(progressOf(book.name) * 100)}% read</span>
-                        <span className="shelf-bar"><i style={{ width: `${Math.round(progressOf(book.name) * 100)}%` }} /></span>
-                      </span>
-                    </button>
-                    <button className={favourites.includes(book.name) ? 'shelf-star on' : 'shelf-star'} title={favourites.includes(book.name) ? 'No longer a favourite' : 'Keep at the front as a favourite'} aria-label="Favourite" aria-pressed={favourites.includes(book.name)} onClick={() => toggleFavourite(book.name)}><Star size={15} aria-hidden /></button>
-                    <button className="shelf-remove" title="Remove from this list" aria-label="Remove from this list" onClick={() => void unshelve(book.name).then(shelf).then(setBooks)}><X size={15} aria-hidden /></button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {books.length > 12 && !wanted && !showAll && <button className="shelf-more" onClick={() => setShowAll(true)}>Show all {books.length} books</button>}
-            <p className="hint">PDF · EPUB · MOBI · AZW3 · FB2 · DJVU · CBZ · CBR · DOCX · DOC · RTF · ODT · PPTX · PPT · TXT · Markdown · HTML · pictures</p>
-          </div>
+          <Home
+            books={books} covers={covers} favourites={favourites} goal={goal}
+            onOpen={openFromShelf} onBrowse={() => void browse()} onFavourite={toggleFavourite}
+            onRemove={name => void unshelve(name).then(shelf).then(setBooks)}
+            onQuickNotes={() => openNote('written', 'Quick notes')}
+          />
         )}
       </main>
     </div>

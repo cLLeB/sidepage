@@ -3,9 +3,9 @@ import { convertToExcalidrawElements, Excalidraw, exportToCanvas, serializeAsJSO
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
 import '@excalidraw/excalidraw/index.css'
 import FlipBook from '../viewers/FlipBook'
-import { BookOpen, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, ImageDown, Plus } from 'lucide-react'
 import { Tool } from '../ui'
-import { baseName, debounce, isShown, loadNote, onClip, saveNote } from '../lib/platform'
+import { baseName, debounce, isShown, loadNote, onClip, saveFileAs, saveNote } from '../lib/platform'
 import { useTheme } from '../lib/theme'
 
 type Initial = NonNullable<Parameters<typeof Excalidraw>[0]['initialData']>
@@ -161,6 +161,15 @@ export default function CanvasNote({ notebook }: { notebook: string }) {
     setSheets(urls)
   }
 
+  // The drawing on this page, on white, as a PNG.
+  const savePicture = async () => {
+    const data = JSON.parse((await loadNote(notebook, fileOf(page))) ?? 'null')
+    if (!data?.elements?.some((element: { isDeleted?: boolean }) => !element.isDeleted)) return
+    const drawn = await exportToCanvas({ elements: data.elements, appState: { ...data.appState, exportBackground: true, viewBackgroundColor: '#ffffff' }, files: data.files ?? null, exportPadding: 24 })
+    const blob = await new Promise<Blob | null>(resolve => drawn.toBlob(resolve, 'image/png'))
+    if (blob) await saveFileAs(`${notebook} canvas ${page}.png`, new Uint8Array(await blob.arrayBuffer()))
+  }
+
   return (
     <div className="note canvas-note">
       {sheets
@@ -173,6 +182,7 @@ export default function CanvasNote({ notebook }: { notebook: string }) {
           <Tool quiet icon={ChevronRight} label="Next page" disabled={page === count} onClick={() => void turnTo(page + 1)} />
           <Tool icon={Plus} label="Page" hint="Add a page at the end" onClick={() => void turnTo(count + 1)} />
         </>}
+        {!sheets && <Tool icon={ImageDown} label="Save as a picture" hint="Save this page of drawing as a PNG picture" onClick={() => void savePicture()} />}
         <Tool icon={BookOpen} label="Flip" hint="Leaf through the notebook" on={!!sheets} onClick={() => void toggleFlip()} />
       </div>
     </div>

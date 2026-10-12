@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { TextQuote } from 'lucide-react'
+import { BookA, TextQuote } from 'lucide-react'
+import { lookUp } from '../Extras'
 import { Tool } from '../ui'
 import { baseName, extensionOf, sendQuote } from '../lib/platform'
 
@@ -66,6 +67,7 @@ export default function OfficeView({ file }: { file: File }) {
       <div className="viewer-bar">
         <span className="spacer" />
         <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
+        <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
       </div>
       <div ref={host} className="viewer-body office-host" />
     </div>
