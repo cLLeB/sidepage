@@ -1,10 +1,15 @@
 import { useSyncExternalStore } from 'react'
 import type { Crepe } from '@milkdown/crepe'
-import { editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core'
-import { headingSchema, paragraphSchema } from '@milkdown/kit/preset/commonmark'
+import { commandsCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core'
+import { redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
+import {
+  headingSchema, insertHrCommand, paragraphSchema, turnIntoTextCommand, wrapInBlockquoteCommand, wrapInBulletListCommand, wrapInHeadingCommand,
+  wrapInOrderedListCommand,
+} from '@milkdown/kit/preset/commonmark'
+import { insertTableCommand } from '@milkdown/kit/preset/gfm'
 import { toggleMark } from '@milkdown/kit/prose/commands'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state'
+import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view'
 import { $markSchema, $prose, $remark } from '@milkdown/kit/utils'
 
@@ -312,3 +317,51 @@ export const clearLooks = (crepe: Crepe | null) => withView(crepe, view => {
   }
   view.dispatch(tr)
 })
+
+// What kind of block the line is: plain text, a heading, a list, a quote.
+export type BlockStyle = 'text' | 'h1' | 'h2' | 'h3' | 'bullets' | 'numbers' | 'checklist' | 'quote'
+export const setBlock = (crepe: Crepe | null, style: BlockStyle) => crepe?.editor.action(ctx => {
+  const commands = ctx.get(commandsCtx)
+  const view = ctx.get(editorViewCtx)
+  if (style === 'text') commands.call(turnIntoTextCommand.key)
+  else if (style === 'bullets' || style === 'checklist') commands.call(wrapInBulletListCommand.key)
+  else if (style === 'numbers') commands.call(wrapInOrderedListCommand.key)
+  else if (style === 'quote') commands.call(wrapInBlockquoteCommand.key)
+  else commands.call(wrapInHeadingCommand.key, Number(style[1]))
+  if (style === 'checklist') {
+    // A checklist is a bullet list whose items carry a box: ticked, or not yet.
+    const { from, to } = view.state.selection
+    let tr = view.state.tr
+    view.state.doc.nodesBetween(from, to, (node, at) => {
+      if (node.type.name === 'list_item') tr = tr.setNodeMarkup(at, undefined, { ...node.attrs, checked: node.attrs.checked == null ? false : null })
+    })
+    view.dispatch(tr)
+  }
+  view.focus()
+})
+
+export const undo = (crepe: Crepe | null) => crepe?.editor.action(ctx => { ctx.get(commandsCtx).call(undoCommand.key); ctx.get(editorViewCtx).focus() })
+export const redo = (crepe: Crepe | null) => crepe?.editor.action(ctx => { ctx.get(commandsCtx).call(redoCommand.key); ctx.get(editorViewCtx).focus() })
+export const insertTable = (crepe: Crepe | null) => crepe?.editor.action(ctx => {
+  // After the selected words, not in place of them.
+  const view = ctx.get(editorViewCtx)
+  view.dispatch(view.state.tr.setSelection(Selection.near(view.state.selection.$to)))
+  ctx.get(commandsCtx).call(insertTableCommand.key, { row: 3, col: 2 })
+  view.focus()
+})
+export const insertLine = (crepe: Crepe | null) => crepe?.editor.action(ctx => { ctx.get(commandsCtx).call(insertHrCommand.key); ctx.get(editorViewCtx).focus() })
+
+// Which looks the words under the cursor already have, so the bar can show its buttons pressed.
+export function looksAt(crepe: Crepe | null): Record<string, boolean> & { align?: string } {
+  const found: Record<string, boolean> & { align?: string } = {}
+  crepe?.editor.action(ctx => {
+    const { state } = ctx.get(editorViewCtx)
+    const { from, to, empty, $from } = state.selection
+    for (const name of ['strong', 'emphasis', 'underline', 'strike_through']) {
+      const type = state.schema.marks[name]
+      if (type) found[name] = empty ? !!type.isInSet(state.storedMarks ?? $from.marks()) : state.doc.rangeHasMark(from, to, type)
+    }
+    found.align = $from.parent.attrs.align ?? 'left'
+  })
+  return found
+}

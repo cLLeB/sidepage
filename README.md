@@ -38,6 +38,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   an exercise book, whatever its size or typeface, and a new note is an empty page.
 - Writing tools in the note's own bar: bold, italic, underline, strike through, text colour, marker, larger and
   smaller words, typeface (plain, book, handwriting, typewriter), and left / centre / right / full alignment.
+  The same bar has undo and redo, turns a line into a heading, a bullet, numbered or check list or a quote,
+  inserts a picture from the device, a table, a dividing line, today's date, a ready-made layout or a link to
+  another book's notes, shows which looks are on under the cursor, and counts the words.
   The page as a whole has its own typeface, size and ink. All of it is kept inside the Markdown note as small
   pieces of HTML, so the note stays one plain file.
 - "Flip" turns PDFs, slide decks, DjVu books and your canvas notebook into a book you leaf through, with a paper

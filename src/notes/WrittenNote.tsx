@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, Highlighter, Italic, ListTree, PenLine, Printer, RemoveFormatting,
-  Strikethrough, Underline,
+  ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
+  List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
@@ -16,7 +16,8 @@ import {
   parsePlaceLink, placeLink, saveNote, shelf,
 } from '../lib/platform'
 import {
-  FACES, INKS, MARKER_COLOURS, TEXT_COLOURS, TEXT_FACES, TEXT_SIZES, WRITING_SIZES, addLooks, clearLooks, setAlign, setLook, setWriting, toggleLook, useWriting,
+  FACES, INKS, MARKER_COLOURS, TEXT_COLOURS, TEXT_FACES, TEXT_SIZES, WRITING_SIZES, addLooks, clearLooks, insertLine, insertTable, looksAt, redo, setAlign, setBlock,
+  setLook, setWriting, toggleLook, undo, useWriting,
   type Writing,
 } from './writing'
 
@@ -42,6 +43,10 @@ const TEMPLATES = {
 export default function WrittenNote({ notebook }: { notebook: string }) {
   const host = useRef<HTMLDivElement>(null)
   const probe = useRef<HTMLDivElement>(null)
+  const picker = useRef<HTMLInputElement>(null)
+  // How many words are on the page, and which looks the words under the cursor have.
+  const [words, setWords] = useState(0)
+  const [, look] = useState(0)
   const editorRef = useRef<Crepe | null>(null)
   const writing = useWriting()
   const rule = writing.size * 2
@@ -90,12 +95,16 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         },
       })
       addLooks(editor)
-      editor.on(listener => listener.markdownUpdated((_, markdown) => save(markdown)))
+      const count = debounce(() => setWords(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0), 400)
+      editor.on(listener => listener
+        .markdownUpdated((_, markdown) => { save(markdown); count() })
+        .selectionUpdated(() => look(n => n + 1)))
       await editor.create()
       if (cancelled) return void editor.destroy()
       crepe = editor
       editorRef.current = editor
       setReady(true)
+      count()
       stopQuotes = onQuote(({ text, source, book, place }) => {
         // Each book's quotes go to its own notebook.
         if (book && baseName(book) !== notebook) return
@@ -196,6 +205,24 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   }, [ready, writing])
 
   const crepe = () => editorRef.current
+  const has = looksAt(editorRef.current)
+  const AlignIcon = { left: AlignLeft, center: AlignCenter, right: AlignRight, justify: AlignJustify }[has.align ?? 'left'] ?? AlignLeft
+  // Plain words, typed where the cursor is.
+  const type = (text: string) => editorRef.current?.editor.action(ctx => {
+    const view = ctx.get(editorViewCtx)
+    view.dispatch(view.state.tr.insertText(text).scrollIntoView())
+    view.focus()
+  })
+  const put = (markdown: string) => editorRef.current?.editor.action(insert(markdown))
+  // A picture chosen from the device is kept in the notebook and set where the cursor is.
+  const addPicture = async (picture: File) => {
+    const name = `picture-${Date.now().toString(36)}.${picture.name.split('.').pop() || 'png'}`
+    await saveNoteFile(notebook, name, picture)
+    editorRef.current?.editor.action(ctx => {
+      const view = ctx.get(editorViewCtx)
+      view.dispatch(view.state.tr.replaceSelectionWith(imageBlockSchema.type(ctx).create({ src: name })).scrollIntoView())
+    })
+  }
 
   // The note's headings, to jump by.
   const headings = () => [...(host.current?.querySelectorAll<HTMLElement>('.ProseMirror :is(h1, h2, h3, h4)') ?? [])]
@@ -261,11 +288,23 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           </label>
           <p className="menu-note">The lines of the paper follow the size you choose.</p>
         </Menu>
+        <Tool quiet icon={Undo2} label="Undo" onClick={() => undo(crepe())} />
+        <Tool quiet icon={Redo2} label="Redo" onClick={() => redo(crepe())} />
         <span className="divider" />
-        <Tool quiet icon={Bold} label="Bold" onClick={() => toggleLook(crepe(), 'strong')} />
-        <Tool quiet icon={Italic} label="Italic" onClick={() => toggleLook(crepe(), 'emphasis')} />
-        <Tool quiet icon={Underline} label="Underline" onClick={() => toggleLook(crepe(), 'underline')} />
-        <Tool quiet icon={Strikethrough} label="Strike through" onClick={() => toggleLook(crepe(), 'strike_through')} />
+        <Menu quiet icon={Pilcrow} label="Kind of line" hint="Make this line a heading, a list or a quote">
+          <Tool icon={Pilcrow} label="Plain text" onClick={() => setBlock(crepe(), 'text')} />
+          <Tool icon={Heading1} label="Large heading" onClick={() => setBlock(crepe(), 'h1')} />
+          <Tool icon={Heading2} label="Heading" onClick={() => setBlock(crepe(), 'h2')} />
+          <Tool icon={Heading3} label="Small heading" onClick={() => setBlock(crepe(), 'h3')} />
+          <Tool icon={List} label="Bullet list" onClick={() => setBlock(crepe(), 'bullets')} />
+          <Tool icon={ListOrdered} label="Numbered list" onClick={() => setBlock(crepe(), 'numbers')} />
+          <Tool icon={ListChecks} label="Checklist" onClick={() => setBlock(crepe(), 'checklist')} />
+          <Tool icon={Quote} label="Quote" onClick={() => setBlock(crepe(), 'quote')} />
+        </Menu>
+        <Tool quiet icon={Bold} label="Bold" on={has.strong} onClick={() => toggleLook(crepe(), 'strong')} />
+        <Tool quiet icon={Italic} label="Italic" on={has.emphasis} onClick={() => toggleLook(crepe(), 'emphasis')} />
+        <Tool quiet icon={Underline} label="Underline" on={has.underline} onClick={() => toggleLook(crepe(), 'underline')} />
+        <Tool quiet icon={Strikethrough} label="Strike through" on={has.strike_through} onClick={() => toggleLook(crepe(), 'strike_through')} />
         <Menu quiet icon={Baseline} label="Text colour" hint="Colour the selected words">
           <span className="swatches">
             {Object.entries(TEXT_COLOURS).map(([name, colour]) => (
@@ -294,7 +333,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
             <button key={name} className="menu-item" onClick={() => setLook(crepe(), 'face', face)}><span data-face={face}>{name}</span></button>
           ))}
         </Menu>
-        <Menu quiet icon={AlignLeft} label="Alignment" hint="Which side the paragraph leans to">
+        <Menu quiet icon={AlignIcon} label="Alignment" hint="Which side the paragraph leans to">
           <Tool icon={AlignLeft} label="Left" onClick={() => setAlign(crepe(), 'left')} />
           <Tool icon={AlignCenter} label="Centre" onClick={() => setAlign(crepe(), 'center')} />
           <Tool icon={AlignRight} label="Right" onClick={() => setAlign(crepe(), 'right')} />
@@ -302,24 +341,28 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         </Menu>
         <Tool quiet icon={RemoveFormatting} label="Plain writing" hint="Take the colour, size and other looks off the selected words" onClick={() => clearLooks(crepe())} />
         <span className="divider" />
-        <select
-          value=""
-          onFocus={() => void refreshLinks()}
-          onChange={e => editorRef.current?.editor.action(insert(`[${baseName(e.target.value)}](${noteLink(e.target.value)})`))}
-          title="Insert a link to another book's notes"
-        >
-          <option value="" disabled>Link to another book…</option>
-          {others.map(name => <option key={name} value={name}>{baseName(name)}</option>)}
-        </select>
-        <select
-          value=""
-          onChange={e => editorRef.current?.editor.action(insert(TEMPLATES[e.target.value as keyof typeof TEMPLATES]))}
-          title="Put a ready-made layout into the note, where the cursor is"
-        >
-          <option value="" disabled>Insert a template…</option>
-          {Object.keys(TEMPLATES).map(name => <option key={name} value={name}>{name}</option>)}
-        </select>
+        <Menu quiet icon={Plus} label="Insert" hint="Put a picture, a table, a layout or a link into the note">
+          <Tool icon={ImagePlus} label="Picture" onClick={() => picker.current?.click()} />
+          <Tool icon={Table} label="Table" onClick={() => insertTable(crepe())} />
+          <Tool icon={Minus} label="Dividing line" onClick={() => insertLine(crepe())} />
+          <Tool icon={CalendarDays} label="Today's date" onClick={() => type(new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} />
+          <p className="menu-head">Layouts</p>
+          {Object.keys(TEMPLATES).map(name => (
+            <button key={name} className="menu-item" onClick={() => put(TEMPLATES[name as keyof typeof TEMPLATES])}>{name}</button>
+          ))}
+          {others.length > 0 && <p className="menu-head">Link to another book's notes</p>}
+          <div className="menu-scroll">
+            {others.map(name => (
+              <button key={name} className="menu-item" onClick={() => put(`[${baseName(name)}](${noteLink(name)})`)}>{baseName(name)}</button>
+            ))}
+          </div>
+        </Menu>
+        <input
+          ref={picker} type="file" accept="image/*" hidden
+          onChange={e => { const picture = e.target.files?.[0]; e.target.value = ''; if (picture) void addPicture(picture) }}
+        />
         {!isMobile && <Tool quiet icon={Printer} label="Print this note" onClick={print} />}
+        {words > 0 && <span className="viewer-pos" title="Words on this page">{words.toLocaleString()} {words === 1 ? 'word' : 'words'}</span>}
         {backlinks.length > 0 && <span className="viewer-pos">Linked from</span>}
         {backlinks.map(name => <button key={name} onClick={() => openBookByName(name)}>{baseName(name)}</button>)}
       </div>
