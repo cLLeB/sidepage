@@ -247,10 +247,12 @@ export const [findInNotes, onFindInNotes] = channel<{ text: string }>('sidepage:
 
 // Where the book in front is open just now (a page of a PDF, a part of a book), told by the readers as pages
 // turn, for whatever follows along: the study guide, notes that keep pace with the book.
-const [sayPlace, onPlaceSaid] = channel<Place>('sidepage:here')
-let latestPlace: Place | null = null
-export const tellPlace = (place: Place) => {
-  if (latestPlace?.book === place.book && latestPlace.place === place.place) return
+// A book of flowing text also says exactly where in the part it is (a CFI), since its parts can be long.
+export type Here = Place & { cfi?: string }
+const [sayPlace, onPlaceSaid] = channel<Here>('sidepage:here')
+let latestPlace: Here | null = null
+export const tellPlace = (place: Here) => {
+  if (latestPlace?.book === place.book && latestPlace.place === place.place && latestPlace.cfi === place.cfi) return
   latestPlace = place
   sayPlace(place)
 }

@@ -23,6 +23,7 @@ import {
 } from './writing'
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { usePref } from '../lib/prefs'
+import { compare as compareCfi } from 'foliate-js/epubcfi.js'
 
 // Characters a keyboard does not have to hand.
 const SYMBOLS = '→ ← ↔ ⇒ ≈ ≠ ≤ ≥ ± × ÷ √ ∞ ∑ ∆ π µ θ λ Ω ° ′ ″ ½ ¼ ¾ ² ³ € £ ¥ © § ¶ † • … — ✓ ✗ ★'.split(' ')
@@ -70,11 +71,23 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   const [pace, setPace] = usePref('pace', false)
   useEffect(() => {
     if (!pace) return
-    return onPlace(({ book, place }) => {
+    return onPlace(({ book, place, cfi }) => {
+      if (baseName(book) !== notebook) return
       const page = place.match(/^page=(\d+)/)?.[1]
-      if (!page || baseName(book) !== notebook) return
+      const part = place.match(/^section=(\d+)/)?.[1]
       const links = [...(host.current?.querySelectorAll<HTMLAnchorElement>('a[href^="#sidepage-open"]') ?? [])]
-      const first = links.find(link => parsePlaceLink(link.getAttribute('href') ?? '')?.place.match(/^page=(\d+)/)?.[1] === page)
+        .map(link => ({ link, at: parsePlaceLink(link.getAttribute('href') ?? '')?.place ?? '' }))
+      let first: HTMLAnchorElement | undefined
+      if (page) first = links.find(({ at }) => at.match(/^page=(\d+)/)?.[1] === page)?.link
+      else if (part) {
+        // A book of flowing text: a quote's place names its part of the book (the step after "/6/") and the
+        // exact spot in it. Of the quotes from this part, the one wanted is the last at or before where the
+        // reader is; before any of them, the first.
+        const inPart = links.filter(({ at }) => Number(at.match(/^epubcfi\(\/6\/(\d+)/)?.[1]) / 2 - 1 === Number(part))
+        const order = (a: string, b: string) => { try { return compareCfi(a, b) as number } catch { return 0 } }
+        inPart.sort((a, b) => order(a.at, b.at))
+        first = (cfi ? inPart.filter(({ at }) => order(at, cfi) <= 0).pop() : undefined)?.link ?? inPart[0]?.link
+      }
       const block = first?.closest('.ProseMirror > *') as HTMLElement | null | undefined
       if (!block) return
       block.scrollIntoView({ block: 'center', behavior: 'smooth' })
@@ -530,7 +543,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         <Menu quiet icon={Ellipsis} label="More for this note">
           {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read this note aloud'} onClick={readAloud} />}
           <Tool icon={Mic} label={recording ? 'Stop recording sound' : 'Record sound with this note'} hint="Record a lecture or yourself; lines you write meanwhile are stamped with their moment" on={!!recording} onClick={() => void record()} />
-          <Tool icon={Footprints} label={pace ? 'Keep pace with the book: on' : 'Keep pace with the book'} hint="As you turn the pages of a PDF, show what you wrote about that page" on={pace} onClick={() => setPace(!pace)} />
+          <Tool icon={Footprints} label={pace ? 'Keep pace with the book: on' : 'Keep pace with the book'} hint="As you turn the pages of the book, show what you quoted or clipped from there" on={pace} onClick={() => setPace(!pace)} />
           <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
           <Tool icon={ClipboardCopy} label="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
           <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('doc')} />

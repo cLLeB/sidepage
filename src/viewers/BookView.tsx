@@ -93,6 +93,7 @@ export default function BookView({ file }: { file: File }) {
       setWhere({ fraction: e.detail.fraction ?? 0, label: e.detail.tocItem?.label ?? '', cfi: e.detail.cfi ?? '' })
       setProgress(file.name, e.detail.fraction ?? 0)
       placeNow.current = e.detail.cfi ?? ''
+      tellPlace({ book: file.name, place: `section=${e.detail.section?.current ?? here.current.index}`, cfi: e.detail.cfi ?? '' })
       if (e.detail.cfi) localStorage.setItem(`sidepage:place:${file.name}`, e.detail.cfi)
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,7 +133,7 @@ export default function BookView({ file }: { file: File }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       view.renderer.addEventListener('relocate', (e: any) => {
         here.current = { index: e.detail.index ?? 0, fraction: e.detail.fraction ?? 0 }
-        tellPlace({ book: file.name, place: `section=${e.detail.index ?? 0}` })
+        tellPlace({ book: file.name, place: `section=${e.detail.index ?? 0}`, cfi: placeNow.current })
         shownRange.current = e.detail.range ?? null
         if (Date.now() - turnedAt.current > 1500) setCurlStart(s => ({ place: here.current, key: s.key + 1 }))
       })
