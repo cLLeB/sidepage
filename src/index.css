@@ -719,7 +719,7 @@ button.primary { box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 30%, tr
 .meter i { display: block; height: 100%; border-radius: 5px; background: var(--accent); }
 .cover { flex: none; display: block; width: 100%; aspect-ratio: 0.7; object-fit: cover; border-radius: 4px 9px 9px 4px; background: var(--bg); box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.14), 0 2px 5px rgb(0 0 0 / 0.16), 0 10px 22px rgb(0 0 0 / 0.14); }
 .cover.large { width: clamp(96px, 16vw, 132px); }
-.cover.bound { display: flex; flex-direction: column; justify-content: space-between; padding: 14% 12% 10% 16%; color: #fff; text-align: left; white-space: normal; overflow: hidden; background-image: linear-gradient(135deg, rgb(255 255 255 / 0.16), transparent 55%); }
+.cover.bound { display: flex; flex-direction: column; justify-content: space-between; padding: 14px 12px 10px 17px; color: #fff; text-align: left; white-space: normal; overflow: hidden; background-image: linear-gradient(135deg, rgb(255 255 255 / 0.16), transparent 55%); }
 .bound-title { font: 700 clamp(11px, 1.5vw, 13.5px)/1.25 Georgia, 'Times New Roman', serif; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .bound-kind { font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.75; }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
