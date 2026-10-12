@@ -13,6 +13,7 @@ const colourOf = (mark: Highlight) => mark.color ?? HIGHLIGHT_COLOURS.Yellow
 export default function HighlightsView() {
   const [marks, setMarks] = useState<Found[] | null>(null)
   const [colour, setColour] = useState('')
+  const [wanted, setWanted] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -45,7 +46,7 @@ export default function HighlightsView() {
     openBookByName(mark.book)
     for (const delay of [800, 2400]) setTimeout(() => goToPlace({ book: mark.book, place: mark.cfi }), delay)
   }
-  const shown = marks.filter(mark => !colour || colourOf(mark) === colour)
+  const shown = marks.filter(mark => (!colour || colourOf(mark) === colour) && `${mark.text} ${mark.note ?? ''}`.toLowerCase().includes(wanted.trim().toLowerCase()))
   const books = [...new Set(shown.map(mark => mark.book))]
 
   const save = () => void saveFileAs('Highlights.md', new TextEncoder().encode(books.map(book =>
@@ -61,6 +62,7 @@ export default function HighlightsView() {
           </button>
         ))}
         <span className="spacer" />
+        <input className="shelf-search" value={wanted} placeholder="Search your highlights" onChange={e => setWanted(e.target.value)} />
         <Tool icon={FileDown} label="Save these as a file" onClick={save} />
       </div>
       {books.map(book => (

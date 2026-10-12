@@ -436,3 +436,20 @@ export const keepLineInPlace = (crepe: Crepe | null, page: HTMLElement) => crepe
   const box = page.getBoundingClientRect()
   page.scrollTop += line.top - (box.top + box.height * 0.42)
 })
+
+// The block (paragraph, heading, list, table…) the cursor is in can be moved up or down, copied, or removed.
+export const changeLine = (crepe: Crepe | null, what: 'up' | 'down' | 'copy' | 'remove') => withView(crepe, view => {
+  const { doc, selection } = view.state
+  const index = selection.$from.index(0)
+  if (index >= doc.childCount) return
+  const line = doc.child(index)
+  const from = selection.$from.before(1), to = from + line.nodeSize
+  let tr = view.state.tr
+  let at = from
+  if (what === 'remove') tr = doc.childCount > 1 ? tr.delete(from, to) : tr
+  else if (what === 'copy') { tr = tr.insert(to, line.copy(line.content)); at = to }
+  else if (what === 'up' && index > 0) { at = from - doc.child(index - 1).nodeSize; tr = tr.delete(from, to).insert(at, line) }
+  else if (what === 'down' && index < doc.childCount - 1) { at = from + doc.child(index + 1).nodeSize; tr = tr.delete(from, to).insert(at, line) }
+  else return
+  view.dispatch(tr.setSelection(Selection.near(tr.doc.resolve(Math.min(at + 1, tr.doc.content.size)))).scrollIntoView())
+})

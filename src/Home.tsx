@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { BookOpenText, Clock, Flame, FolderOpen, Library, NotebookText, Star, Target, X } from 'lucide-react'
-import { baseName, extensionOf, type Shelved } from './lib/platform'
-import { asTime, progressOf, readingDays, readingStats } from './lib/reading'
+import { useEffect, useState } from 'react'
+import { BookOpenText, Clock, Flame, FolderOpen, Library, NotebookText, Quote, Star, Target, X } from 'lucide-react'
+import { baseName, extensionOf, loadNote, type Shelved } from './lib/platform'
+import { asTime, progressOf, readingDays, readingStats, spentOn, timeLeft } from './lib/reading'
 
 // What a book is, said plainly, and the shelves it can be filtered into.
 const KINDS: Record<string, string> = {
@@ -46,6 +46,20 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
   const [shelfName, setShelfName] = useState('All')
   const [order, setOrder] = useState(() => localStorage.getItem('sidepage:order') ?? 'recent')
   const stats = readingStats()
+  // One of your own highlights, a different one each day, to meet again.
+  const [remembered, setRemembered] = useState<{ text: string; book: string } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const all: { text: string; book: string }[] = []
+      for (const book of books) {
+        const marks: { text: string }[] = JSON.parse((await loadNote(baseName(book.name), 'highlights.json')) ?? '[]')
+        all.push(...marks.filter(mark => mark.text?.trim().length > 20).map(mark => ({ text: mark.text.replace(/\s+/g, ' ').trim(), book: book.name })))
+      }
+      if (!cancelled) setRemembered(all.length ? all[Math.floor(Date.now() / 86_400_000) % all.length] : null)
+    })()
+    return () => { cancelled = true }
+  }, [books])
   const days = readingDays(84)
   const most = Math.max(30, ...days.map(day => day.minutes))
   const last = [...books].sort((a, b) => b.opened - a.opened)[0]
@@ -96,7 +110,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
               <span className="hero-text">
                 <span className="eyebrow">Continue reading</span>
                 <span className="hero-title">{baseName(last.name)}</span>
-                <span className="hero-meta">{kindOf(last.name).replace(/s$/, '')} · {Math.round(progressOf(last.name) * 100)}% read</span>
+                <span className="hero-meta">{kindOf(last.name).replace(/s$/, '')} · {Math.round(progressOf(last.name) * 100)}% read{timeLeft(last.name) ? ` · about ${asTime(timeLeft(last.name))} left` : ''}</span>
                 <span className="meter"><i style={{ width: `${Math.round(progressOf(last.name) * 100)}%` }} /></span>
                 <span className="hero-go"><BookOpenText size={17} aria-hidden /> Pick up where you left off</span>
               </span>
@@ -135,6 +149,13 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
           </div>
         )}
 
+        {remembered && (
+          <button className="remembered" onClick={() => onOpen(remembered.book)}>
+            <Quote size={18} aria-hidden />
+            <span><q>{remembered.text.length > 320 ? `${remembered.text.slice(0, 320)}…` : remembered.text}</q><small>You highlighted this in {baseName(remembered.book)}</small></span>
+          </button>
+        )}
+
         {books.length > 0 && <>
           <div className="shelf-head">
             <h2 className="shelf-title"><Library size={16} aria-hidden /> Your library</h2>
@@ -161,7 +182,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                 <button className="book" onClick={() => onOpen(book.name)}>
                   <Cover name={book.name} cover={covers[book.name]} />
                   <span className="book-name">{baseName(book.name)}</span>
-                  <span className="book-meta">{Math.round(progressOf(book.name) * 100)}% read</span>
+                  <span className="book-meta">{Math.round(progressOf(book.name) * 100)}% read{spentOn(book.name) >= 1 ? ` · ${asTime(Math.round(spentOn(book.name)))}` : ''}</span>
                   <span className="meter"><i style={{ width: `${Math.round(progressOf(book.name) * 100)}%` }} /></span>
                 </button>
                 <button

@@ -10,7 +10,7 @@ import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
 import { coverOf } from './lib/reading'
 import Home from './Home'
-import { Comfort, LookUp, Palette, StudyTimer, type Command } from './Extras'
+import { Comfort, FocusClock, LookUp, Palette, StudyTimer, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
 import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
@@ -23,7 +23,7 @@ import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
 import { setTheme, THEME_CHOICES, useThemeChoice, type ThemeChoice } from './lib/theme'
 import { BACKUP_EXTENSION, packBackup, restoreBackup } from './lib/backup'
-import { addReadingTime, asTime } from './lib/reading'
+import { addReadingTime, addSpent, asTime } from './lib/reading'
 
 // The panels float a little apart, each a sheet of its own.
 const PANELS: DockviewTheme = { name: 'sidepage', className: 'dockview-theme-light', gap: 8, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
@@ -130,6 +130,7 @@ export default function App() {
   const [warmth, setWarmth] = usePref('warmth', 0)
   const [dim, setDim] = usePref('dim', 0)
   const [ruler, setRuler] = usePref('ruler', false)
+  const [awake, setAwake] = usePref('awake', true)
 
   // Reading time: a half-minute is counted whenever a book is open, the app is in view and the reader has
   // touched it in the last two minutes.
@@ -140,7 +141,11 @@ export default function App() {
     events.forEach(name => window.addEventListener(name, touch, { capture: true, passive: true }))
     const timer = setInterval(() => {
       const reading = !!api.current?.panels.some(panel => panel.id.startsWith('doc:'))
-      if (reading && document.visibilityState === 'visible' && Date.now() - touched.current < 120_000) addReadingTime(0.5)
+      if (!reading || document.visibilityState !== 'visible' || Date.now() - touched.current >= 120_000) return
+      addReadingTime(0.5)
+      // …and to the book in front (or the only one open).
+      const files = [api.current?.activePanel, ...(api.current?.panels ?? [])].map(panel => (panel?.params as { file?: File } | undefined)?.file).filter(Boolean)
+      if (files[0]) addSpent(files[0].name, 0.5)
     }, 30_000)
     return () => {
       events.forEach(name => window.removeEventListener(name, touch, { capture: true }))
@@ -165,6 +170,18 @@ export default function App() {
 
   // Focus: nothing on screen but the page and the notes. Escape, or the corner button, brings the bars back.
   const [focus, setFocus] = useState(false)
+  useScreenOn(awake && !empty)
+  // Focus also takes the whole screen, where the device lets an app do that.
+  useEffect(() => {
+    if (!focus) return
+    void document.documentElement.requestFullscreen?.().catch(() => {})
+    const left = () => { if (!document.fullscreenElement) setFocus(false) }
+    document.addEventListener('fullscreenchange', left)
+    return () => {
+      document.removeEventListener('fullscreenchange', left)
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    }
+  }, [focus])
   useEffect(() => {
     if (!focus) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFocus(false) }
@@ -526,6 +543,8 @@ export default function App() {
             <label className="menu-row">Warmth<input type="range" min={0} max={100} step={5} value={warmth} onChange={e => setWarmth(Number(e.target.value))} /></label>
             <label className="menu-row">Dim<input type="range" min={0} max={60} step={5} value={dim} onChange={e => setDim(Number(e.target.value))} /></label>
             <label className="menu-row">Reading ruler<input type="checkbox" checked={ruler} onChange={e => setRuler(e.target.checked)} /></label>
+            <label className="menu-row">Keep the screen on<input type="checkbox" checked={awake} onChange={e => setAwake(e.target.checked)} /></label>
+            <VoiceSettings />
             <p className="menu-head">Reading</p>
             <label className="menu-row">
               Daily goal
@@ -555,6 +574,7 @@ export default function App() {
           </div>
         </>}
       </header>
+      {focus && <FocusClock />}
       {focus && <button className="focus-exit" title="Show the toolbars again" aria-label="Leave focus" onClick={() => setFocus(false)}><Minimize2 size={18} aria-hidden /></button>}
       <Comfort />
       <LookUp />

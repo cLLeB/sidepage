@@ -193,3 +193,65 @@ export function LookUp() {
     </div>
   )
 }
+
+// ── Reading aloud, as you like it ──
+export function VoiceSettings() {
+  const [voice, setVoice] = usePref('voice', '')
+  const [rate, setRate] = usePref('voice-rate', 1)
+  const [sleep, setSleep] = usePref('voice-sleep', 0)
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return
+    const list = () => setVoices(speechSynthesis.getVoices())
+    list()
+    speechSynthesis.addEventListener('voiceschanged', list)
+    return () => speechSynthesis.removeEventListener('voiceschanged', list)
+  }, [])
+  if (!('speechSynthesis' in window)) return null
+  return <>
+    <p className="menu-head">Reading aloud</p>
+    {voices.length > 0 && (
+      <label className="menu-row">Voice
+        <select value={voice} onChange={e => setVoice(e.target.value)}>
+          <option value="">The device's own</option>
+          {voices.map(found => <option key={found.name} value={found.name}>{found.name.replace(/^Microsoft | Online \(Natural\)/g, '')}</option>)}
+        </select>
+      </label>
+    )}
+    <label className="menu-row">Pace
+      <select value={rate} onChange={e => setRate(Number(e.target.value))}>
+        {[['Slow', 0.8], ['Normal', 1], ['Brisk', 1.25], ['Fast', 1.5], ['Very fast', 2]].map(([name, value]) => <option key={name} value={value}>{name}</option>)}
+      </select>
+    </label>
+    <label className="menu-row">Stop after
+      <select value={sleep} onChange={e => setSleep(Number(e.target.value))}>
+        <option value={0}>Never</option>
+        {[10, 20, 30, 45, 60].map(minutes => <option key={minutes} value={minutes}>{minutes} min</option>)}
+      </select>
+    </label>
+  </>
+}
+
+// The time of day, for when the toolbars (and with them the device's own clock) are out of sight.
+export function FocusClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 20_000)
+    return () => clearInterval(tick)
+  }, [])
+  return <span className="focus-clock">{now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
+}
+
+// Keep the screen from dimming and locking while a book is open, where the device allows it.
+export function useScreenOn(on: boolean) {
+  useEffect(() => {
+    const locks = (navigator as Navigator & { wakeLock?: { request(kind: 'screen'): Promise<{ release(): Promise<void> }> } }).wakeLock
+    if (!on || !locks) return
+    let lock: { release(): Promise<void> } | undefined
+    let over = false
+    const hold = () => { if (document.visibilityState === 'visible') locks.request('screen').then(got => { if (over) void got.release(); else lock = got }).catch(() => {}) }
+    hold()
+    document.addEventListener('visibilitychange', hold)
+    return () => { over = true; document.removeEventListener('visibilitychange', hold); void lock?.release().catch(() => {}) }
+  }, [on])
+}

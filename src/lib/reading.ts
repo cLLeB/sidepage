@@ -114,3 +114,11 @@ export const readingDays = (days: number) =>
     const date = new Date(Date.now() - (days - 1 - i) * 86_400_000)
     return { date, minutes: Math.round(minutesOn(date)) }
   })
+
+// Minutes spent with each book open and in front, which also tells roughly how long the rest will take.
+export const spentOn = (fileName: string) => Number(localStorage.getItem(`sidepage:spent:${fileName}`)) || 0
+export const addSpent = (fileName: string, minutes: number) => localStorage.setItem(`sidepage:spent:${fileName}`, String(spentOn(fileName) + minutes))
+export const timeLeft = (fileName: string) => {
+  const read = progressOf(fileName), spent = spentOn(fileName)
+  return read > 0.05 && read < 0.97 && spent >= 5 ? Math.max(1, Math.round((spent * (1 - read)) / read)) : 0
+}

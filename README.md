@@ -44,6 +44,12 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   colours and narrow or wide lines, typewriter writing, checklist progress, read the note aloud, and save it as
   a Word document or a web page.
 - Flashcards can be saved for Anki; highlights, a canvas page and the mind map can each be saved as a file.
+- Reading aloud takes a voice and a pace of your choosing and can stop by itself after a set time. The screen
+  can be kept on while a book is open, and Focus takes the whole screen and shows the time.
+- Home shows how long you have spent with each book, roughly how long the rest will take, and one of your own
+  highlights each day.
+- A PDF remembers the page you jumped from. A picture can be turned and put into your notes. A line in a note
+  can be moved, copied or removed. Flashcards can be practised whether due or not; highlights can be searched.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots. Writing sits on the rules as it does in

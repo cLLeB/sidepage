@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getPref } from './prefs'
 
 // Reading aloud with the voices the device already has (the Web Speech API). Not every system offers them;
 // where there are none, the readers simply do not show the button.
@@ -21,6 +22,10 @@ function sentencesOfLine(text: string): string[] {
 
 const say = (sentence: string) => new Promise<void>(resolve => {
   const utterance = new SpeechSynthesisUtterance(sentence)
+  // The voice and pace chosen in the menu; otherwise the device's own.
+  const voice = speechSynthesis.getVoices().find(found => found.name === getPref('voice', ''))
+  if (voice) utterance.voice = voice
+  utterance.rate = getPref('voice-rate', 1)
   utterance.onend = utterance.onerror = () => resolve()
   speechSynthesis.speak(utterance)
 })
@@ -42,6 +47,9 @@ export function useReadAloud() {
     speechSynthesis.cancel()
     const mine = ++run.current
     setSpeaking(true)
+    // Falling asleep to a book: the voice stops by itself after the time chosen.
+    const sleep = getPref('voice-sleep', 0)
+    if (sleep) setTimeout(() => { if (mine === run.current) stop() }, sleep * 60_000)
     for (;;) {
       const text = await next()
       if (mine !== run.current) return
@@ -52,7 +60,7 @@ export function useReadAloud() {
       }
     }
     if (mine === run.current) setSpeaking(false)
-  }, [])
+  }, [stop])
 
   // Closing the book stops the voice.
   useEffect(() => stop, [stop])

@@ -812,3 +812,15 @@ button.viewer-pos { font-weight: 500; }
 .highlight-filter { align-items: center; }
 
 .workspace .dv-dockview, .workspace .dv-shell, .workspace > .dockview-theme-light { background-color: transparent; }
+
+/* 0.14 */
+.focus-clock { position: fixed; top: calc(18px + env(safe-area-inset-top)); right: 64px; z-index: 60; padding: 5px 10px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--muted); background: var(--panel); border-radius: 999px; box-shadow: var(--shadow-soft); opacity: 0.6; pointer-events: none; }
+.remembered { display: flex; gap: 14px; align-items: flex-start; padding: 16px 20px; text-align: left; white-space: normal; background: var(--panel); border-radius: 18px; box-shadow: var(--shadow-soft); }
+.remembered:hover:not(:disabled) { background: var(--panel); box-shadow: var(--shadow); }
+.remembered svg { flex: none; margin-top: 3px; color: var(--accent); }
+.remembered q { display: block; font: 16px/1.55 Georgia, 'Times New Roman', serif; quotes: none; }
+.remembered small { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); font-weight: 450; }
+.menu-line .tool { flex: 1; }
+.menu.settings select { max-width: 170px; }
+.highlight-filter .shelf-search { width: min(220px, 50%); padding: 7px 12px; }
+.image-host img { transition: transform 0.2s; }

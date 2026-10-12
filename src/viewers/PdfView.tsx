@@ -469,8 +469,11 @@ export default function PdfView({ file }: { file: File }) {
   // Typing a page number into the counter goes there.
   const [jumping, setJumping] = useState(false)
 
+  // After a jump (a search hit, a bookmark, a typed page), one tap returns to the page you left.
+  const [cameFrom, setCameFrom] = useState(0)
   const go = (delta: number) => {
     const viewer = viewerRef.current
+    if (Math.abs(delta) > 1) setCameFrom(page)
     if (viewer) viewer.currentPageNumber = Math.min(Math.max(1, page + delta), doc?.numPages ?? 1)
   }
 
@@ -514,6 +517,7 @@ export default function PdfView({ file }: { file: File }) {
               ))}
             </div>
           </Menu>
+          {cameFrom > 0 && cameFrom !== page && <button className="viewer-pos" title="Return to the page you were on" onClick={() => go(cameFrom - page)}>↩ p. {cameFrom}</button>}
           {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BookOpen, FileDown, RotateCcw } from 'lucide-react'
+import { BookOpen, FileDown, Repeat, RotateCcw } from 'lucide-react'
 import { Tool } from '../ui'
 import { baseName, goToPlace, openBookByName, saveFileAs } from '../lib/platform'
 import { allCards, dueCards, grade, Rating, type Flashcard } from '../lib/review'
@@ -26,10 +26,18 @@ export default function ReviewView() {
   const [total, setTotal] = useState(0)
   const [turned, setTurned] = useState(false)
   const [done, setDone] = useState(0)
+  // Practice: every card in a shuffled pile, without touching when each is next due.
+  const [practice, setPractice] = useState(false)
+  const practise = () => void allCards().then(all => {
+    setPractice(true)
+    setTurned(false)
+    setCards(all.filter(card => card.back).sort(() => Math.random() - 0.5))
+  })
 
   const load = useCallback(() => {
     setCards(null)
     setDone(0)
+    setPractice(false)
     void dueCards().then(found => {
       setCards(found.due)
       setTotal(found.total)
@@ -52,6 +60,7 @@ export default function ReviewView() {
               : 'Cards make themselves from your reading: highlight a passage in a book and add a comment to it, or write a line starting “Q:” in your notes with a line starting “A:” under it.'}
           </p>
           <Tool icon={RotateCcw} label="Check again" onClick={load} />
+          {total > 0 && <Tool icon={Repeat} label="Practise every card anyway" hint="Go through all your cards now, without changing when they are due" onClick={practise} />}
           {total > 0 && <Tool icon={FileDown} label="Save the cards for Anki" hint="A text file other flashcard apps can import" onClick={() => void exportCards()} />}
         </div>
       </div>
@@ -59,7 +68,7 @@ export default function ReviewView() {
   }
 
   const answer = async (rating: (typeof GRADES)[number]['rating']) => {
-    await grade(card, rating)
+    if (!practice) await grade(card, rating)
     setDone(done + 1)
     setTurned(false)
     // "Again" comes round once more at the end of this sitting.
@@ -80,7 +89,7 @@ export default function ReviewView() {
         if (turned && picked) void answer(picked.rating)
       }}
     >
-      <p className="review-count">{cards.length} to go · {baseName(card.book)}</p>
+      <p className="review-count">{practice ? 'Practice · ' : ''}{cards.length} to go · {baseName(card.book)}</p>
       <div className="review-card">
         <div className="review-front">{card.front}</div>
         {turned && <div className="review-back">{card.back || 'You have not added a comment to this passage yet.'}</div>}

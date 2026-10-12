@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
   List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
-  AlignVerticalJustifyCenter, Ellipsis, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
+  AlignVerticalJustifyCenter, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
@@ -17,7 +17,7 @@ import {
   parsePlaceLink, placeLink, saveFileAs, saveNote, shelf,
 } from '../lib/platform'
 import {
-  FACES, INKS, MARKER_COLOURS, TEXT_COLOURS, TEXT_FACES, TEXT_SIZES, WRITING_SIZES, GAPS, TINTS, addLooks, checklist, clearLooks, findNext, insertLine, keepLineInPlace, replaceFound, insertTable, looksAt, redo, setAlign, setBlock,
+  FACES, INKS, MARKER_COLOURS, TEXT_COLOURS, TEXT_FACES, TEXT_SIZES, WRITING_SIZES, GAPS, TINTS, addLooks, changeLine, checklist, clearLooks, findNext, insertLine, keepLineInPlace, replaceFound, insertTable, looksAt, redo, setAlign, setBlock,
   setLook, setWriting, toggleLook, undo, useWriting,
   type Writing,
 } from './writing'
@@ -368,6 +368,13 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={ListOrdered} label="Numbered list" onClick={() => setBlock(crepe(), 'numbers')} />
           <Tool icon={ListChecks} label="Checklist" onClick={() => setBlock(crepe(), 'checklist')} />
           <Tool icon={Quote} label="Quote" onClick={() => setBlock(crepe(), 'quote')} />
+          <p className="menu-head">This line</p>
+          <div className="menu-line">
+            <button className="tool stay" title="Move up" aria-label="Move the line up" onClick={() => changeLine(crepe(), 'up')}><ArrowUp size={18} aria-hidden /></button>
+            <button className="tool stay" title="Move down" aria-label="Move the line down" onClick={() => changeLine(crepe(), 'down')}><ArrowDown size={18} aria-hidden /></button>
+            <button className="tool stay" title="Make a copy under it" aria-label="Copy the line" onClick={() => changeLine(crepe(), 'copy')}><CopyPlus size={18} aria-hidden /></button>
+            <button className="tool stay" title="Remove" aria-label="Remove the line" onClick={() => changeLine(crepe(), 'remove')}><Trash2 size={18} aria-hidden /></button>
+          </div>
         </Menu>
         <Tool quiet icon={Bold} label="Bold" on={has.strong} onClick={() => toggleLook(crepe(), 'strong')} />
         <Tool quiet icon={Italic} label="Italic" on={has.emphasis} onClick={() => toggleLook(crepe(), 'emphasis')} />
@@ -440,6 +447,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         <Menu quiet icon={Ellipsis} label="More for this note">
           {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read this note aloud'} onClick={readAloud} />}
           <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
+          <Tool icon={ClipboardCopy} label="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
           <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('doc')} />
           <Tool icon={Globe} label="Save as a web page" onClick={() => void saveAs('html')} />
           {!isMobile && <Tool icon={Printer} label="Print this note" onClick={print} />}
