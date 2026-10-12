@@ -56,6 +56,13 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Note templates: Cornell notes, question and answer, chapter summary, key terms.
 - Keyboard shortcuts: Ctrl+O open, Ctrl+1/2/3 Notes/Canvas/Mind map, Ctrl+. focus, Ctrl+Shift+L layout,
   Ctrl+Shift+D theme.
+- One search for everything: the notes of every book and the words of every book you have opened. A result
+  opens the book at that page or part.
+- Highlights: every highlight from every book in one list, filtered by colour.
+- The mind map can grow from a note: its headings and bullet points become branches.
+- A note has an outline to jump by, and can be printed.
+- Home: favourite books stay in front, books can be ordered by title or progress, and a daily reading goal
+  shows how far along you are.
 - Back up all notes into one file, and restore them on any device. Nothing already there is overwritten.
 - The home screen shows your reading time and lets you search your books; the theme can follow the device.
 - Read aloud: books and PDFs are read page by page with the device's own voices, where it has them.

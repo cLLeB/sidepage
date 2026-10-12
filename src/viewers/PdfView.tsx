@@ -11,6 +11,7 @@ import { Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
 import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, type Highlight } from '../lib/reading'
 import { canSpeak, useReadAloud } from '../lib/speech'
+import { hasWords, keepWords, type Stretch } from '../lib/library'
 import { pageFilter, useTheme } from '../lib/theme'
 import { baseName, debounce, loadNoteFile, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, saveNoteFile, sendClip, sendQuote } from '../lib/platform'
 
@@ -304,6 +305,17 @@ export default function PdfView({ file }: { file: File }) {
           ...flat(item.items ?? [], depth + 1),
         ])
         void pdf.getOutline().then(outline => { if (!cancelled) setContents(flat((outline ?? []) as Entry[])) }).catch(() => {})
+        // The book's words, page by page, so it can be found by them later. Done once, a little at a time.
+        void hasWords(file.name).then(async known => {
+          if (known) return
+          const pages: Stretch[] = []
+          for (let number = 1; number <= Math.min(pdf.numPages, 2000) && !cancelled; number++) {
+            const content = await (await pdf.getPage(number)).getTextContent()
+            pages.push({ place: `page=${number}`, text: content.items.map(item => ('str' in item ? item.str : '')).join(' ') })
+            if (number % 10 === 0) await new Promise(resolve => setTimeout(resolve, 30))
+          }
+          if (!cancelled) await keepWords(file.name, pages)
+        }).catch(() => {})
         // The first page, small, as the book's cover on the home screen.
         void pdf.getPage(1).then(async first => {
           const viewport = first.getViewport({ scale: 320 / first.getViewport({ scale: 1 }).width })

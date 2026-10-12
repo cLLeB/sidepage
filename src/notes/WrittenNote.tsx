@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { ListTree, Printer } from 'lucide-react'
+import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { Selection } from '@milkdown/kit/prose/state'
@@ -7,7 +9,7 @@ import { insert } from '@milkdown/kit/utils'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 import {
-  baseName, debounce, goToPlace, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
+  baseName, debounce, goToPlace, isMobile, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
   parsePlaceLink, placeLink, saveNote, shelf,
 } from '../lib/platform'
 
@@ -140,9 +142,47 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     }
   }, [notebook])
 
+  // The note's headings, to jump by.
+  const headings = () => [...(host.current?.querySelectorAll<HTMLElement>('.ProseMirror :is(h1, h2, h3, h4)') ?? [])]
+    .filter(heading => heading.textContent?.trim())
+
+  // Print the note as it reads, on plain paper, without the app round it.
+  const print = () => {
+    const page = host.current?.querySelector('.ProseMirror')
+    if (!page) return
+    const frame = document.createElement('iframe')
+    frame.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
+    document.body.append(frame)
+    const sheet = frame.contentDocument!
+    sheet.open()
+    sheet.write(`<!doctype html><title>${notebook}</title><style>
+      body { font: 12pt/1.55 Georgia, 'Times New Roman', serif; color: #111; margin: 18mm; }
+      h1, h2, h3 { font-family: system-ui, sans-serif; line-height: 1.25; }
+      blockquote { margin: 1em 0; padding-left: 1em; border-left: 3px solid #bbb; color: #333; }
+      img { max-width: 100%; } table { border-collapse: collapse; } td, th { border: 1px solid #999; padding: 4px 8px; }
+      a { color: inherit; text-decoration: none; }
+    </style>${page.innerHTML}`)
+    sheet.close()
+    frame.contentWindow!.onafterprint = () => frame.remove()
+    setTimeout(() => { frame.contentWindow!.focus(); frame.contentWindow!.print() }, 300)
+    setTimeout(() => frame.remove(), 120_000)
+  }
+
   return (
     <div className="note written-wrap">
       <div className="note-bar">
+        <Menu quiet icon={ListTree} label="Outline" hint="Jump to a heading in this note">
+          {() => {
+            const found = headings()
+            return found.length
+              ? <div className="menu-scroll">{found.map((heading, i) => (
+                  <button key={i} className="menu-item" style={{ paddingLeft: 10 + (Number(heading.tagName[1]) - 1) * 14 }} onClick={() => heading.scrollIntoView({ block: 'start', behavior: 'smooth' })}>
+                    {heading.textContent}
+                  </button>
+                ))}</div>
+              : <p className="menu-note">Headings you write in this note are listed here.</p>
+          }}
+        </Menu>
         <select
           value=""
           onFocus={() => void refreshLinks()}
@@ -160,6 +200,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <option value="" disabled>Insert a template…</option>
           {Object.keys(TEMPLATES).map(name => <option key={name} value={name}>{name}</option>)}
         </select>
+        {!isMobile && <Tool quiet icon={Printer} label="Print this note" onClick={print} />}
         {backlinks.length > 0 && <span className="viewer-pos">Linked from</span>}
         {backlinks.map(name => <button key={name} onClick={() => openBookByName(name)}>{baseName(name)}</button>)}
       </div>

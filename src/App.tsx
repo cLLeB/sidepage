@@ -3,7 +3,7 @@ import { DockviewReact, themeLight, type DockviewApi, type DockviewReadyEvent, t
 import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
-  Archive, ArchiveRestore, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, X,
+  Archive, ArchiveRestore, Highlighter, Star, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, X,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -99,9 +99,11 @@ function NotePanel({ params }: IDockviewPanelProps<{ kind: NoteKind; notebook: s
 
 const GraphPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><GraphView /></Suspense></ErrorBoundary>
 
+const HighlightsView = lazy(() => import('./notes/HighlightsView'))
+const HighlightsPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><HighlightsView /></Suspense></ErrorBoundary>
 const ReviewPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><ReviewView /></Suspense></ErrorBoundary>
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel }
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -299,6 +301,28 @@ export default function App() {
     dock.addPanel({ id: 'graph', component: 'graph', title: 'Graph', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
   }, [])
 
+  const openHighlights = useCallback(() => {
+    const dock = api.current
+    if (!dock) return
+    // Closed and opened again, so it always shows what has been highlighted since.
+    dock.getPanel('highlights')?.api.close()
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    dock.addPanel({ id: 'highlights', component: 'highlights', title: 'Highlights', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
+  }, [])
+
+  // Home: favourite books come first; the rest in the order chosen. A daily reading goal, if one is set.
+  const [favourites, setFavourites] = useState<string[]>(() => JSON.parse(localStorage.getItem('sidepage:favourites') ?? '[]'))
+  const toggleFavourite = (name: string) => {
+    const now = favourites.includes(name) ? favourites.filter(f => f !== name) : [...favourites, name]
+    setFavourites(now)
+    localStorage.setItem('sidepage:favourites', JSON.stringify(now))
+  }
+  const [order, setOrder] = useState(() => localStorage.getItem('sidepage:order') ?? 'recent')
+  const [goal, setGoal] = useState(() => Number(localStorage.getItem('sidepage:goal')) || 0)
+  const arranged = [...books].sort((a, b) =>
+    Number(favourites.includes(b.name)) - Number(favourites.includes(a.name))
+    || (order === 'title' ? baseName(a.name).localeCompare(baseName(b.name)) : order === 'progress' ? progressOf(b.name) - progressOf(a.name) : b.opened - a.opened))
+
   const openReview = useCallback(() => {
     const dock = api.current
     if (!dock) return
@@ -425,6 +449,7 @@ export default function App() {
           <Tool icon={PenLine} label="Canvas" hint="Draw and handwrite (Ctrl+2)" onClick={() => openNote('canvas', notebook)} />
           <Tool icon={Workflow} label="Mind map" hint="Mind map (Ctrl+3)" onClick={() => openNote('mindmap', notebook)} />
           <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
+          <Tool icon={Highlighter} label="Highlights" hint="Every highlight from every book" onClick={openHighlights} />
           <Tool icon={GraduationCap} label="Review" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
         </div>
         <span className="spacer" />
@@ -456,6 +481,13 @@ export default function App() {
                 onClick={() => void chooseNotesFolder()}
               />
             )}
+            <label className="menu-row">
+              Daily goal
+              <select value={goal} onChange={e => { setGoal(Number(e.target.value)); localStorage.setItem('sidepage:goal', e.target.value) }}>
+                <option value={0}>None</option>
+                {[15, 30, 45, 60, 90, 120].map(minutes => <option key={minutes} value={minutes}>{asTime(minutes)}</option>)}
+              </select>
+            </label>
             <label className="menu-row">
               Paper
               <select value={paper} onChange={e => setPaper(e.target.value as Paper)}>
@@ -489,9 +521,11 @@ export default function App() {
             <button className="primary" onClick={() => void browse()}><FolderOpen size={18} aria-hidden /> Open a book</button>
             {(() => {
               const stats = readingStats()
-              return stats.week > 0 && (
+              return (stats.week > 0 || goal > 0) && (
                 <p className="reading-stats">
-                  <span><b>{asTime(stats.today)}</b> today</span>
+                  {goal > 0
+                    ? <span className="goal"><b>{asTime(stats.today)}</b> of {asTime(goal)} today<span className="shelf-bar"><i style={{ width: `${Math.min(100, Math.round((stats.today / goal) * 100))}%` }} /></span></span>
+                    : <span><b>{asTime(stats.today)}</b> today</span>}
                   <span><b>{asTime(stats.week)}</b> this week</span>
                   {stats.streak > 1 && <span><b>{stats.streak} days</b> in a row</span>}
                 </p>
@@ -499,13 +533,18 @@ export default function App() {
             })()}
             {books.length > 0 && (
               <div className="shelf-head">
-                <h2 className="shelf-title">{wanted ? 'Found' : 'Recent'}</h2>
+                <h2 className="shelf-title">{wanted ? 'Found' : 'Your books'}</h2>
+                <select className="shelf-order" value={order} onChange={e => { setOrder(e.target.value); localStorage.setItem('sidepage:order', e.target.value) }} title="Order of the books">
+                  <option value="recent">Recently opened</option>
+                  <option value="title">By title</option>
+                  <option value="progress">Furthest read</option>
+                </select>
                 {books.length > 6 && <input className="shelf-search" value={wanted} placeholder={`Search your ${books.length} books`} onChange={e => setWanted(e.target.value)} />}
               </div>
             )}
             {books.length > 0 && (
               <ul className="shelf">
-                {books.filter(book => book.name.toLowerCase().includes(wanted.trim().toLowerCase())).slice(0, wanted || showAll ? undefined : 12).map(book => (
+                {arranged.filter(book => book.name.toLowerCase().includes(wanted.trim().toLowerCase())).slice(0, wanted || showAll ? undefined : 12).map(book => (
                   <li key={book.name}>
                     <button className="shelf-book" onClick={() => void fromShelf(book.name).then(file => { if (file) void openFile(file) })}>
                       {covers[book.name]
@@ -517,6 +556,7 @@ export default function App() {
                         <span className="shelf-bar"><i style={{ width: `${Math.round(progressOf(book.name) * 100)}%` }} /></span>
                       </span>
                     </button>
+                    <button className={favourites.includes(book.name) ? 'shelf-star on' : 'shelf-star'} title={favourites.includes(book.name) ? 'No longer a favourite' : 'Keep at the front as a favourite'} aria-label="Favourite" aria-pressed={favourites.includes(book.name)} onClick={() => toggleFavourite(book.name)}><Star size={15} aria-hidden /></button>
                     <button className="shelf-remove" title="Remove from this list" aria-label="Remove from this list" onClick={() => void unshelve(book.name).then(shelf).then(setBooks)}><X size={15} aria-hidden /></button>
                   </li>
                 ))}

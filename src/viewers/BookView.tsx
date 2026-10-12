@@ -7,6 +7,7 @@ import { BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Vol
 import { Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
 import { canSpeak, useReadAloud } from '../lib/speech'
+import { hasWords, keepWords, type Stretch } from '../lib/library'
 import { FONTS, loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
@@ -113,7 +114,9 @@ export default function BookView({ file }: { file: File }) {
       const mark = marks.current.find(m => m.cfi === e.detail.value)
       if (mark) findInNotes({ text: mark.text })
     })
-    const stopGoTo = onGoToPlace(({ book, place }) => { if (book === file.name) void view.goTo(place) })
+    // A place is a CFI, or "section=3" for the start of a part (what a search across books gives).
+    const target = (place: string | null) => { const part = place?.match(/^section=(\d+)/)?.[1]; return part ? Number(part) : place }
+    const stopGoTo = onGoToPlace(({ book, place }) => { if (book === file.name) void view.goTo(target(place)) })
     const isArchive = ['cbr', 'cb7', 'cbt'].includes(extensionOf(file.name))
     Promise.resolve(isArchive ? openComicArchive(file) : file).then(book => view.open(book)).then(async () => {
       if (closed) return
@@ -132,7 +135,18 @@ export default function BookView({ file }: { file: File }) {
         if (Date.now() - turnedAt.current > 1500) setCurlStart(s => ({ place: here.current, key: s.key + 1 }))
       })
       // Reopen where the reader left off.
-      await view.init({ lastLocation: localStorage.getItem(`sidepage:place:${file.name}`) })
+      await view.init({ lastLocation: target(localStorage.getItem(`sidepage:place:${file.name}`)) })
+      // The book's words, part by part, so it can be found by them later. Done once.
+      if (canCurl) void hasWords(file.name).then(async known => {
+        if (known) return
+        const parts: Stretch[] = []
+        for (const [index, section] of (view.book.sections as { createDocument?(): Promise<Document> }[]).entries()) {
+          if (closed) return
+          const doc = await section.createDocument?.().catch(() => null)
+          if (doc?.body) parts.push({ place: `section=${index}`, text: doc.body.textContent ?? '' })
+        }
+        await keepWords(file.name, parts)
+      }).catch(() => {})
       if (closed) return
       // Only now is the reader's place known, so only now may the paper pages be built from it.
       setCurlStart(s => ({ place: here.current, key: s.key + 1 }))
