@@ -405,7 +405,7 @@ export default function App() {
               label="Back up all notes"
               hint="Save the notes, drawings, highlights and bookmarks of every book as one file"
               onClick={() => void packBackup().then(async ({ data, notebooks }) => {
-                await saveFileAs(`Sidepage backup ${new Date().toISOString().slice(0, 10)}.zip`, data)
+                await saveFileAs(`Sidepage backup ${new Date().toLocaleDateString('en-CA')}.zip`, data)
                 setNotice(`Backed up the notes of ${notebooks} book${notebooks === 1 ? '' : 's'}.`)
               })}
             />

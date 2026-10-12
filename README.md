@@ -44,7 +44,12 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Bookmarks in books and PDFs, and a contents menu for both (a PDF's own outline, where it has one).
 - Search across the written notes of every book; a result opens the book and shows the line.
 - Focus mode hides everything but the page and your notes.
-- Highlight passages in four colours and add a comment to each; they are listed in the book's Highlight menu.
+- Highlight passages in four colours and add a comment to each, in books and in PDFs; they are listed in the
+  Highlight menu, kept automatically, and drawn again whenever the book is opened.
+- Clip: drag a box over part of a PDF page (a figure, a formula) and it goes into your notes as a picture, kept
+  as a file beside the note, with a link back to its page.
+- Back up all notes into one file, and restore them on any device. Nothing already there is overwritten.
+- The home screen shows your reading time and lets you search your books; the theme can follow the device.
 - Read aloud: books and PDFs are read page by page with the device's own voices, where it has them.
 - Review: flashcards make themselves from your highlights (the passage, then your comment) and from "Q:" / "A:"
   lines in your notes, and come back when [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) says it is time.
