@@ -223,11 +223,17 @@ function channel<T>(name: string) {
 
 // A passage sent from a reader to the written note. `place` is where it sits in the book
 // ("page=12" or an EPUB CFI), which makes the note's source line a link back to that spot.
-export type Quote = { text: string; source: string; book?: string; place?: string }
+export type Quote = { text: string; source: string; book?: string; place?: string; again?: boolean }
 export const [sendQuote, onQuote] = channel<Quote>('sidepage:quote')
 
-// A piece of a page (a figure, a formula) cut out as a picture, for the notes.
-export type Clip = { image: string; source: string; book: string; place: string }
+// Whether an element is really on screen: laid out, and not in a tab that is behind another.
+export const isShown = (el: Element | null | undefined) =>
+  !!el && (el as HTMLElement).offsetParent !== null && getComputedStyle(el).visibility !== 'hidden'
+
+// A piece of a page (a figure, a formula) cut out as a picture, for the notes. It goes to the Canvas when the
+// Canvas is the note in front, and to the written notes otherwise. (`again` marks one sent a second time,
+// after the notes had to be opened to receive it.)
+export type Clip = { image: string; source: string; book: string; place: string; again?: boolean }
 export const [sendClip, onClip] = channel<Clip>('sidepage:clip')
 
 // Note → book: open this place. Book → note: show the note that quotes this passage.

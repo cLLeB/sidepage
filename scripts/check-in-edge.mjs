@@ -12,7 +12,7 @@ quit()
 const edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', [
   '--headless=new', `--remote-debugging-port=${port}`,
   // A headless page counts as hidden, which would slow its timers and stop its animations; the app is tested as it runs in front of someone.
-  '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', `--window-size=${width},${height}`,
+  '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-features=CalculateNativeWinOcclusion', `--window-size=${width},${height}`,
   `--user-data-dir=${mkdtempSync(join(tmpdir(), 'sidepage-edge-'))}`, '--no-first-run', url,
 ], { stdio: 'ignore' })
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -44,6 +44,9 @@ const reply = new Promise(resolve => ws.addEventListener('message', e => {
     ? { error: msg.result.exceptionDetails.exception?.description ?? msg.result.exceptionDetails.text }
     : msg.result?.result?.value)
 }))
+// Treated as the window in front: a page that thinks it is hidden draws no frames, and half the app waits on frames.
+ws.send(JSON.stringify({ id: 90, method: 'Page.bringToFront' }))
+ws.send(JSON.stringify({ id: 91, method: 'Emulation.setFocusEmulationEnabled', params: { enabled: true } }))
 await sleep(3000)
 ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression: `(async () => { ${readFileSync(file, 'utf8')} })()`, awaitPromise: true, returnByValue: true } }))
 console.log(JSON.stringify(await reply, null, 1))

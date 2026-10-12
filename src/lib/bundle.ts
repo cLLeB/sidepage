@@ -29,6 +29,8 @@ export async function packBundle(book: File): Promise<Uint8Array> {
     zip.file(`notes/${name}`, await picture.arrayBuffer())
     pictures.push(name)
   }
+  const drawings = Number(localStorage.getItem(`sidepage:drawings:${book.name}`)) === book.size ? await loadNoteFile(notebook, 'drawings.pdf') : null
+  if (drawings) zip.file('notes/drawings.pdf', await drawings.arrayBuffer())
   zip.file(`book/${book.name}`, await book.arrayBuffer())
   zip.file('sidepage.json', JSON.stringify({
     format: 1,
@@ -55,5 +57,11 @@ export async function unpackBundle(bundle: File): Promise<File> {
   }
   const placeKey = `sidepage:place:${manifest.book}`
   if (manifest.place && !localStorage.getItem(placeKey)) localStorage.setItem(placeKey, manifest.place)
-  return new File([await zip.file(`book/${manifest.book}`)!.async('blob')], manifest.book)
+  const book = new File([await zip.file(`book/${manifest.book}`)!.async('blob')], manifest.book)
+  const drawings = zip.file('notes/drawings.pdf')
+  if (drawings && !(await loadNoteFile(notebook, 'drawings.pdf'))) {
+    await saveNoteFile(notebook, 'drawings.pdf', await drawings.async('blob'))
+    localStorage.setItem(`sidepage:drawings:${manifest.book}`, String(book.size))
+  }
+  return book
 }

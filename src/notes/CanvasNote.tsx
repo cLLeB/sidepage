@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Excalidraw, exportToCanvas, serializeAsJSON } from '@excalidraw/excalidraw'
+import { convertToExcalidrawElements, Excalidraw, exportToCanvas, serializeAsJSON } from '@excalidraw/excalidraw'
+import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
 import '@excalidraw/excalidraw/index.css'
 import FlipBook from '../viewers/FlipBook'
 import { BookOpen, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Tool } from '../ui'
-import { debounce, loadNote, saveNote } from '../lib/platform'
+import { baseName, debounce, isShown, loadNote, onClip, saveNote } from '../lib/platform'
 import { useTheme } from '../lib/theme'
 
 type Initial = NonNullable<Parameters<typeof Excalidraw>[0]['initialData']>
@@ -17,7 +18,31 @@ function CanvasPage({ notebook, file, latest }: { notebook: string; file: string
   const host = useRef<HTMLDivElement>(null)
   const [initial, setInitial] = useState<Initial | null>(null)
   const theme = useTheme()
-  const drawing = useRef<{ getAppState(): { activeTool: { type: string } }; setActiveTool(tool: { type: 'freedraw' }): void } | null>(null)
+  const drawing = useRef<ExcalidrawImperativeAPI | null>(null)
+
+  // A clip from a page lands here, as a picture in the middle of what is in view, when this page of the
+  // Canvas is the note in front.
+  useEffect(() => onClip(async ({ image, book }) => {
+    const board = drawing.current
+    if (baseName(book) !== notebook || !board || !isShown(host.current)) return
+    const picture = new Image()
+    picture.src = image
+    await picture.decode()
+    const id = `clip-${Date.now().toString(36)}` as Parameters<typeof board.addFiles>[0][number]['id']
+    board.addFiles([{ id, dataURL: image as Parameters<typeof board.addFiles>[0][number]['dataURL'], mimeType: 'image/jpeg', created: Date.now() }])
+    const view = board.getAppState()
+    const width = Math.min(picture.naturalWidth, (view.width / view.zoom.value) * 0.7)
+    const height = width * (picture.naturalHeight / picture.naturalWidth)
+    const [placed] = convertToExcalidrawElements([{
+      type: 'image',
+      fileId: id,
+      x: -view.scrollX + (view.width / view.zoom.value - width) / 2,
+      y: -view.scrollY + (view.height / view.zoom.value - height) / 2,
+      width,
+      height,
+    }])
+    board.updateScene({ elements: [...board.getSceneElements(), placed] })
+  }), [notebook])
   const save = useMemo(() => debounce((json: string) => { void saveNote(notebook, file, json) }, 800), [notebook, file])
 
   useEffect(() => {

@@ -5,13 +5,14 @@ import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
-import { BookOpen, ChevronLeft, ChevronRight, Crop, Download, Pencil, Square, TextQuote, Volume2, ZoomIn, ZoomOut } from 'lucide-react'
+import PageGrid from './PageGrid'
+import { BookOpen, ChevronLeft, ChevronRight, Crop, Download, LayoutGrid, Pencil, Square, TextQuote, Volume2, ZoomIn, ZoomOut } from 'lucide-react'
 import { Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
 import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, type Highlight } from '../lib/reading'
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { pageFilter, useTheme } from '../lib/theme'
-import { baseName, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, sendClip, sendQuote } from '../lib/platform'
+import { baseName, debounce, loadNoteFile, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, saveNoteFile, sendClip, sendQuote } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -56,6 +57,8 @@ export default function PdfView({ file }: { file: File }) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<PDFViewer | null>(null)
   const toolUsed = useRef(false)
+  const keepDrawings = useRef<() => void>(() => {})
+  const [overview, setOverview] = useState(false)
   const bus = useRef<EventBus | null>(null)
   const [matches, setMatches] = useState('')
   const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy | null>(null)
@@ -269,11 +272,28 @@ export default function PdfView({ file }: { file: File }) {
     surface.addEventListener('touchend', onTouchEnd)
 
     let task: pdfjs.PDFDocumentLoadingTask | undefined
-    file.arrayBuffer().then(data => {
+    // Drawings made on the pages are kept as a copy of the PDF with them in it (drawings.pdf, beside the
+    // notes), and that copy is what opens next time. It is only trusted for the very file it was made from.
+    const notebook = baseName(file.name)
+    const madeFrom = `sidepage:drawings:${file.name}`
+    const withDrawings = Number(localStorage.getItem(madeFrom)) === file.size ? loadNoteFile(notebook, 'drawings.pdf') : Promise.resolve(null)
+    withDrawings.then(kept => (kept ?? file).arrayBuffer()).then(data => {
       if (cancelled) return
       task = pdfjs.getDocument({ data })
       return task.promise.then(pdf => {
         if (cancelled) return
+        const keep = debounce(async () => {
+          try {
+            const copy = await pdf.saveDocument()
+            pdf.annotationStorage.resetModified()
+            await saveNoteFile(notebook, 'drawings.pdf', new Blob([copy as BlobPart], { type: 'application/pdf' }))
+            localStorage.setItem(madeFrom, String(file.size))
+          } catch {
+            // The drawing stays on screen; it will be kept at the next change.
+          }
+        }, 2000)
+        ;(pdf.annotationStorage as unknown as { onSetModified: (() => void) | null }).onSetModified = keep
+        keepDrawings.current = keep
         viewer.setDocument(pdf)
         linkService.setDocument(pdf)
         setDoc(pdf)
@@ -359,6 +379,8 @@ export default function PdfView({ file }: { file: File }) {
     if (tool === 'none' && !toolUsed.current) return
     try {
       viewer.annotationEditorMode = { mode: tool === 'highlight' ? HIGHLIGHT : tool === 'draw' ? INK : NONE }
+      // Putting the pen down is a good moment to keep what was drawn.
+      if (tool === 'none') keepDrawings.current()
       toolUsed.current = true
     } catch {
       setTool('none')
@@ -415,6 +437,7 @@ export default function PdfView({ file }: { file: File }) {
           <Tool quiet icon={ChevronRight} label="Next page" onClick={() => go(1)} />
         </>}
         {mode === 'scroll' && <ContentsMenu items={contents} onGo={() => {}} />}
+        {mode === 'scroll' && <Tool quiet icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />}
         <span className="viewer-pos">{page} / {doc?.numPages ?? '…'}</span>
         <span className="spacer" />
         {mode === 'scroll' && <>
@@ -442,6 +465,7 @@ export default function PdfView({ file }: { file: File }) {
         >
           <div className="pdfViewer" />
         </div>
+        {overview && mode === 'scroll' && doc && <PageGrid doc={doc} current={page} onPick={number => { setOverview(false); go(number - page) }} />}
         {clipping && mode === 'scroll' && (
           <div
             className="clip-layer"

@@ -48,6 +48,14 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   Highlight menu, kept automatically, and drawn again whenever the book is opened.
 - Clip: drag a box over part of a PDF page (a figure, a formula) and it goes into your notes as a picture, kept
   as a file beside the note, with a link back to its page.
+- Drawings made on a PDF's pages are kept automatically (as a copy of the PDF beside the notes) and are there
+  when the PDF is opened again.
+- "All pages" shows every page of a PDF as a small picture, to jump by eye.
+- A clip lands on the Canvas, as a picture to draw around, when the Canvas is the note in front. A quote or a clip
+  opens the Notes tab if it was closed.
+- Note templates: Cornell notes, question and answer, chapter summary, key terms.
+- Keyboard shortcuts: Ctrl+O open, Ctrl+1/2/3 Notes/Canvas/Mind map, Ctrl+. focus, Ctrl+Shift+L layout,
+  Ctrl+Shift+D theme.
 - Back up all notes into one file, and restore them on any device. Nothing already there is overwritten.
 - The home screen shows your reading time and lets you search your books; the theme can follow the device.
 - Read aloud: books and PDFs are read page by page with the device's own voices, where it has them.

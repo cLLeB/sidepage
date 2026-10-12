@@ -12,7 +12,7 @@ import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
-  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, launchFile, notesFolder, onFindInNotes, onGoToPlace, onOpenBookByName,
+  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, launchFile, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
   onNotesFolderChange, pickFile, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
@@ -322,6 +322,42 @@ export default function App() {
     await saveFileAs(`${notebook} notes.md`, new TextEncoder().encode(parts.join('\n\n') + '\n'))
   }, [notebook])
 
+  // A quote or a clip needs somewhere to land. If that book's written notes are closed (and, for a clip, no
+  // Canvas is in front to take it), they are opened and the quote or clip is sent once more.
+  useEffect(() => {
+    const landing = (book: string | undefined) => `note:written:${book ? baseName(book) : notebook}`
+    const stopQuotes = onQuote(quote => {
+      if (quote.again || api.current?.getPanel(landing(quote.book))) return
+      openNote('written', quote.book ? baseName(quote.book) : notebook)
+      setTimeout(() => sendQuote({ ...quote, again: true }), 1500)
+    })
+    const stopClips = onClip(clip => {
+      if (clip.again || api.current?.getPanel(landing(clip.book)) || [...document.querySelectorAll('.canvas-page')].some(isShown)) return
+      openNote('written', baseName(clip.book))
+      setTimeout(() => sendClip({ ...clip, again: true }), 1500)
+    })
+    return () => { stopQuotes(); stopClips() }
+  }, [notebook, openNote])
+
+  // Keyboard shortcuts, for the desktop. (Opening a book is reached through a ref: it is defined further down.)
+  const browseNow = useRef<() => void>(() => {})
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return
+      const key = e.key.toLowerCase()
+      const act = (action: () => void) => { e.preventDefault(); action() }
+      if (key === 'o' && !e.shiftKey) act(() => browseNow.current())
+      else if (key === '1' && !e.shiftKey) act(() => openNote('written', notebook))
+      else if (key === '2' && !e.shiftKey) act(() => openNote('canvas', notebook))
+      else if (key === '3' && !e.shiftKey) act(() => openNote('mindmap', notebook))
+      else if (key === 'l' && e.shiftKey) act(() => setLayout(current => next(Object.keys(LAYOUTS) as Layout[], current)))
+      else if (key === 'd' && e.shiftKey) act(() => setTheme(next(THEME_CHOICES, theme)))
+      else if (key === '.' && !e.shiftKey) act(() => setFocus(on => !on && !empty))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openNote, notebook, theme, empty])
+
   // A highlight clicked in the book brings its notebook forward.
   useEffect(() => onFindInNotes(() => api.current?.getPanel(`note:written:${notebook}`)?.api.setActive()), [notebook])
 
@@ -341,6 +377,7 @@ export default function App() {
     const file = await pickFile()
     if (file) void openFile(file)
   }, [openFile])
+  browseNow.current = () => void browse()
 
   // Dev helper: open a file by URL from the console, e.g. __open('/samples/sample.pdf').
   useEffect(() => {
@@ -382,17 +419,17 @@ export default function App() {
       <header className="topbar">
         <img className="brand-mark" src="./favicon.svg" alt="" />
         <strong className="brand-name">Sidepage</strong>
-        <Tool icon={FolderOpen} label="Open" hint="Open a book, document, deck or picture" onClick={() => void browse()} />
+        <Tool icon={FolderOpen} label="Open" hint="Open a book, document, deck or picture (Ctrl+O)" onClick={() => void browse()} />
         <div className="segment" role="group" aria-label="Write beside the book">
-          <Tool icon={NotebookPen} label="Notes" hint="Written notes" onClick={() => openNote('written', notebook)} />
-          <Tool icon={PenLine} label="Canvas" hint="Draw and handwrite" onClick={() => openNote('canvas', notebook)} />
-          <Tool icon={Workflow} label="Mind map" onClick={() => openNote('mindmap', notebook)} />
+          <Tool icon={NotebookPen} label="Notes" hint="Written notes (Ctrl+1)" onClick={() => openNote('written', notebook)} />
+          <Tool icon={PenLine} label="Canvas" hint="Draw and handwrite (Ctrl+2)" onClick={() => openNote('canvas', notebook)} />
+          <Tool icon={Workflow} label="Mind map" hint="Mind map (Ctrl+3)" onClick={() => openNote('mindmap', notebook)} />
           <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
           <Tool icon={GraduationCap} label="Review" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
         </div>
         <span className="spacer" />
         <NotesSearch />
-        <Tool quiet icon={Maximize2} label="Focus" hint="Hide everything but the page and your notes" disabled={empty} onClick={() => setFocus(true)} />
+        <Tool quiet icon={Maximize2} label="Focus" hint="Hide everything but the page and your notes (Ctrl+.)" disabled={empty} onClick={() => setFocus(true)} />
         <Tool quiet icon={LAYOUT_ICONS[layout]} label={`Layout: ${LAYOUTS[layout]}`} hint={`Layout: ${LAYOUTS[layout]}. Tap to change.`} onClick={() => setLayout(next(Object.keys(LAYOUTS) as Layout[], layout))} />
         <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${THEME_NAMES[theme]}`} hint={`Theme: ${THEME_NAMES[theme]}. Tap to change.`} onClick={() => setTheme(next(THEME_CHOICES, theme))} />
         <Tool quiet icon={Ellipsis} label="More" on={more} onClick={() => setMore(!more)} />

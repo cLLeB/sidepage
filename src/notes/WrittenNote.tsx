@@ -7,9 +7,17 @@ import { insert } from '@milkdown/kit/utils'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 import {
-  baseName, debounce, goToPlace, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
+  baseName, debounce, goToPlace, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
   parsePlaceLink, placeLink, saveNote, shelf,
 } from '../lib/platform'
+
+// Ready-made layouts for a note. "Question and answer" lines become flashcards (see lib/review.ts).
+const TEMPLATES = {
+  'Cornell notes': '\n## Cornell notes\n\n**Cues and questions**\n\n- \n\n**Notes**\n\n- \n\n**Summary**\n\n\n',
+  'Question and answer': '\nQ: \n\nA: \n\n',
+  'Chapter summary': '\n## Summary\n\n**Main idea**\n\n\n**Key points**\n\n- \n- \n- \n\n**What I still do not understand**\n\n- \n\n',
+  'Key terms': '\n| Term | Meaning |\n| --- | --- |\n|  |  |\n|  |  |\n\n',
+} as const
 
 // Typed notes in Markdown (Milkdown Crepe), saved as notes.md.
 export default function WrittenNote({ notebook }: { notebook: string }) {
@@ -80,6 +88,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     // A clip from a page goes in the same way as a quote: at the end, with its source linking back.
     const stopClips = onClip(async ({ image, source, book, place }) => {
       if (baseName(book) !== notebook || !crepe) return
+      // With the Canvas in front and this note behind it, the clip is the Canvas's to take.
+      if (!isShown(host.current) && [...document.querySelectorAll('.canvas-page')].some(isShown)) return
       const name = `clip-${Date.now().toString(36)}.jpg`
       await saveNoteFile(notebook, name, await (await fetch(image)).blob())
       // The picture goes in as a picture block at the end of the note, then its source on the line after.
@@ -141,6 +151,14 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         >
           <option value="" disabled>Link to another book…</option>
           {others.map(name => <option key={name} value={name}>{baseName(name)}</option>)}
+        </select>
+        <select
+          value=""
+          onChange={e => editorRef.current?.editor.action(insert(TEMPLATES[e.target.value as keyof typeof TEMPLATES]))}
+          title="Put a ready-made layout into the note, where the cursor is"
+        >
+          <option value="" disabled>Insert a template…</option>
+          {Object.keys(TEMPLATES).map(name => <option key={name} value={name}>{name}</option>)}
         </select>
         {backlinks.length > 0 && <span className="viewer-pos">Linked from</span>}
         {backlinks.map(name => <button key={name} onClick={() => openBookByName(name)}>{baseName(name)}</button>)}
