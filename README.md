@@ -121,7 +121,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   shows how far along you are.
 - Back up all notes into one file, and restore them on any device. Nothing already there is overwritten.
 - The home screen shows your reading time and lets you search your books; the theme can follow the device.
-- Read along: while a PDF is read aloud, the sentence being spoken is lit on the page and kept in view.
+- Read along: while a PDF or a book is read aloud, the sentence being spoken is lit on the page and kept in view.
 - Read aloud: books and PDFs are read page by page with the device's own voices, where it has them.
 - Review: flashcards make themselves from your highlights (the passage, then your comment) and from "Q:" / "A:"
   lines in your notes, and come back when [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) says it is time.

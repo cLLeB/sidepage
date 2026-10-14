@@ -330,7 +330,52 @@ export default function BookView({ file }: { file: File }) {
       if (shownRange.current) shown.append(shownRange.current.cloneContents())
       shown.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote, div, br').forEach(block => block.append('\n'))
       return shown.textContent ?? ''
-    })
+    }, light)
+  }
+  // Read along: the sentence being spoken is found among the words on the page and lit with the browser's own
+  // highlighting (CSS Custom Highlights), which leaves the book's pages untouched.
+  const spokenTo = useRef(0)
+  const light = (sentence: string | null) => {
+    if (!sentence) spokenTo.current = 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contents: { doc: Document }[] = (viewRef.current as any)?.renderer?.getContents?.() ?? []
+    for (const { doc } of contents) {
+      const highlights = (doc.defaultView as (Window & { CSS: { highlights?: Map<string, unknown> }; Highlight?: new (...ranges: Range[]) => unknown }) | null)
+      const registry = highlights?.CSS?.highlights
+      if (!registry || !highlights?.Highlight) continue
+      registry.delete('sidepage-speaking')
+      if (!sentence) continue
+      if (!doc.getElementById('sidepage-speaking-style')) {
+        const style = doc.createElement('style')
+        style.id = 'sidepage-speaking-style'
+        style.textContent = '::highlight(sidepage-speaking) { background-color: rgba(255, 216, 77, 0.55); }'
+        doc.head?.append(style)
+      }
+      // The text of the part, letter by letter, each letter knowing its text node and place in it.
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+      const letters: { node: Text; at: number }[] = []
+      let joined = ''
+      for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+        const text = node.data
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i].toLowerCase()
+          if (!/[\p{L}\p{N}]/u.test(ch)) continue
+          joined += ch
+          letters.push({ node, at: i })
+        }
+      }
+      const wanted = sentence.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+      // Looked for after the last sentence read, so a sentence said twice in a part is found in the right place.
+      let from = joined.indexOf(wanted.slice(0, 60), spokenTo.current)
+      if (from < 0) from = joined.indexOf(wanted.slice(0, 60))
+      if (wanted.length < 4 || from < 0) continue
+      const last = letters[Math.min(letters.length - 1, from + wanted.length - 1)]
+      const range = doc.createRange()
+      range.setStart(letters[from].node, letters[from].at)
+      range.setEnd(last.node, last.at + 1)
+      registry.set('sidepage-speaking', new highlights.Highlight(range))
+      spokenTo.current = from + wanted.length
+    }
   }
 
   if (error) return <div className="viewer-message">Could not open this book: {error}</div>
