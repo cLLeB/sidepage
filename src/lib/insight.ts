@@ -310,3 +310,26 @@ export async function timelineOf(book: string, most = 60): Promise<Moment[]> {
     .slice(0, most)
     .sort((a, b) => a.year - b.year)
 }
+
+// ── The book's ideas as a tree: terms gathered round the ones they keep company with ──
+// Each term joins the group of the term it is most strongly linked to among those already placed, strongest
+// links first; a group's most frequent term names it.
+export type IdeaTree = { topic: string; children: IdeaTree[] }
+export function ideaTree(terms: Term[], most = 8): IdeaTree[] {
+  const links = termLinks(terms, 200)
+  const count = new Map(terms.map(term => [term.term, term.count]))
+  const group = new Map<string, string>()
+  for (const term of [...terms].sort((a, b) => b.count - a.count)) {
+    const partner = links.filter(link => link.source === term.term || link.target === term.term)
+      .map(link => ({ other: link.source === term.term ? link.target : link.source, strength: link.strength }))
+      .filter(found => group.has(found.other))
+      .sort((a, b) => b.strength - a.strength)[0]
+    group.set(term.term, partner ? group.get(partner.other)! : term.term)
+  }
+  const groups = new Map<string, string[]>()
+  for (const [term, head] of group) if (term !== head) groups.set(head, [...(groups.get(head) ?? []), term])
+  return [...group.values()].filter((head, i, all) => all.indexOf(head) === i)
+    .sort((a, b) => (groups.get(b)?.length ?? 0) - (groups.get(a)?.length ?? 0) || count.get(b)! - count.get(a)!)
+    .slice(0, most)
+    .map(head => ({ topic: head, children: (groups.get(head) ?? []).slice(0, 6).map(topic => ({ topic, children: [] })) }))
+}

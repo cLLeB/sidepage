@@ -118,6 +118,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - One search for everything: the notes of every book and the words of every book you have opened. A result
   opens the book at that page or part.
 - Highlights: every highlight from every book in one list, filtered by colour.
+- The mind map can grow from the book itself: its key terms as branches, each gathered under the term it keeps
+  company with.
 - The mind map can grow from a note: its headings and bullet points become branches.
 - A note has an outline to jump by, and can be printed.
 - Home: favourite books stay in front, books can be ordered by title or progress, and a daily reading goal

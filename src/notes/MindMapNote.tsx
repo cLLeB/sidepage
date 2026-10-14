@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MindElixir from 'mind-elixir'
 import 'mind-elixir/style.css'
-import { FileDown, ListTree } from 'lucide-react'
+import { FileDown, ListTree, Sparkles } from 'lucide-react'
 import { Tool } from '../ui'
-import { debounce, loadNote, saveFileAs, saveNote } from '../lib/platform'
+import { debounce, loadNote, saveFileAs, saveNote, shelf } from '../lib/platform'
+import { ideaTree, termsOf } from '../lib/insight'
 import { useTheme } from '../lib/theme'
 
 type Branch = { id: string; topic: string; children: Branch[] }
@@ -98,6 +99,27 @@ export default function MindMapNote({ notebook }: { notebook: string }) {
     await saveNote(notebook, 'mindmap.json', JSON.stringify(mind.getData()))
   }
 
+  // Grow the map from the book itself: its key terms, each gathered under the one it keeps company with.
+  const [growing, setGrowing] = useState('')
+  const fromBook = async () => {
+    const mind = map.current
+    if (!mind) return
+    const book = (await shelf()).map(entry => entry.name).find(name => name.replace(/\.[^.]+$/, '') === notebook)
+    if (!book) return setGrowing('Open the book once first, so its words are known.')
+    setGrowing('Going through the book…')
+    const tree = ideaTree(await termsOf(book))
+    if (!tree.length) return setGrowing('This book\'s words are not gathered yet. Open it and give it a moment.')
+    const data = mind.getData()
+    const root = data.nodeData as unknown as Branch
+    const have = new Set((root.children ?? []).map(child => child.topic))
+    const fresh = tree.filter(idea => !have.has(idea.topic)).map(idea => ({ ...branch(idea.topic), children: idea.children.map(child => branch(child.topic)) }))
+    root.children = [...(root.children ?? []), ...fresh]
+    mind.refresh(data)
+    mind.toCenter()
+    await saveNote(notebook, 'mindmap.json', JSON.stringify(mind.getData()))
+    setGrowing('')
+  }
+
   // The map written out as an outline: each branch a point, its branches indented under it.
   const saveOutline = async () => {
     const mind = map.current
@@ -112,6 +134,8 @@ export default function MindMapNote({ notebook }: { notebook: string }) {
       <div ref={host} className="mindmap-note" />
       <div className="page-bar">
         <Tool icon={ListTree} label="Grow from my notes" hint="Add the headings and bullet points of this book's written notes as branches" onClick={() => void fromNotes()} />
+        <Tool icon={Sparkles} label="Grow from the book's ideas" hint="Add the book's key terms as branches, each gathered under the one it keeps company with" onClick={() => void fromBook()} />
+        {growing && <span className="viewer-pos">{growing}</span>}
         <Tool icon={FileDown} label="Save as an outline" hint="The map as a Markdown file of nested points" onClick={() => void saveOutline()} />
       </div>
     </div>
