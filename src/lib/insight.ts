@@ -20,7 +20,7 @@ const plainWords = (text: string) => (text.toLowerCase().match(/[\p{L}][\p{L}'�
 export const wordsOf = (text: string) => plainWords(text).map(stem)
 
 // An entry in a list of references reads like a sentence but says nothing about the subject.
-const isReference = (sentence: string) => /[“"][^”"]{6,}[”"]s*,|et al|(Annu|Proc|Trans|Lett|Rev|Sci|Nat|Adv|Biomed|Eng).s|(doi|arXiv|ISBN)|[d+]s*[A-Z].s?[A-Z]/.test(sentence)
+const isReference = (sentence: string) => /[“"][^”"]{6,}[”"]s*,|et al|(Annu|Proc|Trans|Lett|Rev|Sci|Nat|Adv|Biomed|Eng).(s|$)|,[”"]s|(doi|arXiv|ISBN)|[d+]s*[A-Z].s?[A-Z]/.test(sentence)
 const sentencesOf = (text: string) => {
   const clean = text.replace(/\s+/g, ' ').trim()
   const parts = 'Segmenter' in Intl
