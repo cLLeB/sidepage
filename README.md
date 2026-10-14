@@ -47,6 +47,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Flashcards can be saved for Anki; highlights, a canvas page and the mind map can each be saved as a file.
 - Reading aloud takes a voice and a pace of your choosing and can stop by itself after a set time. The screen
   can be kept on while a book is open, and Focus takes the whole screen and shows the time.
+- Closing a book tells what that sitting came to: time, how far you got, highlights and notes added, cards answered.
 - Home shows how long you have spent with each book, roughly how long the rest will take, and one of your own
   highlights each day.
 - A PDF remembers the page you jumped from. A picture can be turned and put into your notes. A line in a note

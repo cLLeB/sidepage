@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookA, Play, Search, Square, Timer, type LucideIcon } from 'lucide-react'
+import { BookA, Play, Search, Square, Timer, X, type LucideIcon } from 'lucide-react'
 import { Menu, Tool } from './ui'
 import { sendQuote } from './lib/platform'
 import { usePref } from './lib/prefs'
@@ -329,6 +329,32 @@ export function Translator() {
           <button className="primary" onClick={() => setText(null)}>Done</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── The sitting just ended, told in a few figures ──
+export function SittingCard({ sitting, onClose }: { sitting: import('./lib/session').Sitting; onClose(): void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 14_000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+  const moved = Math.round((sitting.to - sitting.from) * 100)
+  const figures = [
+    sitting.minutes >= 1 && { value: sitting.minutes < 60 ? `${sitting.minutes} min` : `${Math.floor(sitting.minutes / 60)} h ${sitting.minutes % 60} min`, label: 'reading' },
+    moved > 0 && { value: `+${moved}%`, label: `now ${Math.round(sitting.to * 100)}% through` },
+    sitting.highlights > 0 && { value: String(sitting.highlights), label: sitting.highlights === 1 ? 'highlight' : 'highlights' },
+    sitting.words > 0 && { value: String(sitting.words), label: 'words of notes' },
+    sitting.answers > 0 && { value: String(sitting.answers), label: sitting.answers === 1 ? 'card answered' : 'cards answered' },
+  ].filter(Boolean) as { value: string; label: string }[]
+  return (
+    <div className="sitting" role="status">
+      <div className="sitting-head">
+        <span className="eyebrow">That sitting</span>
+        <strong>{sitting.file.replace(/\.[^.]+$/, '')}</strong>
+        <button className="tool quiet" aria-label="Close" onClick={onClose}><X size={16} aria-hidden /></button>
+      </div>
+      <div className="sitting-figures">{figures.map(figure => <span key={figure.label}><b>{figure.value}</b>{figure.label}</span>)}</div>
     </div>
   )
 }

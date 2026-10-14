@@ -1002,3 +1002,13 @@ button.viewer-pos { font-weight: 500; }
 .shelf-picker .menu-row span { color: var(--text); }
 .soft.danger { color: #fff; background: #e5484d; }
 .shelf-tools .ask { width: auto; }
+
+/* The sitting just ended */
+.sitting { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 75; width: min(380px, calc(100vw - 32px)); padding: 14px 16px; background: var(--panel); border-radius: 18px; box-shadow: var(--shadow); animation: rise 0.2s ease-out; }
+.sitting-head { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 8px; }
+.sitting-head strong { grid-column: 1; font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sitting-head .tool { grid-row: 1 / span 2; grid-column: 2; }
+.sitting-figures { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; color: var(--muted); font-size: 12.5px; }
+.sitting-figures span { display: flex; flex-direction: column; }
+.sitting-figures b { color: var(--text); font-size: 18px; letter-spacing: -0.02em; }
+@media (max-width: 700px) { .sitting { bottom: calc(80px + env(safe-area-inset-bottom)); } }

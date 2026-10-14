@@ -10,7 +10,8 @@ import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
 import { coverOf } from './lib/reading'
 import Home from './Home'
-import { Comfort, FocusClock, LookUp, Palette, StudyTimer, Translator, VoiceSettings, useScreenOn, type Command } from './Extras'
+import { Comfort, FocusClock, LookUp, Palette, SittingCard, StudyTimer, Translator, VoiceSettings, useScreenOn, type Command } from './Extras'
+import { beginSitting, endSitting, type Sitting } from './lib/session'
 import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
 import { OCR_LANGUAGES } from './lib/ocr'
 import { bibliography } from './viewers/Cite'
@@ -130,6 +131,7 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [notice])
   const [palette, setPalette] = useState(false)
+  const [sitting, setSitting] = useState<Sitting | null>(null)
   const [accent, setAccent] = usePref<Accent>('accent', 'graphite')
   const [warmth, setWarmth] = usePref('warmth', 0)
   const [dim, setDim] = usePref('dim', 0)
@@ -499,8 +501,15 @@ export default function App() {
     api.current = event.api
     void launchFile().then(file => { if (file) void openFile(file) })
     const sync = () => setEmpty(event.api.panels.length === 0)
-    event.api.onDidAddPanel(sync)
-    event.api.onDidRemovePanel(sync)
+    event.api.onDidAddPanel(panel => {
+      sync()
+      if (panel.id.startsWith('doc:')) beginSitting(panel.id.slice(4))
+    })
+    event.api.onDidRemovePanel(panel => {
+      sync()
+      // A book closed: what that sitting with it came to.
+      if (panel.id.startsWith('doc:')) void endSitting(panel.id.slice(4)).then(found => { if (found) setSitting(found) })
+    })
     event.api.onDidActivePanelChange(() => {
       // A reader brought to the front tells the guide and the notes where it is.
       event.api.activePanel?.view.content.element.querySelector('.viewer')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
@@ -622,6 +631,7 @@ export default function App() {
       {focus && <FocusClock />}
       {focus && <button className="focus-exit" title="Show the toolbars again" aria-label="Leave focus" onClick={() => setFocus(false)}><Minimize2 size={18} aria-hidden /></button>}
       <Comfort />
+      {sitting && <SittingCard sitting={sitting} onClose={() => setSitting(null)} />}
       <LookUp />
       <Translator />
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
