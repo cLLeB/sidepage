@@ -4,6 +4,7 @@ import { Tool } from '../ui'
 import { baseName, goToPlace, openBookByName, saveFileAs } from '../lib/platform'
 import { allCards, dueCards, grade, Rating, type Flashcard } from '../lib/review'
 import { PictureCard } from './PictureCards'
+import LearningProgress from './LearningProgress'
 
 // Every card, front and back on one line with a tab between: the form Anki and most flashcard apps import.
 const exportCards = async () => {
@@ -61,6 +62,7 @@ export default function ReviewView() {
               : 'Cards make themselves from your reading: highlight a passage and comment on it; write a “Q:” line with an “A:” line under it; run the marker over words in your notes (they are hidden on the card); or cover the labels of a diagram with Picture cards.'}
           </p>
           <Tool icon={RotateCcw} label="Check again" onClick={load} />
+          {total > 0 && <LearningProgress key={done} />}
           {total > 0 && <Tool icon={Repeat} label="Practise every card anyway" hint="Go through all your cards now, without changing when they are due" onClick={practise} />}
           {total > 0 && <Tool icon={FileDown} label="Save the cards for Anki" hint="A text file other flashcard apps can import" onClick={() => void exportCards()} />}
         </div>

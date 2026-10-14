@@ -84,5 +84,51 @@ export async function grade(card: Flashcard, rating: Grade): Promise<Date> {
   const next = scheduler.next(schedule[card.id] ?? createEmptyCard(), new Date(), rating).card
   schedule[card.id] = next
   await saveNote(...SCHEDULE, JSON.stringify(schedule))
+  // Every answer is written down too (when, and how it went), for the picture of how learning is going.
+  const log: Answer[] = JSON.parse((await loadNote(SCHEDULE[0], 'answers.json')) ?? '[]')
+  log.push({ at: Date.now(), rating })
+  await saveNote(SCHEDULE[0], 'answers.json', JSON.stringify(log.slice(-5000)))
   return next.due
+}
+
+type Answer = { at: number; rating: number }
+
+// How learning is going: the cards by how well they are known, how many fall due on each of the coming days,
+// and how often cards were remembered, week by week.
+export type Progress = {
+  fresh: number; learning: number; known: number; total: number
+  ahead: { day: Date; due: number }[]
+  weeks: { from: Date; answered: number; remembered: number }[]
+  remembered: number; answered: number; streak: number
+}
+export async function learningProgress(days = 14): Promise<Progress> {
+  const [cards, schedule] = await Promise.all([allCards(), loadSchedule()])
+  const log: Answer[] = JSON.parse((await loadNote(SCHEDULE[0], 'answers.json')) ?? '[]')
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0)
+  let fresh = 0, learning = 0, known = 0
+  const ahead = Array.from({ length: days }, (_, i) => ({ day: new Date(midnight.getTime() + i * 86_400_000), due: 0 }))
+  for (const card of cards) {
+    const state = schedule[card.id]
+    if (!state) { fresh++; ahead[0].due++; continue }
+    // "Known": it stays in mind three weeks or more before it needs seeing again.
+    if (state.stability >= 21) known++
+    else learning++
+    const index = Math.max(0, Math.floor((state.due.getTime() - midnight.getTime()) / 86_400_000))
+    if (index < days) ahead[index].due++
+  }
+  const weeks = Array.from({ length: 8 }, (_, i) => {
+    const from = new Date(midnight.getTime() - (7 - i) * 7 * 86_400_000)
+    const to = from.getTime() + 7 * 86_400_000
+    const inside = log.filter(answer => answer.at >= from.getTime() && answer.at < to)
+    return { from, answered: inside.length, remembered: inside.filter(answer => answer.rating !== Rating.Again).length }
+  })
+  // Days in a row with at least one card answered.
+  const dayOf = (at: number) => new Date(at).toDateString()
+  const answeredOn = new Set(log.map(answer => dayOf(answer.at)))
+  let streak = 0
+  for (let i = answeredOn.has(midnight.toDateString()) ? 0 : 1; answeredOn.has(dayOf(midnight.getTime() - i * 86_400_000)); i++) streak++
+  return {
+    fresh, learning, known, total: cards.length, ahead, weeks,
+    answered: log.length, remembered: log.filter(answer => answer.rating !== Rating.Again).length, streak,
+  }
 }

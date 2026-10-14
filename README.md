@@ -121,6 +121,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   service), and put the translation in your notes with the original under it.
 - Earlier versions of a note are kept as you write (every ten minutes or so, the last sixty): compare any of
   them with the note now, line by line, and bring one back.
+- Review shows how learning is going: cards known, learning and new, how often you remember, days in a row,
+  and how many cards fall due on each of the next fourteen days.
 - Type [[ in a note to link to another book's notes, picking it from a list that narrows as you type.
 - Link one book's notes to another's, see which notes link back ("Linked from"), and view all of it as a graph.
 - Highlight and draw on PDF pages, and save a copy with the marks in it.
