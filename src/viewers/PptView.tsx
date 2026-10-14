@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ReactPptxViewer, setWasmSource, type PptxViewerController } from '@extend-ai/react-pptx'
 import wasmUrl from '@extend-ai/react-pptx/pptx_wasm_bg.wasm?url'
 import '@extend-ai/react-pptx/styles.css'
 import SlidesView from './SlidesView'
 import { BookOpen, TextQuote } from 'lucide-react'
 import { Tool } from '../ui'
-import { baseName, prefersFlip, rememberFlip, sendQuote } from '../lib/platform'
+import { baseName, onGoToPlace, prefersFlip, rememberFlip, sendQuote, tellPlace } from '../lib/platform'
 
 setWasmSource(new URL(wasmUrl, document.baseURI).href)
 
@@ -19,6 +19,15 @@ export default function PptView({ file }: { file: File }) {
   const [flip, setFlip] = useState(prefersFlip)
   const turning = flip && !!controller && count > 0
 
+  // The notes and the guide follow the slide in front; a link in a note brings its slide back.
+  useEffect(() => { if (count) tellPlace({ book: file.name, place: `slide=${slide + 1}` }) }, [slide, count, file])
+  useEffect(() => onGoToPlace(({ book, place }) => {
+    const number = Number(place.match(/^slide=(\d+)/)?.[1])
+    if (book !== file.name || !number) return
+    setSlide(number - 1)
+    void controller?.goToSlide(number - 1)
+  }), [file, controller])
+
   const toggleFlip = () => {
     rememberFlip(!flip)
     // Leaving the page-turn view: bring the scrolling view to the slide that was open.
@@ -28,13 +37,13 @@ export default function PptView({ file }: { file: File }) {
 
   const quote = () => {
     const text = window.getSelection()?.toString().trim()
-    if (text) sendQuote({ text, source: `${baseName(file.name)}, slide ${slide + 1}` })
+    if (text) sendQuote({ text, source: `${baseName(file.name)}, slide ${slide + 1}`, book: file.name, place: `slide=${slide + 1}` })
   }
 
   if (error) return <div className="viewer-message">Could not open these slides: {error}</div>
 
   return (
-    <div className="viewer">
+    <div className="viewer" onPointerDownCapture={() => { if (count) tellPlace({ book: file.name, place: `slide=${slide + 1}` }) }}>
       <div className="viewer-bar">
         <span className="viewer-pos">{count ? `${slide + 1} / ${count}` : '…'}</span>
         <span className="spacer" />

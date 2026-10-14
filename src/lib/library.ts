@@ -53,7 +53,8 @@ export async function searchBooks(query: string, perBook = 4, most = 40): Promis
 export const placeName = (place: string) => {
   const page = place.match(/^page=(\d+)/)?.[1]
   const section = place.match(/^section=(\d+)/)?.[1]
-  return page ? `p. ${page}` : section ? `part ${Number(section) + 1}` : ''
+  const slide = place.match(/^slide=(\d+)/)?.[1]
+  return page ? `p. ${page}` : section ? `part ${Number(section) + 1}` : slide ? `slide ${slide}` : ''
 }
 
 // How many letters of a book's words are kept: next to none means a scanned book, its pages only pictures.

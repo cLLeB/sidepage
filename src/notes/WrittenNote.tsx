@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
   List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
-  AlignVerticalJustifyCenter, Footprints, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
+  AlignVerticalJustifyCenter, Footprints, Presentation, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { Selection } from '@milkdown/kit/prose/state'
+import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { imageBlockSchema } from '@milkdown/kit/component/image-block'
 import { insert, replaceAll } from '@milkdown/kit/utils'
 import { HistoryDialog, keepVersion } from './History'
@@ -68,10 +69,55 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   const [swap, setSwap] = useState('')
   const [found, setFound] = useState('')
   const [boxes, setBoxes] = useState({ done: 0, all: 0 })
+  // Lecture notes: a heading for each page or slide. Turn to a slide and the note goes to its heading, making it
+  // at the end if it is not there yet; a heading left empty when you move on is taken away again.
+  const [byPage, setByPage] = usePref('by-page', false)
+  useEffect(() => {
+    if (!byPage) return
+    return onPlace(({ book, place }) => {
+      const number = place.match(/^(page|slide)=(\d+)/)
+      if (!number || baseName(book) !== notebook) return
+      editorRef.current?.editor.action(ctx => {
+        const view = ctx.get(editorViewCtx)
+        if (!view.state) return
+        const { doc, schema } = view.state
+        const linkTo = (node: ProseNode) => {
+          let href = ''
+          node.descendants(child => { const mark = child.marks.find(found => found.type.name === 'link'); if (mark) href = mark.attrs.href })
+          return parsePlaceLink(href)
+        }
+        // A heading already made for this place: go to the end of what is written under it.
+        let found = -1, end = doc.content.size
+        doc.forEach((node, at) => {
+          if (found >= 0 && end === doc.content.size && node.type.name === 'heading' && at > found) end = at
+          if (found < 0 && node.type.name === 'heading' && linkTo(node)?.place === place && linkTo(node)?.book === book) found = at
+        })
+        let tr = view.state.tr
+        if (found < 0) {
+          // The last heading, if it is one of these and nothing was written under it, makes way for the new one.
+          const last = doc.lastChild, beforeLast = doc.childCount > 1 ? doc.child(doc.childCount - 2) : null
+          const lastIsEmptyLine = last?.type.name === 'paragraph' && !last.textContent.trim()
+          const heading = lastIsEmptyLine ? beforeLast : last
+          if (heading?.type.name === 'heading' && linkTo(heading) && /^(page|slide)=/.test(linkTo(heading)!.place)) {
+            const from = doc.content.size - (last!.nodeSize + (lastIsEmptyLine ? beforeLast!.nodeSize : 0))
+            tr = tr.delete(from, doc.content.size)
+          }
+          const label = `${number[1] === 'slide' ? 'Slide' : 'Page'} ${number[2]}`
+          const mark = schema.marks.link.create({ href: placeLink({ book, place }) })
+          const at = tr.doc.content.size
+          tr = tr.insert(at, [schema.nodes.heading.create({ level: 3 }, schema.text(label, [mark])), schema.nodes.paragraph.create()])
+          end = tr.doc.content.size
+        }
+        tr = tr.setSelection(Selection.near(tr.doc.resolve(Math.max(1, end - 1)), -1))
+        view.dispatch(tr.scrollIntoView())
+      })
+    })
+  }, [byPage, notebook])
+
   // Keeping pace: as the book's pages turn, the note moves to what was written about that page.
   const [pace, setPace] = usePref('pace', false)
   useEffect(() => {
-    if (!pace) return
+    if (!pace || byPage) return
     return onPlace(({ book, place, cfi }) => {
       if (baseName(book) !== notebook) return
       const page = place.match(/^page=(\d+)/)?.[1]
@@ -94,7 +140,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       block.scrollIntoView({ block: 'center', behavior: 'smooth' })
       block.animate([{ backgroundColor: 'color-mix(in srgb, var(--accent) 22%, transparent)' }, { backgroundColor: 'transparent' }], { duration: 1600 })
     })
-  }, [pace, notebook])
+  }, [pace, notebook, byPage])
 
   // Sound: a lecture or your own voice recorded beside the note. While it records, each new line you start is
   // stamped with the moment it was written; tap a stamp later to hear what was being said just then.
@@ -598,6 +644,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         <Menu quiet icon={Ellipsis} label="More for this note">
           {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read this note aloud'} onClick={readAloud} />}
           <Tool icon={Mic} label={recording ? 'Stop recording sound' : 'Record sound with this note'} hint="Record a lecture or yourself; lines you write meanwhile are stamped with their moment" on={!!recording} onClick={() => void record()} />
+          <Tool icon={Presentation} label={byPage ? 'A heading for each page or slide: on' : 'A heading for each page or slide'} hint="Lecture notes: turn to a slide and the note goes to that slide's heading, made when first needed" on={byPage} onClick={() => setByPage(!byPage)} />
           <Tool icon={Footprints} label={pace ? 'Keep pace with the book: on' : 'Keep pace with the book'} hint="As you turn the pages of the book, show what you quoted or clipped from there" on={pace} onClick={() => setPace(!pace)} />
           <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
           <Tool icon={HistoryIcon} label="Earlier versions" hint="See how the note looked before, and bring a version back" onClick={openHistory} />

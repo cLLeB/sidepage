@@ -70,6 +70,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   time). The language is chosen in the More menu.
 - Sound beside a note: record a lecture or yourself; each new line you write meanwhile is stamped with its
   moment, and tapping a stamp plays the recording from there. Recordings travel in the one-file bundle and backup.
+- Lecture notes: a heading for each page or slide. Turn to a slide (in a deck or a PDF of slides) and the note
+  goes to that slide's heading, made the first time; a heading you leave empty is taken away again.
 - Notes keep pace with the book: turn to a page of a PDF, or read on in an EPUB, MOBI or FB2, and the note
   moves to what you quoted or clipped from there.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
