@@ -28,12 +28,35 @@ const sentencesOf = (text: string) => {
 }
 
 const cache = new Map<string, Stretch[]>()
+
+// Running heads and feet (a copyright line, the course name, the date on every slide) say nothing about any one
+// page, yet would pass for a book's favourite words. Any run of four words found on many of its pages is taken out.
+function withoutRunningLines(stretches: Stretch[]): Stretch[] {
+  if (stretches.length < 6) return stretches
+  const words = stretches.map(stretch => stretch.text.split(/\s+/).filter(Boolean))
+  const fold = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+  const pagesWith = new Map<string, number>()
+  for (const page of words) {
+    const seen = new Set<string>()
+    for (let i = 0; i + 4 <= page.length; i++) seen.add(page.slice(i, i + 4).map(fold).join(' '))
+    for (const gram of seen) pagesWith.set(gram, (pagesWith.get(gram) ?? 0) + 1)
+  }
+  const often = Math.max(4, stretches.length * 0.35)
+  const running = new Set([...pagesWith].filter(([gram, count]) => count >= often && gram.replace(/ /g, '').length > 6).map(([gram]) => gram))
+  if (!running.size) return stretches
+  return stretches.map((stretch, n) => {
+    const page = words[n]
+    const drop = new Array(page.length).fill(false)
+    for (let i = 0; i + 4 <= page.length; i++) if (running.has(page.slice(i, i + 4).map(fold).join(' '))) drop.fill(true, i, i + 4)
+    return { ...stretch, text: page.filter((_, i) => !drop[i]).join(' ') }
+  })
+}
 export async function stretchesOf(book: string): Promise<Stretch[]> {
   if (!cache.has(book)) {
     const { get } = await import('idb-keyval')
     const found = (await get<Stretch[]>(`text:${book}`)) ?? []
     if (!found.length) return found
-    cache.set(book, found)
+    cache.set(book, withoutRunningLines(found))
   }
   return cache.get(book)!
 }
@@ -184,4 +207,35 @@ export function termLinks(terms: Term[], most = 60) {
     if (both >= 2 && strength >= 0.18) links.push({ source: terms[i].term, target: terms[j].term, strength })
   }
   return links.sort((x, y) => y.strength - x.strength).slice(0, most)
+}
+
+// ── A glossary: each key term with the sentence in the book that says what it is ──
+// A sentence that defines reads "X is …", "X are …", "X means …", "X refers to …", "… is called X", "… known as X".
+export type Entry = { term: string; meaning: string; place: string }
+export async function glossaryOf(book: string, terms: Term[], most = 24): Promise<Entry[]> {
+  const all = await stretchesOf(book)
+  const byPlace = new Map(all.map(stretch => [stretch.place, stretch.text]))
+  const entries: Entry[] = []
+  for (const term of terms) {
+    if (entries.length >= most) break
+    const name = term.term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const defines = [
+      new RegExp(`(^|[^\\p{L}])(an? |the )?${name}s? (is|are|was|were|means|refers to|denotes|describes|is defined as|can be defined as)\\b`, 'iu'),
+      new RegExp(`(is|are) (called|known as|termed|named) (an? |the )?${name}`, 'iu'),
+    ]
+    const mentions = new RegExp(`(^|[^\\p{L}])${name}`, 'iu')
+    let best: { sentence: string; place: string; score: number } | null = null
+    // The places it is thickest come first; the first defining sentence found there wins, and failing that,
+    // the shortest sentence there that names it.
+    for (const { place } of term.places) {
+      for (const sentence of sentencesOf(byPlace.get(place) ?? '')) {
+        if (sentence.length > 320 || !mentions.test(sentence)) continue
+        const score = defines.some(pattern => pattern.test(sentence)) ? 2 : 1 / sentence.length
+        if (!best || score > best.score) best = { sentence, place, score }
+      }
+      if (best && best.score >= 2) break
+    }
+    if (best) entries.push({ term: term.term, meaning: best.sentence, place: best.place })
+  }
+  return entries
 }

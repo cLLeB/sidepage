@@ -229,7 +229,11 @@ function channel<T>(name: string) {
 
 // A passage sent from a reader to the written note. `place` is where it sits in the book
 // ("page=12" or an EPUB CFI), which makes the note's source line a link back to that spot.
-export type Quote = { text: string; source: string; book?: string; place?: string; again?: boolean }
+export type Quote = {
+  // A table (Markdown) goes in as it is, not as a quotation.
+  table?: boolean
+  text: string; source: string; book?: string; place?: string; again?: boolean
+}
 export const [sendQuote, onQuote] = channel<Quote>('sidepage:quote')
 
 // Whether an element is really on screen: laid out, and not in a tab that is behind another.

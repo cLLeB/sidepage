@@ -3,9 +3,9 @@ import ForceGraph from 'force-graph'
 import { useTheme } from '../lib/theme'
 import { BookOpenText, NotebookPen } from 'lucide-react'
 import { Tool } from '../ui'
-import { baseName, goToPlace, onPlace, openBookByName, placeNow, sendQuote, type Place } from '../lib/platform'
+import { baseName, goToPlace, onPlace, openBookByName, placeLink, placeNow, sendQuote, type Place } from '../lib/platform'
 import { placeName } from '../lib/library'
-import { gistOf, kinOf, quizOf, termLinks, termsOf, type Kin, type Question, type Term } from '../lib/insight'
+import { glossaryOf, gistOf, kinOf, quizOf, termLinks, termsOf, type Entry, type Kin, type Question, type Term } from '../lib/insight'
 
 // The terms of a book drawn as a map: each a dot sized by how often it comes, joined to those it keeps company with.
 function IdeaMap({ terms, onPick }: { terms: Term[]; onPick(term: Term): void }) {
@@ -78,6 +78,22 @@ export default function GuideView() {
   const [picked, setPicked] = useState<Term | null>(null)
   const [quiz, setQuiz] = useState<Question[] | null>(null)
   const [showMap, setShowMap] = useState(false)
+  const [glossary, setGlossary] = useState<Entry[] | null>(null)
+  const [showGlossary, setShowGlossary] = useState(false)
+  useEffect(() => {
+    setGlossary(null)
+    if (!showGlossary || !here || !terms?.length) return
+    let cancelled = false
+    void glossaryOf(here.book, terms).then(found => { if (!cancelled) setGlossary(found) })
+    return () => { cancelled = true }
+  }, [showGlossary, terms]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The glossary as a table in the notes: term, what it is, and a link to where the book says so.
+  const glossaryIntoNotes = () => {
+    if (!glossary || !here) return
+    const cell = (text: string) => text.replace(/\|/g, '/').replace(/\s+/g, ' ')
+    const rows = glossary.map(entry => `| **${cell(entry.term)}** | ${cell(entry.meaning)} | [${placeName(entry.place)}](${placeLink({ book: here.book, place: entry.place })}) |`)
+    sendQuote({ text: `| Term | What it is | Where |\n| --- | --- | --- |\n${rows.join('\n')}`, source: `Glossary of ${baseName(here.book)}`, book: here.book, place: here.place, table: true })
+  }
 
   useEffect(() => onPlace(setHere), [])
 
@@ -164,6 +180,19 @@ export default function GuideView() {
         </div>
         {terms && terms.length > 4 && <button className="soft" onClick={() => setShowMap(!showMap)}>{showMap ? 'Hide the map of ideas' : 'Show how its ideas connect'}</button>}
         {showMap && terms && <IdeaMap terms={terms} onPick={setPicked} />}
+        {terms && terms.length > 4 && <button className="soft" onClick={() => setShowGlossary(!showGlossary)}>{showGlossary ? 'Hide the glossary' : 'Make a glossary of these terms'}</button>}
+        {showGlossary && glossary === null && <p className="guide-wait">Finding where the book says what each term is…</p>}
+        {showGlossary && glossary && (
+          <div className="glossary">
+            {glossary.map(entry => (
+              <button key={entry.term} className="kin" onClick={() => go({ book: here.book, place: entry.place })}>
+                <span className="hit-book">{entry.term} · {placeName(entry.place)}</span>
+                {entry.meaning}
+              </button>
+            ))}
+            {glossary.length > 0 && <Tool icon={NotebookPen} label="Put the glossary in my notes" onClick={glossaryIntoNotes} />}
+          </div>
+        )}
         {picked && (
           <div className="term-places">
             <span>“{picked.term}” is thickest at</span>

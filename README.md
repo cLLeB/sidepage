@@ -59,6 +59,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   flashcard. Words run over with the marker in a note become hidden-word cards.
 - Reading plans: choose a day to finish a book by. Home lists today's reading with each book's mark for the day,
   and a PDF's bar says which page to reach today. Reading ahead lightens the days after.
+- Glossary: the guide finds, for each key term, the sentence where the book says what it is, and puts the lot
+  in your notes as a table with links to the pages. Running heads and feet (a copyright line on every slide)
+  are left out of all of this.
 - Read text: drag a box over a scanned page or a picture, or take a whole page, and its words go into your
   notes ([Tesseract.js](https://github.com/naptha/tesseract.js), Apache-2.0, fetched from the internet the first
   time). The language is chosen in the More menu.

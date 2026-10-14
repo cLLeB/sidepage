@@ -274,10 +274,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       editorRef.current = editor
       setReady(true)
       count()
-      stopQuotes = onQuote(({ text, source, book, place }) => {
+      stopQuotes = onQuote(({ text, source, book, place, table }) => {
         // Each book's quotes go to its own notebook.
         if (book && baseName(book) !== notebook) return
-        const quoted = text.split(/\n+/).map(line => `> ${line}`).join('\n')
+        const quoted = table ? text : text.split(/\n+/).map(line => `> ${line}`).join('\n')
         // The source line links back to the exact place in the book.
         const credit = book && place ? `[${source}](${placeLink({ book, place })})` : `*${source}*`
         // Quotes are added at the end of the page, like the next line in a notebook.
@@ -285,7 +285,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           const view = ctx.get(editorViewCtx)
           view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)))
         })
-        editor.editor.action(insert(`\n${quoted}\n>\n> — ${credit}\n\n`))
+        editor.editor.action(insert(table ? `\n${quoted}\n\n— ${credit}\n\n` : `\n${quoted}\n>\n> — ${credit}\n\n`))
       })
     })
 
