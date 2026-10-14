@@ -5,7 +5,7 @@ import { BookOpenText, NotebookPen } from 'lucide-react'
 import { Tool } from '../ui'
 import { baseName, goToPlace, onPlace, openBookByName, placeLink, placeNow, sendQuote, type Place } from '../lib/platform'
 import { placeName } from '../lib/library'
-import { askBooks, glossaryOf, gistOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Entry, type Kin, type Question, type Term } from '../lib/insight'
+import { askBooks, glossaryOf, gistOf, timelineOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Entry, type Kin, type Moment, type Question, type Term } from '../lib/insight'
 
 // The terms of a book drawn as a map: each a dot sized by how often it comes, joined to those it keeps company with.
 function IdeaMap({ terms, onPick }: { terms: Term[]; onPick(term: Term): void }) {
@@ -114,6 +114,16 @@ export default function GuideView() {
   const [showMap, setShowMap] = useState(false)
   const [glossary, setGlossary] = useState<Entry[] | null>(null)
   const [showGlossary, setShowGlossary] = useState(false)
+  const [timeline, setTimeline] = useState<Moment[] | null>(null)
+  useEffect(() => {
+    setTimeline(null)
+    const of = here?.book
+    if (!of) return
+    let cancelled = false
+    void timelineOf(of).then(found => { if (!cancelled) setTimeline(found) })
+    return () => { cancelled = true }
+  }, [here?.book])
+  const [showTimeline, setShowTimeline] = useState(false)
   useEffect(() => {
     setGlossary(null)
     if (!showGlossary || !here || !terms?.length) return
@@ -241,6 +251,27 @@ export default function GuideView() {
           </div>
         )}
       </section>
+
+      {timeline && timeline.length >= 4 && (
+        <section>
+          <h3>Timeline of this book</h3>
+          <button className="soft" onClick={() => setShowTimeline(!showTimeline)}>{showTimeline ? 'Hide the timeline' : `Show the ${timeline.length} dates it speaks of`}</button>
+          {showTimeline && (
+            <ol className="timeline">
+              {timeline.map((moment, i) => (
+                <li key={i}>
+                  <button onClick={() => go({ book: here.book, place: moment.place })}>
+                    <b>{moment.year < 0 ? `${-moment.year} BC` : moment.year}</b>
+                    <span>{moment.sentence}</span>
+                    <small>{placeName(moment.place)}</small>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+          {showTimeline && <Tool icon={NotebookPen} label="Put the timeline in my notes" onClick={() => sendQuote({ text: `| When | What | Where |\n| --- | --- | --- |\n${timeline.map(moment => `| **${moment.year < 0 ? `${-moment.year} BC` : moment.year}** | ${moment.sentence.replace(/\|/g, '/')} | [${placeName(moment.place)}](${placeLink({ book: here.book, place: moment.place })}) |`).join('\n')}`, source: `Timeline of ${baseName(here.book)}`, book: here.book, place: here.place, table: true })} />}
+        </section>
+      )}
 
       <section>
         <h3>Elsewhere in your books</h3>

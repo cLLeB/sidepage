@@ -1012,3 +1012,12 @@ button.viewer-pos { font-weight: 500; }
 .sitting-figures span { display: flex; flex-direction: column; }
 .sitting-figures b { color: var(--text); font-size: 18px; letter-spacing: -0.02em; }
 @media (max-width: 700px) { .sitting { bottom: calc(80px + env(safe-area-inset-bottom)); } }
+
+/* Timeline of a book */
+.timeline { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--accent-ring); display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.timeline li { position: relative; }
+.timeline li::before { content: ''; position: absolute; left: -20px; top: 15px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--panel); }
+.timeline button { display: grid; grid-template-columns: 4.2em 1fr; column-gap: 10px; width: 100%; padding: 8px 10px; text-align: left; white-space: normal; font-weight: 400; line-height: 1.45; }
+.timeline b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.timeline span { font-family: Georgia, 'Times New Roman', serif; }
+.timeline small { grid-column: 2; color: var(--muted); font-size: 11.5px; }

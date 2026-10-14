@@ -279,3 +279,34 @@ export async function askBooks(question: string, most = 8): Promise<Answer[]> {
     return { book: passage.book, place: passage.stretch.place, sentence: best.length > 320 ? `${best.slice(0, 320)}…` : best, score, words: asked }
   })
 }
+
+// ── A timeline: the years a book speaks of, each with the sentence that says what happened ──
+// A year is four figures from 1000 to 2099 (or a date with one), or a "BC"/"AD" year; reference lists, page
+// numbers and copyright lines are kept out by looking only at sentences that read as sentences.
+export type Moment = { year: number; label: string; sentence: string; place: string }
+const MONTHS = 'january|february|march|april|may|june|july|august|september|october|november|december'
+export async function timelineOf(book: string, most = 60): Promise<Moment[]> {
+  const found: Moment[] = []
+  const seen = new Set<string>()
+  for (const stretch of await stretchesOf(book)) {
+    for (const sentence of sentencesOf(stretch.text)) {
+      if (sentence.length > 300 || /doi|vol\.|pp\.|©|copyright|isbn|https?:/i.test(sentence)) continue
+      for (const match of sentence.matchAll(new RegExp(`\\b(?:(?:\\d{1,2} )?(?:${MONTHS}) (?:\\d{1,2}, )?)?(1[0-9]{3}|20[0-9]{2})\\b(?!\\s*[-–]\\s*\\d)|\\b(\\d{1,4}) ?(BC|BCE|AD|CE)\\b`, 'gi'))) {
+        const year = match[1] ? Number(match[1]) : Number(match[2]) * (/^bc/i.test(match[3] ?? '') ? -1 : 1)
+        if (!year || year > new Date().getFullYear() + 30) continue
+        const key = `${year}|${sentence.slice(0, 60)}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        found.push({ year, label: match[0], sentence, place: stretch.place })
+      }
+    }
+  }
+  // Too many to show: the years spoken of most keep their place.
+  const often = new Map<number, number>()
+  for (const moment of found) often.set(moment.year, (often.get(moment.year) ?? 0) + 1)
+  return found
+    .sort((a, b) => (often.get(b.year)! - often.get(a.year)!) || a.year - b.year)
+    .filter((moment, i, all) => all.findIndex(other => other.year === moment.year) === i || i < most / 2)
+    .slice(0, most)
+    .sort((a, b) => a.year - b.year)
+}
