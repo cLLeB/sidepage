@@ -13,6 +13,7 @@ import {
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
 import { planToday } from '../lib/reading'
+import { CiteMenu, keepFacts } from './Cite'
 import { usePref } from '../lib/prefs'
 import { lookUp } from '../Extras'
 import { Menu, Tool } from '../ui'
@@ -399,6 +400,11 @@ export default function PdfView({ file }: { file: File }) {
           // Next to no words on many pages: a scanned book. Offer to read its pages so it can be searched.
           if (!cancelled && (await lettersKept(file.name)) < pdf.numPages * 40 && !localStorage.getItem(`sidepage:read-scan:${file.name}`)) setScanned(true)
         }).catch(() => {})
+        // What the file says about itself, for citing it.
+        void pdf.getMetadata().then(({ info }) => {
+          const facts = info as { Title?: string; Author?: string; CreationDate?: string; Producer?: string }
+          return keepFacts(file.name, { title: facts.Title, authors: (facts.Author ?? '').split(/;|\band\b|&/).map(name => name.trim()).filter(Boolean), year: (facts.CreationDate ?? '').replace(/^D:/, ''), pages: pdf.numPages, kind: 'document' })
+        }).catch(() => {})
         // The first page, small, as the book's cover on the home screen.
         void pdf.getPage(1).then(async first => {
           const viewport = first.getViewport({ scale: 320 / first.getViewport({ scale: 1 }).width })
@@ -610,6 +616,7 @@ export default function PdfView({ file }: { file: File }) {
           </Menu>
           {cameFrom > 0 && cameFrom !== page && <button className="viewer-pos" title="Return to the page you were on" onClick={() => go(cameFrom - page)}>↩ p. {cameFrom}</button>}
           {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
+          <CiteMenu book={file.name} />
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />

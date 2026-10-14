@@ -13,6 +13,7 @@ import Home from './Home'
 import { Comfort, FocusClock, LookUp, Palette, StudyTimer, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
 import { OCR_LANGUAGES } from './lib/ocr'
+import { bibliography } from './viewers/Cite'
 import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
@@ -474,6 +475,8 @@ export default function App() {
     ...PAPERS.map(kind => ({ group: 'View', name: `Paper: ${kind}`, icon: NotebookPen, run: () => setPaper(kind) })),
     { group: 'Keep', name: 'Save the book and its notes as one file', icon: Package, run: () => void saveWhole() },
     { group: 'Keep', name: 'Export this book\'s notes', icon: FileDown, run: () => void exportNotes() },
+    { group: 'Keep', name: 'Save a bibliography of every book (BibTeX)', icon: FileDown, run: () => void bibliography('BibTeX').then(text => saveFileAs('Sidepage library.bib', new TextEncoder().encode(text + '\n'))) },
+    { group: 'Keep', name: 'Save a reading list of every book (APA)', icon: FileDown, run: () => void bibliography('APA').then(text => saveFileAs('Reading list.md', new TextEncoder().encode('# Reading list\n\n' + text.split('\n\n').map(line => `- ${line}`).join('\n') + '\n'))) },
     ...books.map(book => ({ group: 'Your books', name: baseName(book.name), icon: BookOpenText, run: () => openFromShelf(book.name) })),
   ]
 

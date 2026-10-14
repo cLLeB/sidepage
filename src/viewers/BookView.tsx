@@ -5,6 +5,7 @@ import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
 import { BookA, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2 } from 'lucide-react'
 import { lookUp } from '../Extras'
+import { CiteMenu, keepFacts } from './Cite'
 import { Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
 import { canSpeak, useReadAloud } from '../lib/speech'
@@ -125,6 +126,14 @@ export default function BookView({ file }: { file: File }) {
       marks.current = await loadHighlights(baseName(file.name), 'book')
       setHighlights(marks.current)
       setToc(flatten(view.book.toc ?? []))
+      // What the book says about itself, for citing it. Titles and names can come as one string, a list, or
+      // a set of translations.
+      {
+        const said = (value: unknown): string => typeof value === 'string' ? value : Array.isArray(value) ? value.map(said).join(', ') : value && typeof value === 'object' ? said((value as { name?: unknown }).name ?? Object.values(value)[0]) : ''
+        const meta = (view.book.metadata ?? {}) as { title?: unknown; author?: unknown; publisher?: unknown; published?: unknown }
+        const authors = Array.isArray(meta.author) ? meta.author.map(said) : said(meta.author).split(/;|&/)
+        void keepFacts(file.name, { title: said(meta.title), authors, publisher: said(meta.publisher), year: said(meta.published), kind: 'book' })
+      }
       view.renderer.setStyles?.(bookCSS(themeAtStart.current, textAtStart.current))
       void Promise.resolve(view.book.getCover?.()).then(cover => saveCover(file.name, cover)).catch(() => {})
       view.renderer.setAttribute('animated', '')
@@ -335,6 +344,7 @@ export default function BookView({ file }: { file: File }) {
         <span className="viewer-pos" title={where.label}>{where.label ? `${where.label} · ` : ''}{Math.round(where.fraction * 100)}%</span>
         <span className="spacer" />
         <SearchBox onSearch={query => void search(query)} onClear={clearSearch} status={searching} hits={hits} />
+        <CiteMenu book={file.name} />
         <BookmarksMenu
           marks={bookmarks}
           here={where.cfi ? { place: where.cfi, label: `${where.label || 'Page'} · ${Math.round(where.fraction * 100)}%` } : null}
