@@ -103,6 +103,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Bookmarks in books and PDFs, and a contents menu for both (a PDF's own outline, where it has one).
 - Search across the written notes of every book; a result opens the book and shows the line.
 - Focus mode hides everything but the page and your notes.
+- Word, RTF and ODT documents are searched, asked and studied like books: their words are kept page by page,
+  they say which page is in view, and quotes from them link back to their page.
 - Highlights in Word, RTF, ODT, .doc, text and Markdown documents too: anchored by their words and what stands
   around them, so they come back when the document is opened again.
 - Highlight passages in four colours and add a comment to each, in books and in PDFs; they are listed in the
