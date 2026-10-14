@@ -53,6 +53,12 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Study guide: for the page in front of you, the few sentences that carry its weight; the terms the book turns
   on and the pages each is thickest; and the passages in your other books closest to it in subject. Worked out
   on the device from the books' own words (word counts and rarity, no service asked).
+- The guide also asks: a few questions on the page, each a weighty sentence with a key term taken out to pick
+  back; and draws the book's ideas as a map, terms joined when they keep turning up together.
+- Picture cards: box a diagram on a PDF page, or take a picture, and cover its labels; each covered label is a
+  flashcard. Words run over with the marker in a note become hidden-word cards.
+- Reading plans: choose a day to finish a book by. Home lists today's reading with each book's mark for the day,
+  and a PDF's bar says which page to reach today. Reading ahead lightens the days after.
 - Read text: drag a box over a scanned page or a picture, or take a whole page, and its words go into your
   notes ([Tesseract.js](https://github.com/naptha/tesseract.js), Apache-2.0, fetched from the internet the first
   time). The language is chosen in the More menu.

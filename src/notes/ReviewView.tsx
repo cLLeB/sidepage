@@ -58,7 +58,7 @@ export default function ReviewView() {
           <p>
             {total
               ? `You went through ${done} card${done === 1 ? '' : 's'}. ${total} in all; each comes back when it is time.`
-              : 'Cards make themselves from your reading: highlight a passage in a book and add a comment to it, or write a line starting “Q:” in your notes with a line starting “A:” under it.'}
+              : 'Cards make themselves from your reading: highlight a passage and comment on it; write a “Q:” line with an “A:” line under it; run the marker over words in your notes (they are hidden on the card); or cover the labels of a diagram with Picture cards.'}
           </p>
           <Tool icon={RotateCcw} label="Check again" onClick={load} />
           {total > 0 && <Tool icon={Repeat} label="Practise every card anyway" hint="Go through all your cards now, without changing when they are due" onClick={practise} />}

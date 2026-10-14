@@ -524,10 +524,13 @@ export default function PdfView({ file }: { file: File }) {
     if (viewer) viewer.currentPageNumber = Math.min(Math.max(1, page + delta), doc?.numPages ?? 1)
   }
 
+  // The guide and the notes follow whichever book was last opened or touched.
+  useEffect(() => { if (doc) tellPlace({ book: file.name, place: `page=${page}` }) }, [doc]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (error) return <div className="viewer-message">Could not open this PDF: {error}</div>
 
   return (
-    <div className="viewer">
+    <div className="viewer" onPointerDownCapture={() => tellPlace({ book: file.name, place: `page=${page}` })}>
       <div className="viewer-bar">
         {mode === 'scroll' && <>
           <Tool quiet icon={ChevronLeft} label="Previous page" onClick={() => go(-1)} />

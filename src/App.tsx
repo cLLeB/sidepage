@@ -484,6 +484,8 @@ export default function App() {
     event.api.onDidAddPanel(sync)
     event.api.onDidRemovePanel(sync)
     event.api.onDidActivePanelChange(() => {
+      // A reader brought to the front tells the guide and the notes where it is.
+      event.api.activePanel?.view.content.element.querySelector('.viewer')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
       const book = (event.api.activePanel?.params as { notebook?: string; file?: File } | undefined)
       if (book?.notebook) setNotebook(book.notebook)
       else if (book?.file) setNotebook(baseName(book.file.name))

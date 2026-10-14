@@ -12,7 +12,7 @@ const STOP = new Set(('a about above after again against all also am an and any 
   'which while who whom why will with within without would you your yours yourself yourselves been being get got like many much new see use used using well ' +
   'page chapter figure table fig also et al ie eg vs per ' +
   // The small change of reference lists, which would otherwise pass for a book's favourite words.
-  'vol doi art pp no ed eds rev nat adv mater eng med sci proc ieee int conf trans http https www org com pdf isbn issn press univ journal').split(' '))
+  'vol doi art pp no ed eds rev nat adv mater eng med sci proc ieee int conf trans http https www org com pdf isbn issn press univ journal accessed retrieved available online jan feb mar apr jun jul aug sep sept oct nov dec').split(' '))
 
 // Words that carry meaning, in the order written. A light stemmer folds plurals and "-ing"/"-ed" together.
 const stem = (word: string) => word.replace(/(ies)$/, 'y').replace(/(sses)$/, 'ss').replace(/([^s])s$/, '$1').replace(/(ing|ed)$/, match => (word.length - match.length >= 4 ? '' : match))
@@ -65,7 +65,7 @@ export async function gistOf(book: string, place: string, howMany = 3): Promise<
 }
 
 // ── The terms a book turns on, each with the places it is thickest ──
-export type Term = { term: string; count: number; places: { place: string; count: number }[] }
+export type Term = { term: string; count: number; places: { place: string; count: number }[]; everywhere: string[] }
 export async function termsOf(book: string, howMany = 36): Promise<Term[]> {
   const all = await stretchesOf(book)
   if (!all.length) return []
@@ -109,6 +109,7 @@ export async function termsOf(book: string, howMany = 36): Promise<Term[]> {
   return kept.map(({ term, count }) => ({
     term: shown(term), count,
     places: perPlace.map((counts, i) => ({ place: all[i].place, count: counts.get(term) ?? 0 })).filter(found => found.count).sort((a, b) => b.count - a.count).slice(0, 8),
+    everywhere: perPlace.flatMap((counts, i) => (counts.get(term) ? [all[i].place] : [])),
   }))
 }
 
@@ -151,4 +152,36 @@ export async function kinOf(book: string, place: string, most = 6): Promise<Kin[
     kin.push({ book: other.book, place: other.stretch.place, line: line.length > 260 ? `${line.slice(0, 260)}…` : line, closeness })
   }
   return kin
+}
+
+// ── Test yourself: questions made from the page's own weightiest sentences, a key term taken out of each ──
+export type Question = { before: string; after: string; answer: string; choices: string[] }
+export async function quizOf(book: string, place: string, terms: Term[], most = 4): Promise<Question[]> {
+  const sentences = await gistOf(book, place, 8)
+  const names = terms.map(term => term.term.toLowerCase())
+  const questions: Question[] = []
+  for (const sentence of sentences) {
+    if (questions.length >= most) break
+    const lower = sentence.toLowerCase()
+    // The weightiest term the sentence holds, as a whole word.
+    const answer = names.find(name => new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}]|$)`, 'u').test(lower))
+    if (!answer || questions.some(question => question.answer === answer)) continue
+    const at = lower.indexOf(answer)
+    const others = [...new Set(names.map(name => name.toLowerCase()))].filter(name => name !== answer && !answer.includes(name) && !name.includes(answer)).sort(() => Math.random() - 0.5).slice(0, 3)
+    if (others.length < 2) continue
+    questions.push({ before: sentence.slice(0, at), after: sentence.slice(at + answer.length), answer: sentence.slice(at, at + answer.length), choices: [...others, sentence.slice(at, at + answer.length)].sort(() => Math.random() - 0.5) })
+  }
+  return questions
+}
+
+// ── How a book's ideas connect: two terms are joined when they keep turning up in the same places ──
+export function termLinks(terms: Term[], most = 60) {
+  const links: { source: string; target: string; strength: number }[] = []
+  for (let i = 0; i < terms.length; i++) for (let j = i + 1; j < terms.length; j++) {
+    const a = new Set(terms[i].everywhere), b = terms[j].everywhere
+    const both = b.filter(place => a.has(place)).length
+    const strength = both / (a.size + b.length - both || 1)
+    if (both >= 2 && strength >= 0.18) links.push({ source: terms[i].term, target: terms[j].term, strength })
+  }
+  return links.sort((x, y) => y.strength - x.strength).slice(0, most)
 }

@@ -30,6 +30,18 @@ export async function allCards(): Promise<Flashcard[]> {
       cards.push({ id: idOf(`${book.name}|${mark.cfi}`), book: book.name, front: mark.text, back: mark.note?.trim() || '', place: mark.cfi })
     }
     const lines = ((await loadNote(notebook, 'notes.md')) ?? '').split('\n').map(line => line.replace(/<\/?(?:span|u|sup|sub|div)\b[^>]*>/g, '').replace(/^[\s>*\-+]+/, '').trim())
+    // Words run over with the marker in the notes: the line with those words hidden, then shown.
+    for (const raw of ((await loadNote(notebook, 'notes.md')) ?? '').split('\n')) {
+      const marked = [...raw.matchAll(/<span style="background-color:[^"]+">(.+?)<\/span>/g)]
+      if (!marked.length) continue
+      const plain = (text: string) => text.replace(/<\/?(?:span|u|sup|sub|div)\b[^>]*>/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '').replace(/^[\s>#\-+\d.]+/, '').trim()
+      for (const [whole, words] of marked) {
+        const hidden = plain(words)
+        if (!hidden) continue
+        const front = plain(raw.replace(whole, '［ … ］'))
+        cards.push({ id: idOf(`${book.name}|C|${front}|${hidden}`), book: book.name, front, back: hidden })
+      }
+    }
     lines.forEach((line, i) => {
       const question = line.match(/^Q[:.]\s*(.+)/i)?.[1]
       const answer = lines.slice(i + 1).find(Boolean)?.match(/^A[:.]\s*(.+)/i)?.[1]

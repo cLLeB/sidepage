@@ -327,7 +327,7 @@ export default function BookView({ file }: { file: File }) {
   if (error) return <div className="viewer-message">Could not open this book: {error}</div>
 
   return (
-    <div className="viewer">
+    <div className="viewer" onPointerDownCapture={() => tellPlace({ book: file.name, place: `section=${here.current.index}`, cfi: placeNow.current })}>
       <div className="viewer-bar">
         <Tool quiet icon={ChevronLeft} label="Previous page" onClick={() => (turning ? curlRef.current?.previous() : viewRef.current?.goLeft())} />
         <Tool quiet icon={ChevronRight} label="Next page" onClick={() => (turning ? curlRef.current?.next() : viewRef.current?.goRight())} />
