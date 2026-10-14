@@ -401,6 +401,12 @@ export function Soundscape() {
     out.connect(audio.destination)
     master.current = out
     const stops: (() => void)[] = []
+    // A browser lets sound start only after a tap or a key; until then the sound waits for the first one.
+    const wake = () => { if (audio.state === 'suspended') void audio.resume() }
+    wake()
+    window.addEventListener('pointerdown', wake, { capture: true })
+    window.addEventListener('keydown', wake, { capture: true })
+    stops.push(() => { window.removeEventListener('pointerdown', wake, { capture: true }); window.removeEventListener('keydown', wake, { capture: true }) })
     const play = (node: AudioScheduledSourceNode) => { node.start(); stops.push(() => node.stop()) }
     const filter = (type: BiquadFilterType, frequency: number, q = 0.7) => {
       const made = audio.createBiquadFilter()
