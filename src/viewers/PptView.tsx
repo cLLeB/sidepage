@@ -5,6 +5,7 @@ import '@extend-ai/react-pptx/styles.css'
 import SlidesView from './SlidesView'
 import { BookOpen, TextQuote } from 'lucide-react'
 import { Tool } from '../ui'
+import { keepWords } from '../lib/library'
 import { baseName, onGoToPlace, prefersFlip, rememberFlip, sendQuote, tellPlace } from '../lib/platform'
 
 setWasmSource(new URL(wasmUrl, document.baseURI).href)
@@ -27,6 +28,16 @@ export default function PptView({ file }: { file: File }) {
     setSlide(number - 1)
     void controller?.goToSlide(number - 1)
   }), [file, controller])
+
+  // Each slide's words, kept so the deck can be searched, asked and studied like a book.
+  useEffect(() => {
+    if (!count) return
+    const timer = setTimeout(() => {
+      const slides = [...document.querySelectorAll<HTMLElement>('.ppt-host .rpv-normalized-slide')]
+      if (slides.length) void keepWords(file.name, slides.map((slide, i) => ({ place: `slide=${i + 1}`, text: slide.textContent?.replace(/s+/g, ' ') ?? '' })))
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [count, file])
 
   const toggleFlip = () => {
     rememberFlip(!flip)
