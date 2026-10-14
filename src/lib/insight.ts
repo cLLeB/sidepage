@@ -239,3 +239,33 @@ export async function glossaryOf(book: string, terms: Term[], most = 24): Promis
   }
   return entries
 }
+
+// ── Ask your books: the passages across the whole library that best answer a question ──
+// Ranked the way search engines rank (BM25): a passage scores for each word of the question it holds, more for
+// rare words, less as the passage grows long. The best sentence in each passage is the one shown.
+export type Answer = { book: string; place: string; sentence: string; score: number; words: string[] }
+export async function askBooks(question: string, most = 8): Promise<Answer[]> {
+  const asked = [...new Set(wordsOf(question))]
+  if (!asked.length) return []
+  const passages: { book: string; stretch: Stretch; words: string[] }[] = []
+  for (const book of await shelf()) for (const stretch of await stretchesOf(book.name)) passages.push({ book: book.name, stretch, words: wordsOf(stretch.text) })
+  if (!passages.length) return []
+  const average = passages.reduce((sum, passage) => sum + passage.words.length, 0) / passages.length
+  const holding = new Map(asked.map(word => [word, passages.filter(passage => passage.words.includes(word)).length]))
+  const weight = (word: string) => Math.log(1 + (passages.length - holding.get(word)! + 0.5) / (holding.get(word)! + 0.5))
+  const k = 1.2, b = 0.75
+  const scored = passages.map(passage => {
+    const counts = new Map<string, number>()
+    for (const word of passage.words) if (holding.has(word)) counts.set(word, (counts.get(word) ?? 0) + 1)
+    let score = 0
+    for (const [word, count] of counts) score += weight(word) * (count * (k + 1)) / (count + k * (1 - b + b * passage.words.length / average))
+    // Holding more of the question's different words counts for more than repeating one of them.
+    return { passage, score: score * (1 + counts.size / asked.length) }
+  }).filter(found => found.score > 0).sort((x, y) => y.score - x.score).slice(0, most)
+  return scored.map(({ passage, score }) => {
+    const best = sentencesOf(passage.stretch.text)
+      .map(sentence => ({ sentence, held: new Set(wordsOf(sentence).filter(word => holding.has(word))).size }))
+      .sort((x, y) => y.held - x.held)[0]?.sentence ?? passage.stretch.text.slice(0, 240)
+    return { book: passage.book, place: passage.stretch.place, sentence: best.length > 320 ? `${best.slice(0, 320)}…` : best, score, words: asked }
+  })
+}

@@ -5,7 +5,7 @@ import { BookOpenText, NotebookPen } from 'lucide-react'
 import { Tool } from '../ui'
 import { baseName, goToPlace, onPlace, openBookByName, placeLink, placeNow, sendQuote, type Place } from '../lib/platform'
 import { placeName } from '../lib/library'
-import { glossaryOf, gistOf, kinOf, quizOf, termLinks, termsOf, type Entry, type Kin, type Question, type Term } from '../lib/insight'
+import { askBooks, glossaryOf, gistOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Entry, type Kin, type Question, type Term } from '../lib/insight'
 
 // The terms of a book drawn as a map: each a dot sized by how often it comes, joined to those it keeps company with.
 function IdeaMap({ terms, onPick }: { terms: Term[]; onPick(term: Term): void }) {
@@ -70,6 +70,40 @@ function Quiz({ questions }: { questions: Question[] }) {
 
 // A study guide for the page in front of you, worked out from the book's own words: the gist of the page, the
 // terms the book turns on (and where each is thickest), and the places in your other books on the same subject.
+// Ask your books: a question typed in, the passages across the library that best answer it.
+function Ask({ onGo }: { onGo(to: Place): void }) {
+  const [question, setQuestion] = useState('')
+  const [answers, setAnswers] = useState<Answer[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const ask = async () => {
+    if (!question.trim()) return
+    setBusy(true)
+    setAnswers(await askBooks(question))
+    setBusy(false)
+  }
+  // The words of the question, shown in the passage.
+  const lit = (sentence: string, words: string[]) => sentence.split(/(\s+)/).map((part, i) => {
+    const plain = part.toLowerCase().replace(/[^\p{L}]/gu, '')
+    return words.some(word => plain.startsWith(word) && word.length >= 3) ? <mark key={i}>{part}</mark> : part
+  })
+  return (
+    <section>
+      <h3>Ask your books</h3>
+      <form className="ask" onSubmit={e => { e.preventDefault(); void ask() }}>
+        <input value={question} placeholder="What do you want to know? e.g. why do dry electrodes have higher impedance" onChange={e => setQuestion(e.target.value)} />
+        <button className="primary" disabled={busy || !question.trim()}>{busy ? 'Looking…' : 'Ask'}</button>
+      </form>
+      {answers?.length === 0 && <p className="guide-wait">Nothing in your books speaks to that. Try other words.</p>}
+      {answers?.map(found => (
+        <button key={found.book + found.place} className="kin" onClick={() => onGo(found)}>
+          <span className="hit-book">{baseName(found.book)} · {placeName(found.place)}</span>
+          {lit(found.sentence, found.words)}
+        </button>
+      ))}
+    </section>
+  )
+}
+
 export default function GuideView() {
   const [here, setHere] = useState<Place | null>(placeNow)
   const [gist, setGist] = useState<string[] | null>(null)
@@ -130,9 +164,15 @@ export default function GuideView() {
     return () => { cancelled = true }
   }, [here, terms])
 
+  const goTo = (to: Place) => {
+    openBookByName(to.book)
+    for (const delay of [100, 1200, 2600]) setTimeout(() => goToPlace(to), delay)
+  }
+
   if (!here) {
     return (
       <div className="note guide">
+        <Ask onGo={goTo} />
         <div className="review-empty">
           <h2>Study guide</h2>
           <p>Open a book and turn to a page. The guide gives the gist of that page, the terms the book turns on, and the places in your other books that are about the same thing.</p>
@@ -148,6 +188,7 @@ export default function GuideView() {
 
   return (
     <div className="note guide">
+      <Ask onGo={goTo} />
       <p className="eyebrow">{baseName(here.book)} · {placeName(here.place)}</p>
 
       <section>

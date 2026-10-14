@@ -983,3 +983,9 @@ button.viewer-pos { font-weight: 500; }
 
 /* Read along: the sentence being spoken, lit on the page */
 .pdfViewer .textLayer span.speaking { background: color-mix(in srgb, #ffd84d 55%, transparent); border-radius: 2px; color: transparent; }
+
+/* Ask your books */
+.ask { display: flex; gap: 8px; width: 100%; }
+.ask input { flex: 1; min-width: 0; font: inherit; color: inherit; padding: 10px 12px; background: var(--bg); border: 1px solid transparent; border-radius: 12px; }
+.ask input:focus { outline: none; border-color: var(--accent-ring); }
+.kin mark { background: color-mix(in srgb, #ffd84d 60%, transparent); color: inherit; border-radius: 2px; }

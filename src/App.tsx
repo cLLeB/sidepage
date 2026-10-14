@@ -478,6 +478,7 @@ export default function App() {
     { group: 'Write', name: 'Canvas: draw and handwrite', hint: 'Ctrl+2', icon: PenLine, run: () => openNote('canvas', notebook) },
     { group: 'Write', name: 'Mind map', hint: 'Ctrl+3', icon: Workflow, run: () => openNote('mindmap', notebook) },
     { group: 'Study', name: 'Study guide for this page', icon: Sparkles, run: openGuide },
+    { group: 'Study', name: 'Ask your books a question', icon: Sparkles, run: () => { openGuide(); setTimeout(() => document.querySelector<HTMLInputElement>('.ask input')?.focus(), 600) } },
     { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
     { group: 'Study', name: 'Graph of linked notes', icon: Share2, run: openGraph },
