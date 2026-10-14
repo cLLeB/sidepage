@@ -62,6 +62,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Glossary: the guide finds, for each key term, the sentence where the book says what it is, and puts the lot
   in your notes as a table with links to the pages. Running heads and feet (a copyright line on every slide)
   are left out of all of this.
+- Study pack: everything kept about a book as one document to read or print: what the book is, your notes
+  with their pictures, highlights and comments, the glossary, key terms with their pages, and your cards as
+  questions with the answers after them.
 - Read text: drag a box over a scanned page or a picture, or take a whole page, and its words go into your
   notes ([Tesseract.js](https://github.com/naptha/tesseract.js), Apache-2.0, fetched from the internet the first
   time). The language is chosen in the More menu.

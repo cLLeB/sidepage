@@ -13,7 +13,9 @@ export async function keepFacts(book: string, facts: Partial<BookFacts>) {
   const authors = (facts.authors ?? []).map(clean).filter(Boolean)
   // (Kept tidy; the menu holds the untidy version while it is being typed.)
   await set(key(book), {
-    title: clean(facts.title) || baseName(book),
+    // Office programs fill the title in with their own name ("Présentation PowerPoint", "Microsoft Word - …");
+    // then the file's own name says more.
+    title: (/^(pr[ée]sentation powerpoint|powerpoint presentation|untitled|document\d*|slide \d+)$/i.test(clean(facts.title)) || /\.(docx?|pptx?|odt|rtf)$/i.test(clean(facts.title)) ? '' : clean(facts.title).replace(/^Microsoft (Word|PowerPoint) - /i, '')) || baseName(book),
     authors,
     year: clean(facts.year).match(/\d{4}/)?.[0],
     publisher: clean(facts.publisher) || undefined,

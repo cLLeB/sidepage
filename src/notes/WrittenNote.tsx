@@ -167,6 +167,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   const linkChoices = (query: string) => othersNow.current.filter(name => baseName(name).toLowerCase().includes(query.toLowerCase())).slice(0, 8)
   const watchForLink = (editor: Crepe) => editor.editor.action(ctx => {
     const view = ctx.get(editorViewCtx)
+    // The editor tells of a selection once while it is still being made, before it has a view.
+    if (!view.state) return
     const { $from, empty } = view.state.selection
     const before = $from.parent.textBetween(0, $from.parentOffset, undefined, '￼')
     const typed = empty ? before.match(/\[\[([^\]\n]{0,40})$/) : null

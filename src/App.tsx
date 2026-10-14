@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -427,6 +427,19 @@ export default function App() {
   // A highlight clicked in the book brings its notebook forward.
   useEffect(() => onFindInNotes(() => api.current?.getPanel(`note:written:${notebook}`)?.api.setActive()), [notebook])
 
+  // A study pack for the book in front: everything kept about it as one document to print or keep.
+  const makeStudyPack = useCallback(async () => {
+    const dock = api.current
+    const file = (dock?.activePanel?.params as { file?: File } | undefined)?.file
+      ?? dock?.panels.map(p => (p.params as { file?: File } | undefined)?.file).find(f => f && baseName(f.name) === notebook)
+    if (!file) return setNotice('Open the book first: the study pack is made for the book in front.')
+    setNotice('Making the study pack…')
+    const { studyPack } = await import('./lib/studypack')
+    const html = await studyPack(file.name)
+    await saveFileAs(`${baseName(file.name)} study pack.html`, new TextEncoder().encode(html))
+    setNotice('Study pack saved. Open it in a browser to read it, or print it (or print to PDF).')
+  }, [notebook])
+
   // The book and everything written beside it, saved together as one .sidepage file.
   const saveWhole = useCallback(async () => {
     const dock = api.current
@@ -475,6 +488,7 @@ export default function App() {
     ...PAPERS.map(kind => ({ group: 'View', name: `Paper: ${kind}`, icon: NotebookPen, run: () => setPaper(kind) })),
     { group: 'Keep', name: 'Save the book and its notes as one file', icon: Package, run: () => void saveWhole() },
     { group: 'Keep', name: 'Export this book\'s notes', icon: FileDown, run: () => void exportNotes() },
+    { group: 'Study', name: 'Make a study pack for this book', icon: BookMarked, run: () => void makeStudyPack() },
     { group: 'Keep', name: 'Save a bibliography of every book (BibTeX)', icon: FileDown, run: () => void bibliography('BibTeX').then(text => saveFileAs('Sidepage library.bib', new TextEncoder().encode(text + '\n'))) },
     { group: 'Keep', name: 'Save a reading list of every book (APA)', icon: FileDown, run: () => void bibliography('APA').then(text => saveFileAs('Reading list.md', new TextEncoder().encode('# Reading list\n\n' + text.split('\n\n').map(line => `- ${line}`).join('\n') + '\n'))) },
     ...books.map(book => ({ group: 'Your books', name: baseName(book.name), icon: BookOpenText, run: () => openFromShelf(book.name) })),
@@ -547,6 +561,7 @@ export default function App() {
               })}
             />
             <Tool icon={ArchiveRestore} label="Restore a backup" hint="Put back notes from a backup file. Nothing already here is overwritten." onClick={() => void browse()} />
+            <Tool icon={BookMarked} label="Make a study pack" hint="Notes, highlights, glossary and questions for this book, as one document to print" disabled={empty} onClick={() => void makeStudyPack()} />
             <Tool icon={FileDown} label="Export notes" hint="Save this book's notes, highlights and bookmarks as one Markdown file" disabled={empty} onClick={() => void exportNotes()} />
             {canPickNotesFolder && (
               <Tool
