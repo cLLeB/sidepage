@@ -122,3 +122,38 @@ export const timeLeft = (fileName: string) => {
   const read = progressOf(fileName), spent = spentOn(fileName)
   return read > 0.05 && read < 0.97 && spent >= 5 ? Math.max(1, Math.round((spent * (1 - read)) / read)) : 0
 }
+
+// ── Reading plans: finish a book by a day, and know each day how far to read ──
+// The day's target is worked out from where the book stood when the day began, so reading ahead today
+// lightens tomorrow and a day missed is shared out over the days left.
+import { getPref, setPref } from './prefs'
+export type Plan = { by: string }
+export const plans = () => getPref<Record<string, Plan>>('plans', {})
+export const setPlan = (fileName: string, by: string | null) => {
+  const all = { ...plans() }
+  if (by) all[fileName] = { by }
+  else delete all[fileName]
+  setPref('plans', all)
+}
+const todayKey = () => day(new Date())
+// Where the book stood when today began (taken the first time it is asked for today).
+const startOfDay = (fileName: string) => {
+  const key = `sidepage:plan-day:${fileName}`
+  const saved = JSON.parse(localStorage.getItem(key) ?? 'null') as { day: string; progress: number } | null
+  if (saved?.day === todayKey()) return saved.progress
+  const progress = progressOf(fileName)
+  localStorage.setItem(key, JSON.stringify({ day: todayKey(), progress }))
+  return progress
+}
+export type PlanToday = { by: Date; daysLeft: number; target: number; read: number; done: boolean; late: boolean }
+export function planToday(fileName: string): PlanToday | null {
+  const plan = plans()[fileName]
+  if (!plan) return null
+  const by = new Date(`${plan.by}T23:59:59`)
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0)
+  const daysLeft = Math.ceil((by.getTime() - midnight.getTime()) / 86_400_000)
+  const began = startOfDay(fileName)
+  const read = progressOf(fileName)
+  const target = daysLeft <= 0 ? 1 : Math.min(1, began + (1 - began) / daysLeft)
+  return { by, daysLeft, target, read, done: read >= target - 0.002, late: daysLeft <= 0 && read < 0.97 }
+}

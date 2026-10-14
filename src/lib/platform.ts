@@ -200,6 +200,8 @@ export const picturesIn = (markdown: string) => [...new Set([
   ...[...markdown.matchAll(/!\[[^\]]*\]\(((?:clip|picture)-[\w.-]+)(?:\s+"[^"]*")?\)/g)].map(match => match[1]),
   // …and the sound recordings its moments point into.
   ...[...markdown.matchAll(/#sidepage-sound\?file=(sound-[\w.-]+)/g)].map(match => match[1]),
+  // …and the pictures of its picture cards (picture-cards.json, read along with the note).
+  ...[...markdown.matchAll(/"file":"(card-[\w.-]+)"/g)].map(match => match[1]),
 ])]
 
 export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number) {

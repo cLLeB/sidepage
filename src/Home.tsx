@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { BookOpenText, Clock, Flame, FolderOpen, Library, NotebookText, Quote, Star, Target, X } from 'lucide-react'
+import { BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, Library, NotebookText, Quote, Star, Target, X } from 'lucide-react'
+import { usePref } from './lib/prefs'
 import { baseName, extensionOf, loadNote, type Shelved } from './lib/platform'
-import { asTime, progressOf, readingDays, readingStats, spentOn, timeLeft } from './lib/reading'
+import { asTime, planToday, progressOf, readingDays, readingStats, setPlan, spentOn, timeLeft, type Plan } from './lib/reading'
 
 // What a book is, said plainly, and the shelves it can be filtered into.
 const KINDS: Record<string, string> = {
@@ -46,6 +47,20 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
   const [shelfName, setShelfName] = useState('All')
   const [order, setOrder] = useState(() => localStorage.getItem('sidepage:order') ?? 'recent')
   const stats = readingStats()
+  // Plans: re-read whenever one is set, so the list below follows.
+  const [planned] = usePref<Record<string, Plan>>('plans', {})
+  const plannedBooks = books.filter(book => planned[book.name])
+  const pickDate = (name: string) => {
+    const input = document.createElement('input')
+    input.type = 'date'
+    input.min = new Date().toLocaleDateString('en-CA')
+    input.value = planned[name]?.by ?? new Date(Date.now() + 14 * 86_400_000).toLocaleDateString('en-CA')
+    input.style.cssText = 'position:fixed;opacity:0;pointer-events:none;left:50%;top:50%'
+    document.body.append(input)
+    input.addEventListener('change', () => { if (input.value) setPlan(name, input.value); input.remove() })
+    input.addEventListener('blur', () => setTimeout(() => input.remove(), 400))
+    try { input.showPicker() } catch { input.focus(); input.click() }
+  }
   // One of your own highlights, a different one each day, to meet again.
   const [remembered, setRemembered] = useState<{ text: string; book: string } | null>(null)
   useEffect(() => {
@@ -113,6 +128,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                 <span className="hero-meta">{kindOf(last.name).replace(/s$/, '')} · {Math.round(progressOf(last.name) * 100)}% read{timeLeft(last.name) ? ` · about ${asTime(timeLeft(last.name))} left` : ''}</span>
                 <span className="meter"><i style={{ width: `${Math.round(progressOf(last.name) * 100)}%` }} /></span>
                 <span className="hero-go"><BookOpenText size={17} aria-hidden /> Pick up where you left off</span>
+                {!planned[last.name] && <span className="hero-plan" role="button" tabIndex={0} onClick={e => { e.stopPropagation(); pickDate(last.name) }}><CalendarClock size={14} aria-hidden /> Set a day to finish it by</span>}
               </span>
             </button>
             <section className="tiles" aria-label="Your reading">
@@ -147,6 +163,35 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
               </div>
             </section>
           </div>
+        )}
+
+        {plannedBooks.length > 0 && (
+          <section className="plans" aria-label="Reading plans">
+            <h2 className="shelf-title"><CalendarClock size={16} aria-hidden /> Today's reading</h2>
+            {plannedBooks.map(book => {
+              const today = planToday(book.name)!
+              const left = Math.max(0, today.target - today.read)
+              return (
+                <div key={book.name} className={today.done ? 'plan done' : today.late ? 'plan late' : 'plan'}>
+                  <button className="plan-book" onClick={() => onOpen(book.name)}>
+                    <span className="plan-name">{baseName(book.name)}</span>
+                    <span className="book-meta">
+                      {today.late ? 'The finish day has passed' : `Finish by ${today.by.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} · ${today.daysLeft} day${today.daysLeft === 1 ? '' : 's'} left`}
+                    </span>
+                    <span className="meter plan-meter">
+                      <i style={{ width: `${Math.round(today.read * 100)}%` }} />
+                      <b style={{ left: `${Math.round(today.target * 100)}%` }} title="Today's mark" />
+                    </span>
+                  </button>
+                  <span className="plan-state">
+                    {today.done ? <><CalendarCheck size={16} aria-hidden /> Done for today</> : `Read to ${Math.round(today.target * 100)}% today · ${Math.max(1, Math.round(left * 100))}% to go`}
+                  </span>
+                  <button className="tool" title="Change the finish day" aria-label="Change the finish day" onClick={() => pickDate(book.name)}><CalendarClock size={16} aria-hidden /></button>
+                  <button className="tool" title="Drop this plan" aria-label="Drop this plan" onClick={() => setPlan(book.name, null)}><X size={16} aria-hidden /></button>
+                </div>
+              )
+            })}
+          </section>
         )}
 
         {remembered && (
@@ -190,6 +235,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                   title={favourites.includes(book.name) ? 'No longer a favourite' : 'Keep at the front as a favourite'}
                   aria-label="Favourite" aria-pressed={favourites.includes(book.name)} onClick={() => onFavourite(book.name)}
                 ><Star size={15} aria-hidden /></button>
+                <button className={planned[book.name] ? 'book-plan on' : 'book-plan'} title={planned[book.name] ? `Finish by ${planned[book.name].by}` : 'Set a day to finish it by'} aria-label="Plan" onClick={() => pickDate(book.name)}><CalendarClock size={15} aria-hidden /></button>
                 <button className="book-remove" title="Remove from the library" aria-label="Remove from the library" onClick={() => onRemove(book.name)}><X size={15} aria-hidden /></button>
               </li>
             ))}

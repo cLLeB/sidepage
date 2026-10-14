@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ImagePlus, RotateCw, ScanText, ZoomIn, ZoomOut } from 'lucide-react'
+import { ImagePlus, RotateCw, ScanText, SquareDashed, ZoomIn, ZoomOut } from 'lucide-react'
+import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { readText } from '../lib/ocr'
 import { Tool } from '../ui'
 import { baseName, sendClip, sendQuote } from '../lib/platform'
@@ -10,6 +11,7 @@ export default function ImageView({ file }: { file: File }) {
   const [full, setFull] = useState(false)
   const [turn, setTurn] = useState(0)
   const [busy, setBusy] = useState('')
+  const [carding, setCarding] = useState(false)
   const words = async () => {
     setBusy('Reading the text…')
     try {
@@ -52,10 +54,23 @@ export default function ImageView({ file }: { file: File }) {
         <Tool icon={RotateCw} label="Turn" hint="Turn the picture a quarter" onClick={() => setTurn((turn + 90) % 360)} />
         {busy && <span className="viewer-pos">{busy}</span>}
         <span className="spacer" />
+        <Tool icon={SquareDashed} label="Picture cards" hint="Cover the labels on this picture: each one becomes a flashcard" on={carding} onClick={() => setCarding(true)} />
         <Tool icon={ScanText} label="Read text" hint="Put the words in this picture into your notes" onClick={() => void words()} />
         <Tool icon={ImagePlus} label="Put in my notes" hint="Add this picture to the notes beside it" onClick={() => void intoNotes()} />
       </div>
       <div className={full ? 'viewer-body image-host full' : 'viewer-body image-host'}>
+        {carding && url && (
+          <PictureCardMaker
+            image={url}
+            onCancel={() => setCarding(false)}
+            onSave={boxes => {
+              setCarding(false)
+              void addPictureCards(baseName(file.name), file, { source: baseName(file.name), boxes })
+              setBusy(`${boxes.length} picture card${boxes.length === 1 ? '' : 's'} made: they come up in Review`)
+              setTimeout(() => setBusy(''), 5000)
+            }}
+          />
+        )}
         {url && <img src={url} alt={file.name} style={{ transform: turn ? `rotate(${turn}deg)` : undefined }} onClick={() => setFull(!full)} />}
       </div>
     </div>

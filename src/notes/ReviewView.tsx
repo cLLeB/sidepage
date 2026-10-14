@@ -3,11 +3,12 @@ import { BookOpen, FileDown, Repeat, RotateCcw } from 'lucide-react'
 import { Tool } from '../ui'
 import { baseName, goToPlace, openBookByName, saveFileAs } from '../lib/platform'
 import { allCards, dueCards, grade, Rating, type Flashcard } from '../lib/review'
+import { PictureCard } from './PictureCards'
 
 // Every card, front and back on one line with a tab between: the form Anki and most flashcard apps import.
 const exportCards = async () => {
   const flat = (text: string) => text.replace(/\s+/g, ' ').trim()
-  const lines = (await allCards()).filter(card => card.back).map(card => `${flat(card.front)}\t${flat(card.back)}\t${baseName(card.book)}`)
+  const lines = (await allCards()).filter(card => card.back && !card.picture).map(card => `${flat(card.front)}\t${flat(card.back)}\t${baseName(card.book)}`)
   await saveFileAs('Sidepage flashcards.txt', new TextEncoder().encode(lines.join('\n') + '\n'))
 }
 
@@ -31,7 +32,7 @@ export default function ReviewView() {
   const practise = () => void allCards().then(all => {
     setPractice(true)
     setTurned(false)
-    setCards(all.filter(card => card.back).sort(() => Math.random() - 0.5))
+    setCards(all.filter(card => card.back || card.picture).sort(() => Math.random() - 0.5))
   })
 
   const load = useCallback(() => {
@@ -91,8 +92,15 @@ export default function ReviewView() {
     >
       <p className="review-count">{practice ? 'Practice · ' : ''}{cards.length} to go · {baseName(card.book)}</p>
       <div className="review-card">
-        <div className="review-front">{card.front}</div>
-        {turned && <div className="review-back">{card.back || 'You have not added a comment to this passage yet.'}</div>}
+        {card.picture
+          ? <>
+              <PictureCard {...card.picture} turned={turned} />
+              <p className="review-note">{turned && card.back ? card.back : `What is under the marked box? · ${card.front}`}</p>
+            </>
+          : <>
+              <div className="review-front">{card.front}</div>
+              {turned && <div className="review-back">{card.back || 'You have not added a comment to this passage yet.'}</div>}
+            </>}
       </div>
       {turned
         ? <div className="review-grades">

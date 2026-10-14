@@ -8,9 +8,12 @@ import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
 import {
   BookA, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, Eye, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
-  ScanText, Volume2, ZoomIn, ZoomOut,
+  ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut,
 } from 'lucide-react'
+import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { readText } from '../lib/ocr'
+import { planToday } from '../lib/reading'
+import { usePref } from '../lib/prefs'
 import { lookUp } from '../Extras'
 import { Menu, Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
@@ -145,6 +148,9 @@ export default function PdfView({ file }: { file: File }) {
   const [clipping, setClipping] = useState(false)
   // Read text: the same box, but what comes out is the words in it, not a picture of it.
   const [reading, setReading] = useState(false)
+  // Picture cards: the same box again, and what comes out is a picture to cover labels on.
+  const [carding, setCarding] = useState(false)
+  const [cardImage, setCardImage] = useState<{ image: string; page: number } | null>(null)
   const [busy, setBusy] = useState('')
   const wordsFrom = async (picture: HTMLCanvasElement, pageNumber: number) => {
     setBusy('Reading the text…')
@@ -195,11 +201,12 @@ export default function PdfView({ file }: { file: File }) {
     const [sx, sy] = [Math.max(0, left - r.left) * scale, Math.max(0, top - r.top) * scale]
     const [sw, sh] = [(Math.min(right, r.right) - Math.max(left, r.left)) * scale, (Math.min(bottom, r.bottom) - Math.max(top, r.top)) * scale]
     // Kept to a sensible size: it is stored inside the note.
-    const shrink = reading ? 1 : Math.min(1, 1100 / sw)
+    const shrink = reading ? 1 : Math.min(1, (carding ? 1600 : 1100) / sw)
     const cut = document.createElement('canvas')
     cut.width = Math.round(sw * shrink)
     cut.height = Math.round(sh * shrink)
     cut.getContext('2d')!.drawImage(best.canvas, sx, sy, sw, sh, 0, 0, cut.width, cut.height)
+    if (carding) return setCardImage({ image: cut.toDataURL('image/jpeg', 0.9), page: best.page })
     if (reading) return void readPage(best.page, { x: Math.max(0, left - r.left) / r.width, y: Math.max(0, top - r.top) / r.height, w: sw / scale / r.width, h: sh / scale / r.height })
     sendClip({ image: cut.toDataURL('image/jpeg', 0.88), source: `${baseName(file.name)}, p. ${best.page}`, book: file.name, place: `page=${best.page}` })
   }
@@ -507,6 +514,10 @@ export default function PdfView({ file }: { file: File }) {
 
   // After a jump (a search hit, a bookmark, a typed page), one tap returns to the page you left.
   const [cameFrom, setCameFrom] = useState(0)
+  // A reading plan: the page to reach today.
+  usePref('plans', {})
+  const plan = doc ? planToday(file.name) : null
+  const goalPage = plan && doc ? Math.min(doc.numPages, Math.ceil(plan.target * (doc.numPages - 1)) + 1) : 0
   const go = (delta: number) => {
     const viewer = viewerRef.current
     if (Math.abs(delta) > 1) setCameFrom(page)
@@ -536,6 +547,7 @@ export default function PdfView({ file }: { file: File }) {
               }}
             />
           : <button className="viewer-pos" title="Go to a page" onClick={() => mode === 'scroll' && setJumping(true)}>{page} / {doc?.numPages ?? '…'}</button>}
+        {plan && <span className={page >= goalPage ? 'viewer-pos plan-pill done' : 'viewer-pos plan-pill'} title="Today's mark in your reading plan">{page >= goalPage ? 'Today’s reading done' : `Today: to p. ${goalPage}`}</span>}
         <span className="spacer" />
         {mode === 'scroll' && <>
           <Tool quiet icon={ZoomOut} label="Zoom out" onClick={() => zoomBy(1 / 1.2)} />
@@ -559,8 +571,9 @@ export default function PdfView({ file }: { file: File }) {
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
-          <Tool icon={Crop} label="Clip" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading} onClick={() => { setReading(false); setClipping(!clipping) }} />
-          <Tool icon={ScanText} label="Read text" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setReading(true); setClipping(!(clipping && reading)) }} />
+          <Tool icon={Crop} label="Clip" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading && !carding} onClick={() => { setReading(false); setCarding(false); setClipping(!clipping) }} />
+          <Tool icon={ScanText} label="Read text" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setReading(true); setClipping(!(clipping && reading)) }} />
+          <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setCarding(true); setClipping(!(clipping && carding)) }} />
           {busy && <span className="viewer-pos">{busy}</span>}
           <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
           <Tool icon={Download} label="Save copy" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
@@ -594,6 +607,19 @@ export default function PdfView({ file }: { file: File }) {
           >
             {box && <div className="clip-box" style={{ left: Math.min(box.x0, box.x1), top: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }} />}
           </div>
+        )}
+        {cardImage && (
+          <PictureCardMaker
+            image={cardImage.image}
+            onCancel={() => setCardImage(null)}
+            onSave={boxes => {
+              const { image, page: from } = cardImage
+              setCardImage(null)
+              void fetch(image).then(answer => answer.blob()).then(blob => addPictureCards(baseName(file.name), blob, { source: `${baseName(file.name)}, p. ${from}`, place: `page=${from}`, boxes }))
+              setBusy(`${boxes.length} picture card${boxes.length === 1 ? '' : 's'} made: they come up in Review`)
+              setTimeout(() => setBusy(''), 5000)
+            }}
+          />
         )}
         {mode === 'flip' && (flip
           ? <FlipBook pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {

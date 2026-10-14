@@ -1,11 +1,13 @@
 import { createEmptyCard, fsrs, Rating, type Card, type Grade } from 'ts-fsrs'
 import { baseName, loadNote, saveNote, shelf } from './platform'
+import { pictureCardsOf, type Box } from '../notes/PictureCards'
 
 // Flashcards, made from what the reader has already written rather than typed in again:
 //   • every highlight in a book: the passage on the front, the reader's comment on the back
 //   • every "Q: …" line in the written notes, with the "A: …" line after it as the answer
 // When each card comes up again is decided by FSRS (ts-fsrs), from how well it was remembered.
-export type Flashcard = { id: string; book: string; front: string; back: string; place?: string }
+//   • every box drawn over a picture: the picture with that box covered, then uncovered
+export type Flashcard = { id: string; book: string; front: string; back: string; place?: string; picture?: { notebook: string; file: string; boxes: Box[]; ask: number } }
 export { Rating }
 
 type Highlight = { cfi: string; text: string; note?: string }
@@ -33,6 +35,12 @@ export async function allCards(): Promise<Flashcard[]> {
       const answer = lines.slice(i + 1).find(Boolean)?.match(/^A[:.]\s*(.+)/i)?.[1]
       if (question && answer) cards.push({ id: idOf(`${book.name}|Q|${question}`), book: book.name, front: question, back: answer })
     })
+    for (const set of await pictureCardsOf(notebook)) {
+      set.boxes.forEach((box, ask) => cards.push({
+        id: idOf(`${book.name}|P|${set.id}|${ask}`), book: book.name, front: set.source, back: box.label ?? '', place: set.place,
+        picture: { notebook, file: set.file, boxes: set.boxes, ask },
+      }))
+    }
   }
   return cards
 }

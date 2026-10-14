@@ -7,7 +7,7 @@ import { bookmarksFile } from './reading'
 //   sidepage-backup.json     what is inside
 //   <notebook>/<file>        each notebook's files
 export const BACKUP_EXTENSION = 'sidepage-backup'
-const NOTE_FILES = ['notes.md', 'mindmap.json', 'highlights.json', 'canvas.excalidraw']
+const NOTE_FILES = ['notes.md', 'mindmap.json', 'highlights.json', 'canvas.excalidraw', 'picture-cards.json']
 const REVIEW = '_review'
 
 type Manifest = { format: 1; made: string; notebooks: { name: string; files: string[]; pictures: string[] }[] }
@@ -32,7 +32,7 @@ export async function packBackup(): Promise<{ data: Uint8Array; notebooks: numbe
     }
     for (const file of name === REVIEW ? ['schedule.json'] : [...NOTE_FILES, ...bookmarks]) await add(file)
     for (let page = 2; name !== REVIEW && await add(`canvas-${page}.excalidraw`); page++);
-    for (const picture of picturesIn((await loadNote(name, 'notes.md')) ?? '')) {
+    for (const picture of picturesIn(((await loadNote(name, 'notes.md')) ?? '') + ((await loadNote(name, 'picture-cards.json')) ?? ''))) {
       const data = await loadNoteFile(name, picture)
       if (!data) continue
       zip.file(`${name}/${picture}`, await data.arrayBuffer())
