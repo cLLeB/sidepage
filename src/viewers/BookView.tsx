@@ -3,8 +3,8 @@ import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
 import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
-import { BookA, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2 } from 'lucide-react'
-import { lookUp } from '../Extras'
+import { BookA, Languages, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2 } from 'lucide-react'
+import { lookUp, translate } from '../Extras'
 import { CiteMenu, keepFacts } from './Cite'
 import { Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
@@ -355,6 +355,7 @@ export default function BookView({ file }: { file: File }) {
         {canCurl && canSpeak && !turning && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
         <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={() => void quote()} />
         <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => void selectedPassage().then(passage => lookUp(passage?.text))} />
+        <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => void selectedPassage().then(passage => translate(passage?.text))} />
         {!turning && <Tool icon={ScrollText} label="Scroll" hint="Read as one long scroll" on={scrolled} onClick={() => setScrolled(s => !s)} />}
         {canCurl && <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={curl} onClick={toggleCurl} />}
       </div>

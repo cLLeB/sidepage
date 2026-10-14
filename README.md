@@ -117,6 +117,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Stylus friendly: touch the canvas or a PDF page with a pencil and the pen tool is picked up for you.
 - Cite: the open book as an APA, MLA, Chicago or BibTeX reference, from what the file says about itself; copy it
   or put it in your notes. Go to anything saves a bibliography (.bib) or a reading list of the whole library.
+- Translate a selected passage into English, French and ten other languages (by MyMemory, a free online
+  service), and put the translation in your notes with the original under it.
 - Type [[ in a note to link to another book's notes, picking it from a list that narrows as you type.
 - Link one book's notes to another's, see which notes link back ("Linked from"), and view all of it as a graph.
 - Highlight and draw on PDF pages, and save a copy with the marks in it.

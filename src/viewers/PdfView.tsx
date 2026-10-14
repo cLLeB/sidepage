@@ -7,7 +7,7 @@ import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
 import {
-  BookA, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, Eye, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
+  BookA, Languages, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, Eye, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
   ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
@@ -15,7 +15,7 @@ import { openReader, readText } from '../lib/ocr'
 import { planToday } from '../lib/reading'
 import { CiteMenu, keepFacts } from './Cite'
 import { usePref } from '../lib/prefs'
-import { lookUp } from '../Extras'
+import { lookUp, translate } from '../Extras'
 import { Menu, Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
 import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, type Highlight } from '../lib/reading'
@@ -628,6 +628,7 @@ export default function PdfView({ file }: { file: File }) {
           <Tool icon={Download} label="Save copy" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
           <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
           <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
+          <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => translate(window.getSelection()?.toString())} />
           {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
         </>}
         <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={mode === 'flip'} onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} />

@@ -10,7 +10,7 @@ import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
 import { coverOf } from './lib/reading'
 import Home from './Home'
-import { Comfort, FocusClock, LookUp, Palette, StudyTimer, VoiceSettings, useScreenOn, type Command } from './Extras'
+import { Comfort, FocusClock, LookUp, Palette, StudyTimer, Translator, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
 import { OCR_LANGUAGES } from './lib/ocr'
 import { bibliography } from './viewers/Cite'
@@ -607,6 +607,7 @@ export default function App() {
       {focus && <button className="focus-exit" title="Show the toolbars again" aria-label="Leave focus" onClick={() => setFocus(false)}><Minimize2 size={18} aria-hidden /></button>}
       <Comfort />
       <LookUp />
+      <Translator />
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">

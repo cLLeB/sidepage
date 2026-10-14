@@ -255,3 +255,80 @@ export function useScreenOn(on: boolean) {
     return () => { over = true; document.removeEventListener('visibilitychange', hold); void lock?.release().catch(() => {}) }
   }, [on])
 }
+
+// ── Translate: a selected passage into the language of your choice, by a free translation service online ──
+export const TRANSLATE_TO = { en: 'English', fr: 'French', es: 'Spanish', de: 'German', pt: 'Portuguese', it: 'Italian', nl: 'Dutch', ak: 'Akan (Twi)', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese', ru: 'Russian' } as const
+export const translate = (text: string | undefined | null) => window.dispatchEvent(new CustomEvent('sidepage:translate', { detail: (text ?? '').trim() }))
+
+// The service takes a few hundred letters at a time, so a long passage goes in pieces, sentence by sentence.
+const pieces = (text: string, most = 450) => {
+  const out: string[] = []
+  let piece = ''
+  for (const sentence of text.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]*\s*/g) ?? [text]) {
+    if ((piece + sentence).length > most && piece) { out.push(piece.trim()); piece = '' }
+    piece += sentence.length > most ? sentence.slice(0, most) : sentence
+  }
+  if (piece.trim()) out.push(piece.trim())
+  return out
+}
+
+export function Translator() {
+  const [text, setText] = useState<string | null>(null)
+  const [to, setTo] = usePref<keyof typeof TRANSLATE_TO>('translate-to', 'en')
+  const [result, setResult] = useState<{ text: string; from?: string } | 'loading' | 'failed' | 'same'>('loading')
+  useEffect(() => {
+    const open = (e: Event) => setText((e as CustomEvent<string>).detail)
+    window.addEventListener('sidepage:translate', open)
+    return () => window.removeEventListener('sidepage:translate', open)
+  }, [])
+  useEffect(() => {
+    if (!text) return
+    let cancelled = false
+    setResult('loading')
+    void (async () => {
+      try {
+        let from: string | undefined
+        const done: string[] = []
+        for (const piece of pieces(text).slice(0, 12)) {
+          const answer = await (await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(piece)}&langpair=Autodetect|${to}`)).json()
+          // Asked to translate into the language it is already in, the service answers with a complaint.
+          if (/two distinct languages/i.test(String(answer?.responseData?.translatedText ?? ''))) { if (!cancelled) setResult('same'); return }
+          done.push(String(answer?.responseData?.translatedText ?? ''))
+          from ??= answer?.responseData?.detectedLanguage ?? answer?.matches?.[0]?.source
+        }
+        if (!cancelled) setResult({ text: done.join(' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'), from })
+      } catch {
+        if (!cancelled) setResult('failed')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [text, to])
+  if (text === null) return null
+  return (
+    <div className="palette-shade" onClick={() => setText(null)}>
+      <div className="palette lookup translator" role="dialog" aria-label="Translate" onClick={e => e.stopPropagation()}>
+        <h2>Translate
+          <select value={to} onChange={e => setTo(e.target.value as keyof typeof TRANSLATE_TO)} aria-label="Into">
+            {Object.entries(TRANSLATE_TO).map(([code, name]) => <option key={code} value={code}>into {name}</option>)}
+          </select>
+        </h2>
+        {!text && <p className="menu-note">Select a passage on the page first, then choose Translate.</p>}
+        {text && <>
+          <blockquote className="translate-from">{text.length > 900 ? `${text.slice(0, 900)}…` : text}</blockquote>
+          {result === 'loading' && <p className="menu-note">Translating…</p>}
+          {result === 'same' && <p className="menu-note">This passage is already in {TRANSLATE_TO[to]}. Choose another language above.</p>}
+          {result === 'failed' && <p className="menu-note">The translation service is on the internet, and it cannot be reached just now.</p>}
+          {typeof result === 'object' && <p className="translate-to">{result.text}</p>}
+          <p className="menu-note small">Sent to MyMemory, a free translation service, to be translated.</p>
+        </>}
+        <div className="lookup-actions">
+          {typeof result === 'object' && <>
+            <button className="soft" onClick={() => void navigator.clipboard?.writeText(result.text)}>Copy</button>
+            <button className="soft" onClick={() => { sendQuote({ text: `${result.text}\n\n(${text})`, source: `Translated into ${TRANSLATE_TO[to]}` }); setText(null) }}>Add to my notes</button>
+          </>}
+          <button className="primary" onClick={() => setText(null)}>Done</button>
+        </div>
+      </div>
+    </div>
+  )
+}

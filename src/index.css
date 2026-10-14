@@ -908,3 +908,10 @@ button.viewer-pos { font-weight: 500; }
 .cite-edit label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .cite-edit :is(input, textarea) { font: inherit; font-size: 13.5px; font-weight: 400; color: var(--text); padding: 7px 9px; background: var(--bg); border: 1px solid transparent; border-radius: 8px; resize: vertical; }
 .cite-edit :is(input, textarea):focus { outline: none; border-color: var(--accent-ring); }
+
+/* Translate */
+.translator h2 { justify-content: space-between; }
+.translator h2 select { font-size: 13px; }
+.translate-from { margin: 0; max-height: 150px; overflow: auto; padding: 8px 12px; color: var(--muted); border-left: 3px solid var(--border); font: 14px/1.5 Georgia, 'Times New Roman', serif; }
+.translate-to { margin: 6px 0 0; font: 16px/1.6 Georgia, 'Times New Roman', serif; max-height: 40vh; overflow: auto; }
+.menu-note.small { font-size: 11.5px; }
