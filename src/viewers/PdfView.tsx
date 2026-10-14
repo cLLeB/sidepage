@@ -260,7 +260,26 @@ export default function PdfView({ file }: { file: File }) {
       first = false
       const content = await (await doc.getPage(number)).getTextContent()
       return content.items.map(item => ('str' in item ? item.str : '')).join(' ')
-    })
+    }, sentence => light(number, sentence))
+  }
+  // Read along: the words of the page's text layer are matched against the sentence being spoken, letters only,
+  // and the pieces of text it covers are lit.
+  const light = (pageNumber: number, sentence: string | null) => {
+    container.current?.querySelectorAll('.speaking').forEach(span => span.classList.remove('speaking'))
+    if (!sentence) return
+    const spans = [...(container.current?.querySelectorAll<HTMLElement>(`.page[data-page-number="${pageNumber}"] .textLayer span`) ?? [])]
+    const squash = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+    let joined = ''
+    const starts = spans.map(span => { const at = joined.length; joined += squash(span.textContent ?? ''); return at })
+    const wanted = squash(sentence)
+    if (wanted.length < 4) return
+    // The whole sentence, or failing that (a line broken differently) its first forty letters.
+    let from = joined.indexOf(wanted), length = wanted.length
+    if (from < 0) { from = joined.indexOf(wanted.slice(0, 40)); length = Math.min(wanted.length, joined.length - from) }
+    if (from < 0) return
+    const lit = spans.filter((span, i) => starts[i] < from + length && starts[i] + squash(span.textContent ?? '').length > from)
+    lit.forEach(span => span.classList.add('speaking'))
+    lit[0]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }
   const links = useRef<PDFLinkService | null>(null)
   const [contents, setContents] = useState<{ label: string; depth: number; go(): void }[]>([])

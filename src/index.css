@@ -980,3 +980,6 @@ button.viewer-pos { font-weight: 500; }
 .page-map .map-goal { left: -2px; right: -2px; height: 2px; background: #2f9e44; }
 .page-map .map-here { left: -3px; right: -3px; height: 6px; margin-top: -3px; border-radius: 3px; background: transparent; box-shadow: inset 0 0 0 2px var(--text); }
 @media (pointer: coarse) { .page-map { width: 16px; opacity: 0.9; } }
+
+/* Read along: the sentence being spoken, lit on the page */
+.pdfViewer .textLayer span.speaking { background: color-mix(in srgb, #ffd84d 55%, transparent); border-radius: 2px; color: transparent; }

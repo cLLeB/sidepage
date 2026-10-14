@@ -42,7 +42,7 @@ export function useReadAloud() {
     setSpeaking(false)
   }, [])
 
-  const start = useCallback(async (next: () => Promise<string | null>) => {
+  const start = useCallback(async (next: () => Promise<string | null>, onSentence?: (sentence: string | null) => void) => {
     if (!canSpeak) return
     speechSynthesis.cancel()
     const mine = ++run.current
@@ -55,10 +55,12 @@ export function useReadAloud() {
       if (mine !== run.current) return
       if (text === null) break
       for (const sentence of sentences(text)) {
+        onSentence?.(sentence)
         await say(sentence)
         if (mine !== run.current) return
       }
     }
+    onSentence?.(null)
     if (mine === run.current) setSpeaking(false)
   }, [stop])
 
