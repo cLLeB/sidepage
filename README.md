@@ -129,6 +129,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   service), and put the translation in your notes with the original under it.
 - Earlier versions of a note are kept as you write (every ten minutes or so, the last sixty): compare any of
   them with the note now, line by line, and bring one back.
+- Mock exam: four-answer questions from the cards of the books you choose, against the clock if you like; the
+  score book by book, what you missed with the right answers, and the choice to count it in your reviews.
 - Review shows how learning is going: cards known, learning and new, how often you remember, days in a row,
   and how many cards fall due on each of the next fourteen days.
 - Type [[ in a note to link to another book's notes, picking it from a list that narrows as you type.

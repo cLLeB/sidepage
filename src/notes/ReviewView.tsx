@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BookOpen, FileDown, Repeat, RotateCcw } from 'lucide-react'
+import { BookOpen, ClipboardCheck, FileDown, Repeat, RotateCcw } from 'lucide-react'
 import { Tool } from '../ui'
 import { baseName, goToPlace, openBookByName, saveFileAs } from '../lib/platform'
 import { allCards, dueCards, grade, Rating, type Flashcard } from '../lib/review'
 import { PictureCard } from './PictureCards'
 import LearningProgress from './LearningProgress'
+import Exam from './Exam'
 
 // Every card, front and back on one line with a tab between: the form Anki and most flashcard apps import.
 const exportCards = async () => {
@@ -30,6 +31,7 @@ export default function ReviewView() {
   const [done, setDone] = useState(0)
   // Practice: every card in a shuffled pile, without touching when each is next due.
   const [practice, setPractice] = useState(false)
+  const [exam, setExam] = useState(false)
   const practise = () => void allCards().then(all => {
     setPractice(true)
     setTurned(false)
@@ -48,6 +50,7 @@ export default function ReviewView() {
   }, [])
   useEffect(load, [load])
 
+  if (exam) return <div className="note review"><Exam onLeave={() => { setExam(false); load() }} /></div>
   if (!cards) return <div className="note review"><p className="review-note">Gathering your cards…</p></div>
 
   const card = cards[0]
@@ -63,6 +66,7 @@ export default function ReviewView() {
           </p>
           <Tool icon={RotateCcw} label="Check again" onClick={load} />
           {total > 0 && <LearningProgress key={done} />}
+          {total > 0 && <Tool icon={ClipboardCheck} label="Mock exam" hint="A timed test of four-answer questions from the books you choose" onClick={() => setExam(true)} />}
           {total > 0 && <Tool icon={Repeat} label="Practise every card anyway" hint="Go through all your cards now, without changing when they are due" onClick={practise} />}
           {total > 0 && <Tool icon={FileDown} label="Save the cards for Anki" hint="A text file other flashcard apps can import" onClick={() => void exportCards()} />}
         </div>
@@ -112,6 +116,7 @@ export default function ReviewView() {
       <div className="review-grades">
         <Tool icon={BookOpen} label="Open in the book" onClick={openInBook} />
         <Tool icon={FileDown} label="Save the cards for Anki" hint="A text file other flashcard apps can import" onClick={() => void exportCards()} />
+        <Tool icon={ClipboardCheck} label="Mock exam" onClick={() => setExam(true)} />
       </div>
       <p className="review-note keys">Space turns the card · 1 to 4 say how it went</p>
     </div>

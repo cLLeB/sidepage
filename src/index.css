@@ -948,3 +948,24 @@ button.viewer-pos { font-weight: 500; }
 .ahead-name { font-size: 10.5px; }
 
 .glossary { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+/* Mock exam */
+.exam { width: min(640px, 100%); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.exam h2 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+.exam-books { width: 100%; display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow: auto; }
+.exam-book { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--panel); border-radius: 12px; box-shadow: var(--shadow-soft); font-weight: 550; }
+.exam-book input { width: 18px; height: 18px; accent-color: var(--accent); }
+.exam-book span { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12.5px; }
+.exam-options { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.exam-choices { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.exam-choice { padding: 12px 14px; text-align: left; white-space: normal; line-height: 1.45; font-weight: 450; background: var(--panel); border-radius: 12px; box-shadow: var(--shadow-soft); }
+.exam-choice.on { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.exam-clock { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; font-variant-numeric: tabular-nums; }
+.exam-clock.low { color: #e5484d; font-weight: 700; }
+.exam-results { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.exam-row { display: grid; grid-template-columns: minmax(0, 1fr) 2fr auto; align-items: center; gap: 10px; font-size: 13.5px; }
+.exam-missed { width: 100%; display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow: auto; }
+.exam-miss { padding: 10px 12px; background: var(--panel); border-radius: 12px; box-shadow: var(--shadow-soft); font-size: 13.5px; }
+.exam-miss p { margin: 0 0 4px; display: flex; gap: 6px; align-items: baseline; }
+.exam-miss p:first-child { font-family: Georgia, 'Times New Roman', serif; font-size: 14.5px; }
+.exam-miss .right { color: #2f9e44; font-weight: 600; }
