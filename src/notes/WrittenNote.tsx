@@ -155,6 +155,40 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   stampNow.current = stamp
   // Other books to link to, and the books whose notes link here.
   const [others, setOthers] = useState<string[]>([])
+  // Typing [[ starts a link to another book's notes: a list of books opens at the cursor and narrows as you type.
+  const [linking, setLinking] = useState<{ query: string; from: number; to: number; x: number; y: number; at: number } | null>(null)
+  const linkingNow = useRef(linking)
+  linkingNow.current = linking
+  const othersNow = useRef(others)
+  othersNow.current = others
+  const linkChoices = (query: string) => othersNow.current.filter(name => baseName(name).toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+  const watchForLink = (editor: Crepe) => editor.editor.action(ctx => {
+    const view = ctx.get(editorViewCtx)
+    const { $from, empty } = view.state.selection
+    const before = $from.parent.textBetween(0, $from.parentOffset, undefined, '￼')
+    const typed = empty ? before.match(/\[\[([^\]\n]{0,40})$/) : null
+    if (!typed) return setLinking(null)
+    const spot = view.coordsAtPos($from.pos)
+    setLinking(old => ({ query: typed[1], from: $from.pos - typed[0].length, to: $from.pos, x: spot.left, y: spot.bottom, at: old?.query === typed[1] ? old.at : 0 }))
+  })
+  const placeLinkTo = (name: string) => {
+    const open = linkingNow.current
+    if (!open) return
+    editorRef.current?.editor.action(ctx => {
+      const view = ctx.get(editorViewCtx)
+      const mark = view.state.schema.marks.link?.create({ href: noteLink(name) })
+      if (!mark) return
+      // The [[ and what follows it, as they stand now (the list may lag a keystroke behind).
+      const { $from } = view.state.selection
+      const typed = $from.parent.textBetween(0, $from.parentOffset, undefined, '￼').match(/\[\[([^\]\n]{0,40})$/)
+      const [from, to] = typed ? [$from.pos - typed[0].length, $from.pos] : [open.from, open.to]
+      view.dispatch(view.state.tr.replaceWith(from, to, [view.state.schema.text(baseName(name), [mark]), view.state.schema.text(' ')]).scrollIntoView())
+      view.focus()
+    })
+    setLinking(null)
+  }
+  const placeLinkNow = useRef(placeLinkTo)
+  placeLinkNow.current = placeLinkTo
   const [backlinks, setBacklinks] = useState<string[]>([])
 
   const refreshLinks = async () => {
@@ -198,6 +232,15 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         },
       })
       addLooks(editor)
+      // While the list of books is open, the arrow keys and Enter belong to it.
+      host.current?.addEventListener('keydown', e => {
+        const open = linkingNow.current
+        if (!open) return
+        const choices = linkChoices(open.query)
+        if (e.key === 'Escape') { e.preventDefault(); setLinking(null) }
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); setLinking({ ...open, at: Math.max(0, Math.min(choices.length - 1, open.at + (e.key === 'ArrowDown' ? 1 : -1))) }) }
+        else if ((e.key === 'Enter' || e.key === 'Tab') && choices.length) { e.preventDefault(); e.stopPropagation(); placeLinkNow.current(choices[open.at] ?? choices[0]) }
+      }, true)
       const count = debounce(() => {
         setWords(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0)
         setBoxes(checklist(editor))
@@ -213,6 +256,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         })
         .selectionUpdated(() => {
           look(n => n + 1)
+          watchForLink(editor)
           if (typewriterNow.current && host.current) keepLineInPlace(editor, host.current)
         }))
       await editor.create()
@@ -571,6 +615,15 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
             <Tool quiet icon={X} label="Close the player" onClick={() => setPlayer(null)} />
           </>}
           {soundNote && <span className="viewer-pos">{soundNote}</span>}
+        </div>
+      )}
+      {linking && (
+        <div className="link-picker" style={{ left: Math.min(linking.x, window.innerWidth - 270), top: linking.y + 6 }} onMouseDown={e => e.preventDefault()}>
+          <p className="menu-head">Link to the notes of</p>
+          {linkChoices(linking.query).map((name, i) => (
+            <button key={name} className={i === linking.at ? 'palette-item on' : 'palette-item'} onClick={() => placeLinkTo(name)}>{baseName(name)}</button>
+          ))}
+          {!linkChoices(linking.query).length && <p className="menu-note">No book by that name.</p>}
         </div>
       )}
       {finding && (

@@ -894,3 +894,7 @@ button.viewer-pos { font-weight: 500; }
 .quiz-choices .chip.wrong { background: #e5484d; color: #fff; }
 .quiz-score { margin: 0; font-weight: 650; }
 .idea-map { width: 100%; height: 360px; background: var(--bg); border-radius: 14px; overflow: hidden; }
+
+/* [[ links */
+.link-picker { position: fixed; z-index: 70; width: 260px; max-height: 300px; overflow: auto; padding: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); animation: rise 0.12s ease-out; }
+.link-picker .palette-item { padding: 8px 10px; }
