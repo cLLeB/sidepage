@@ -79,9 +79,13 @@ export const useTextStyle = () => useSyncExternalStore(
 // ── Highlights: passages the reader marked, kept with the book's notes as highlights.json ──
 // A highlight in a book is addressed by its CFI. One in a PDF is addressed by its page, and also carries where
 // on the page it lies (`rects`, as fractions of the page) so it can be drawn there again.
-export type Highlight = { cfi: string; index: number; text: string; color?: string; note?: string; rects?: number[][] }
-type Kind = 'book' | 'pdf'
-const ofKind = (kind: Kind) => (mark: Highlight) => !!mark.rects === (kind === 'pdf')
+// `prefix`/`suffix`: for a document with no lasting addresses, a little of what stands before and after the words.
+export type Highlight = { cfi: string; index: number; text: string; color?: string; note?: string; rects?: number[][]; prefix?: string; suffix?: string }
+// A PDF's highlights carry their boxes on the page; a document's are anchored by their words ("quote=…"); the rest
+// are a book's, by CFI.
+type Kind = 'book' | 'pdf' | 'text'
+const kindOf = (mark: Highlight): Kind => (mark.rects ? 'pdf' : mark.cfi.startsWith('quote=') ? 'text' : 'book')
+const ofKind = (kind: Kind) => (mark: Highlight) => kindOf(mark) === kind
 
 export async function loadHighlights(notebook: string, kind: Kind): Promise<Highlight[]> {
   return (JSON.parse((await loadNote(notebook, 'highlights.json')) ?? '[]') as Highlight[]).filter(ofKind(kind))

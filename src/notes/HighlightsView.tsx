@@ -23,7 +23,8 @@ export default function HighlightsView() {
       for (const book of await shelf()) {
         const all: Highlight[] = JSON.parse((await loadNote(baseName(book.name), 'highlights.json')) ?? '[]')
         const isPdf = book.name.toLowerCase().endsWith('.pdf')
-        found.push(...all.filter(mark => !!mark.rects === isPdf).map(mark => ({ ...mark, book: book.name })))
+        const isText = ['docx', 'doc', 'rtf', 'odt', 'txt', 'md', 'markdown'].includes(book.name.split('.').pop()?.toLowerCase() ?? '')
+        found.push(...all.filter(mark => (isPdf ? !!mark.rects : isText ? mark.cfi.startsWith('quote=') : !mark.rects && !mark.cfi.startsWith('quote='))).map(mark => ({ ...mark, book: book.name })))
       }
       if (!cancelled) setMarks(found)
     })()

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BookA, Languages, TextQuote } from 'lucide-react'
+import { HighlightsMenu } from './ReaderMenus'
+import { useTextHighlights } from './TextHighlights'
 import { lookUp, translate } from '../Extras'
 import { Tool } from '../ui'
 import { baseName, extensionOf, sendQuote } from '../lib/platform'
@@ -8,6 +10,8 @@ import { baseName, extensionOf, sendQuote } from '../lib/platform'
 export default function OfficeView({ file }: { file: File }) {
   const host = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
+  const [ready, setReady] = useState(false)
+  const marks = useTextHighlights(host, file, ready)
 
   useEffect(() => {
     const el = host.current!
@@ -47,6 +51,7 @@ export default function OfficeView({ file }: { file: File }) {
     }
     render()
       .then(fit)
+      .then(() => { if (!cancelled) setReady(true) })
       .catch(e => setError(String(e?.message ?? e)))
     return () => {
       cancelled = true
@@ -66,6 +71,7 @@ export default function OfficeView({ file }: { file: File }) {
     <div className="viewer">
       <div className="viewer-bar">
         <span className="spacer" />
+        <HighlightsMenu marks={marks.marks} onHighlight={colour => void marks.highlight(colour)} onGo={marks.go} onChange={marks.change} onRemove={marks.remove} />
         <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
         <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
           <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => translate(window.getSelection()?.toString())} />

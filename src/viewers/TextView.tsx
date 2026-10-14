@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { TextQuote } from 'lucide-react'
+import { HighlightsMenu } from './ReaderMenus'
+import { useTextHighlights } from './TextHighlights'
 import { Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
 import { baseName, extensionOf, sendQuote } from '../lib/platform'
@@ -11,10 +13,13 @@ export default function TextView({ file }: { file: File }) {
   const kind = extensionOf(file.name)
   const isMarkdown = kind === 'md' || kind === 'markdown'
   const isHtml = kind === 'html' || kind === 'htm'
+  const [ready, setReady] = useState(false)
+  const pre = useRef<HTMLPreElement>(null)
+  const marks = useTextHighlights(isMarkdown ? host : pre, file, ready)
 
   useEffect(() => {
     let cancelled = false
-    file.text().then(t => { if (!cancelled) setText(t) })
+    file.text().then(t => { if (!cancelled) { setText(t); if (!isMarkdown) setTimeout(() => setReady(true), 50) } })
     return () => { cancelled = true }
   }, [file])
 
@@ -22,8 +27,9 @@ export default function TextView({ file }: { file: File }) {
     if (!isMarkdown || text === null || !host.current) return
     const crepe = new Crepe({ root: host.current, defaultValue: text })
     crepe.setReadonly(true)
-    const ready = crepe.create()
-    return () => { ready.then(() => crepe.destroy()) }
+    const made = crepe.create()
+    void made.then(() => setReady(true))
+    return () => { made.then(() => crepe.destroy()) }
   }, [isMarkdown, text])
 
   const quote = () => {
@@ -35,13 +41,14 @@ export default function TextView({ file }: { file: File }) {
     <div className="viewer">
       <div className="viewer-bar">
         <span className="spacer" />
+        {!isHtml && <HighlightsMenu marks={marks.marks} onHighlight={colour => void marks.highlight(colour)} onGo={marks.go} onChange={marks.change} onRemove={marks.remove} />}
         {!isHtml && <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />}
       </div>
       {isHtml
         ? <iframe className="viewer-body html-frame" sandbox="" srcDoc={text ?? ''} title={file.name} />
         : isMarkdown
           ? <div ref={host} className="viewer-body text-host" />
-          : <pre className="viewer-body text-host plain-text">{text}</pre>}
+          : <pre ref={pre} className="viewer-body text-host plain-text">{text}</pre>}
     </div>
   )
 }
