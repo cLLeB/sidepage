@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
   List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
-  AlignVerticalJustifyCenter, Footprints, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
+  AlignVerticalJustifyCenter, Footprints, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { Selection } from '@milkdown/kit/prose/state'
 import { imageBlockSchema } from '@milkdown/kit/component/image-block'
-import { insert } from '@milkdown/kit/utils'
+import { insert, replaceAll } from '@milkdown/kit/utils'
+import { HistoryDialog, keepVersion } from './History'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 import {
@@ -144,6 +145,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     stamp(false)
   }
   const [soundNote, setSoundNote] = useState('')
+  const [history, setHistory] = useState<string | null>(null)
+  const openHistory = () => setHistory(editorRef.current?.getMarkdown() ?? '')
   const play = async (name: string, at: number) => {
     const sound = await loadNoteFile(notebook, name)
     if (!sound) return setSoundNote('That recording is not in this notebook any more.')
@@ -203,8 +206,14 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     let cancelled = false
     let stopQuotes = () => {}
     const shown = new Map<string, string>()
-    const save = debounce((markdown: string) => { void saveNote(notebook, 'notes.md', markdown) }, 500)
+    const save = debounce((markdown: string) => {
+      void saveNote(notebook, 'notes.md', markdown)
+      // Every ten minutes or so of writing, the note as it stands is kept as an earlier version.
+      void keepVersion(notebook, markdown)
+    }, 500)
     loadNote(notebook, 'notes.md').then(async saved => {
+      // …and the note as it was found, before anything is changed in this sitting.
+      if (saved) void keepVersion(notebook, saved, true)
       if (cancelled || !host.current) return
       const editor = new Crepe({
         root: host.current,
@@ -589,6 +598,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={Mic} label={recording ? 'Stop recording sound' : 'Record sound with this note'} hint="Record a lecture or yourself; lines you write meanwhile are stamped with their moment" on={!!recording} onClick={() => void record()} />
           <Tool icon={Footprints} label={pace ? 'Keep pace with the book: on' : 'Keep pace with the book'} hint="As you turn the pages of the book, show what you quoted or clipped from there" on={pace} onClick={() => setPace(!pace)} />
           <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
+          <Tool icon={HistoryIcon} label="Earlier versions" hint="See how the note looked before, and bring a version back" onClick={openHistory} />
           <Tool icon={ClipboardCopy} label="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
           <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('doc')} />
           <Tool icon={Globe} label="Save as a web page" onClick={() => void saveAs('html')} />
@@ -616,6 +626,18 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           </>}
           {soundNote && <span className="viewer-pos">{soundNote}</span>}
         </div>
+      )}
+      {history !== null && (
+        <HistoryDialog
+          notebook={notebook} current={history} onClose={() => setHistory(null)}
+          onRestore={text => {
+            // The note as it is now is kept first, so bringing back an old version can itself be undone.
+            void keepVersion(notebook, history, true)
+            editorRef.current?.editor.action(replaceAll(text, true))
+            // A note put back whole is not an edit the editor reports, so it is saved here.
+            void saveNote(notebook, 'notes.md', text)
+          }}
+        />
       )}
       {linking && (
         <div className="link-picker" style={{ left: Math.min(linking.x, window.innerWidth - 270), top: linking.y + 6 }} onMouseDown={e => e.preventDefault()}>

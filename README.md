@@ -119,6 +119,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   or put it in your notes. Go to anything saves a bibliography (.bib) or a reading list of the whole library.
 - Translate a selected passage into English, French and ten other languages (by MyMemory, a free online
   service), and put the translation in your notes with the original under it.
+- Earlier versions of a note are kept as you write (every ten minutes or so, the last sixty): compare any of
+  them with the note now, line by line, and bring one back.
 - Type [[ in a note to link to another book's notes, picking it from a list that narrows as you type.
 - Link one book's notes to another's, see which notes link back ("Linked from"), and view all of it as a graph.
 - Highlight and draw on PDF pages, and save a copy with the marks in it.

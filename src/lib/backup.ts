@@ -7,7 +7,7 @@ import { bookmarksFile } from './reading'
 //   sidepage-backup.json     what is inside
 //   <notebook>/<file>        each notebook's files
 export const BACKUP_EXTENSION = 'sidepage-backup'
-const NOTE_FILES = ['notes.md', 'mindmap.json', 'highlights.json', 'canvas.excalidraw', 'picture-cards.json']
+const NOTE_FILES = ['notes.md', 'mindmap.json', 'highlights.json', 'canvas.excalidraw', 'picture-cards.json', 'notes-history.json']
 const REVIEW = '_review'
 
 type Manifest = { format: 1; made: string; notebooks: { name: string; files: string[]; pictures: string[] }[] }
