@@ -37,7 +37,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   shelves to filter by (favourites, reading, finished, kind of file), and cloth-bound covers for books that
   have none. "Quick notes" is a notebook that belongs to no book.
 - Go to anything (Ctrl+K): every action and every book, found by typing a few letters.
-- Study timer with a chime; an accent colour of your choice; a warmer or dimmer screen; a reading ruler.
+- Study timer with a chime, and sounds to work to (rain, the sea, a fire, brown noise) made on the device; an accent colour of your choice; a warmer or dimmer screen; a reading ruler.
 - PDFs: fit the width or the whole page, two pages side by side, turn the pages on their side, scroll by
   itself at three speeds, and type a page number to go there. "Look up" gives a selected word's meaning from a
   free online dictionary and can put it in your notes.

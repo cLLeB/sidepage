@@ -77,6 +77,8 @@ export function StudyTimer({ onNotice }: { onNotice(message: string): void }) {
   const [study, setStudy] = usePref('timer-study', 25)
   const [rest, setRest] = usePref('timer-rest', 5)
   const [done, setDone] = usePref<{ day: string; count: number }>('timer-done', { day: '', count: 0 })
+  const [sound, setSound] = usePref<Sound>('sound', 'off')
+  const [volume, setVolume] = usePref('sound-volume', 50)
   const [run, setRun] = useState<{ kind: 'study' | 'rest'; ends: number } | null>(null)
   const [now, setNow] = useState(Date.now())
   const today = new Date().toDateString()
@@ -103,7 +105,7 @@ export function StudyTimer({ onNotice }: { onNotice(message: string): void }) {
   const left = run ? Math.max(0, Math.ceil((run.ends - now) / 1000)) : 0
   const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`
   return (
-    <Menu icon={Timer} quiet={!run} on={!!run} label={run ? `${run.kind === 'rest' ? 'Break' : 'Study'} ${clock}` : 'Study timer'} hint="Study for a stretch, then take a break">
+    <Menu icon={Timer} quiet={!run} on={!!run || sound !== 'off'} label={run ? `${run.kind === 'rest' ? 'Break' : 'Study'} ${clock}` : 'Study timer'} hint="Study for a stretch, then take a break">
       {run
         ? <Tool icon={Square} label={`Stop (${clock} left)`} onClick={() => setRun(null)} />
         : <Tool icon={Play} label={`Start ${study} minutes of study`} onClick={() => { setNow(Date.now()); setRun({ kind: 'study', ends: Date.now() + study * 60_000 }) }} />}
@@ -114,6 +116,11 @@ export function StudyTimer({ onNotice }: { onNotice(message: string): void }) {
         <select value={rest} onChange={e => setRest(Number(e.target.value))}>{[3, 5, 10, 15].map(m => <option key={m} value={m}>{m} min</option>)}</select>
       </label>
       <p className="menu-note">{count ? `${count} stretch${count === 1 ? '' : 'es'} done today.` : 'A chime sounds when it is time to rest.'}</p>
+      <p className="menu-head">Sound while you work</p>
+      <label className="menu-row">Sound
+        <select value={sound} onChange={e => setSound(e.target.value as Sound)}>{Object.entries(SOUNDS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
+      </label>
+      {sound !== 'off' && <label className="menu-row">Volume<input type="range" min={5} max={100} step={5} value={volume} onChange={e => setVolume(Number(e.target.value))} /></label>}
     </Menu>
   )
 }
@@ -357,4 +364,104 @@ export function SittingCard({ sitting, onClose }: { sitting: import('./lib/sessi
       <div className="sitting-figures">{figures.map(figure => <span key={figure.label}><b>{figure.value}</b>{figure.label}</span>)}</div>
     </div>
   )
+}
+
+// ── Soundscapes for studying: rain, the sea, a fire, or plain brown noise, made on the spot from noise ──
+// Nothing is downloaded: each is shaped from random numbers by the browser's own audio filters.
+export const SOUNDS = { off: 'Silence', rain: 'Rain', ocean: 'The sea', fire: 'A fire', brown: 'Brown noise' } as const
+export type Sound = keyof typeof SOUNDS
+
+function noise(audio: AudioContext, seconds: number, kind: 'white' | 'brown') {
+  const buffer = audio.createBuffer(2, audio.sampleRate * seconds, audio.sampleRate)
+  for (let channel = 0; channel < 2; channel++) {
+    const data = buffer.getChannelData(channel)
+    let last = 0
+    for (let i = 0; i < data.length; i++) {
+      const white = Math.random() * 2 - 1
+      if (kind === 'white') data[i] = white
+      else { last = (last + 0.02 * white) / 1.02; data[i] = last * 3.5 }
+    }
+  }
+  const source = audio.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+  return source
+}
+
+export function Soundscape() {
+  const [sound] = usePref<Sound>('sound', 'off')
+  const [volume] = usePref('sound-volume', 50)
+  const master = useRef<GainNode | null>(null)
+  useEffect(() => { if (master.current) master.current.gain.value = volume / 100 }, [volume])
+  useEffect(() => {
+    if (sound === 'off') return
+    const audio = new AudioContext()
+    const out = audio.createGain()
+    out.gain.value = volume / 100
+    out.connect(audio.destination)
+    master.current = out
+    const stops: (() => void)[] = []
+    const play = (node: AudioScheduledSourceNode) => { node.start(); stops.push(() => node.stop()) }
+    const filter = (type: BiquadFilterType, frequency: number, q = 0.7) => {
+      const made = audio.createBiquadFilter()
+      made.type = type
+      made.frequency.value = frequency
+      made.Q.value = q
+      return made
+    }
+    if (sound === 'brown') {
+      const body = noise(audio, 6, 'brown')
+      body.connect(out); play(body)
+    }
+    if (sound === 'rain') {
+      // The hiss of rain: white noise, its top and bottom taken off, wavering a little.
+      const hiss = noise(audio, 6, 'white')
+      const band = filter('bandpass', 0); band.frequency.value = 2400; band.Q.value = 0.4
+      const level = audio.createGain(); level.gain.value = 0.32
+      const waver = audio.createOscillator(); waver.frequency.value = 0.13
+      const depth = audio.createGain(); depth.gain.value = 0.06
+      waver.connect(depth).connect(level.gain)
+      hiss.connect(band).connect(level).connect(out)
+      // …over a low rumble.
+      const rumble = noise(audio, 6, 'brown')
+      const low = audio.createGain(); low.gain.value = 0.5
+      rumble.connect(low).connect(out)
+      play(hiss); play(rumble); play(waver)
+    }
+    if (sound === 'ocean') {
+      // Waves: deep noise swelling and falling every eight seconds or so.
+      const sea = noise(audio, 8, 'brown')
+      const soft = filter('lowpass', 0); soft.frequency.value = 700
+      const swell = audio.createGain(); swell.gain.value = 0.55
+      const tide = audio.createOscillator(); tide.frequency.value = 0.12
+      const reach = audio.createGain(); reach.gain.value = 0.45
+      tide.connect(reach).connect(swell.gain)
+      sea.connect(soft).connect(swell).connect(out)
+      play(sea); play(tide)
+    }
+    if (sound === 'fire') {
+      // A low roar, and now and then a crackle: a short, sharp burst of bright noise.
+      const roar = noise(audio, 6, 'brown')
+      const warm = filter('lowpass', 0); warm.frequency.value = 400
+      const roarLevel = audio.createGain(); roarLevel.gain.value = 0.7
+      roar.connect(warm).connect(roarLevel).connect(out)
+      play(roar)
+      const crackle = audio.createBuffer(1, audio.sampleRate * 0.03, audio.sampleRate)
+      const data = crackle.getChannelData(0)
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 3)
+      let next = 0
+      const timer = setInterval(() => {
+        if (audio.currentTime < next) return
+        const pop = audio.createBufferSource(); pop.buffer = crackle
+        const bright = filter('highpass', 0); bright.frequency.value = 1500 + Math.random() * 2500
+        const loud = audio.createGain(); loud.gain.value = 0.15 + Math.random() * 0.5
+        pop.connect(bright).connect(loud).connect(out)
+        pop.start()
+        next = audio.currentTime + (Math.random() < 0.25 ? 0.04 : 0.15 + Math.random() * 1.2)
+      }, 30)
+      stops.push(() => clearInterval(timer))
+    }
+    return () => { stops.forEach(stop => { try { stop() } catch { /* already stopped */ } }); void audio.close(); master.current = null }
+  }, [sound]) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
 }
