@@ -32,6 +32,7 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Opens PDF, EPUB, MOBI, AZW/AZW3, FB2, DJVU, CBZ, CBR, CB7, CBT, DOCX, DOC, RTF, ODT, PPTX, PPT, TXT, Markdown, HTML
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
+- Shelves of your own: put books on shelves you name ("Semester 1 — Biology"); a book can stand on several.
 - Home is a library: the book you were reading on top, your reading time, a twelve-week reading calendar,
   shelves to filter by (favourites, reading, finished, kind of file), and cloth-bound covers for books that
   have none. "Quick notes" is a notebook that belongs to no book.

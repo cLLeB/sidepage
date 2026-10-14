@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, Library, NotebookText, Quote, Star, Target, X } from 'lucide-react'
+import { BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, FolderPlus, Library, NotebookText, Pencil, Quote, Star, Target, Trash2, X } from 'lucide-react'
 import { usePref } from './lib/prefs'
 import { baseName, extensionOf, loadNote, type Shelved } from './lib/platform'
 import { asTime, planToday, progressOf, readingDays, readingStats, setPlan, spentOn, timeLeft, type Plan } from './lib/reading'
@@ -79,11 +79,19 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
   const most = Math.max(30, ...days.map(day => day.minutes))
   const last = [...books].sort((a, b) => b.opened - a.opened)[0]
 
-  const shelves = ['All', 'Favourites', 'Reading', 'Finished', ...new Set(books.map(book => kindOf(book.name)))]
-    .filter(name => name === 'All' || books.some(book => onShelf(book, name)))
+  // Shelves of your own ("Semester 1 — Biology"): a book can stand on several.
+  const [mine, setMine] = usePref<Record<string, string[]>>('collections', {})
+  const [placing, setPlacing] = useState<string | null>(null)
+  const [newShelf, setNewShelf] = useState('')
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [sure, setSure] = useState(false)
+  const toggleOn = (shelf: string, book: string) => setMine({ ...mine, [shelf]: (mine[shelf] ?? []).includes(book) ? mine[shelf].filter(name => name !== book) : [...(mine[shelf] ?? []), book] })
+  const shelves = ['All', 'Favourites', 'Reading', 'Finished', ...Object.keys(mine).sort((a, b) => a.localeCompare(b)), ...new Set(books.map(book => kindOf(book.name)))]
+    .filter(name => name === 'All' || name in mine || books.some(book => onShelf(book, name)))
   function onShelf(book: Shelved, name: string) {
     const read = progressOf(book.name)
     if (name === 'All') return true
+    if (name in mine) return mine[name].includes(book.name)
     if (name === 'Favourites') return favourites.includes(book.name)
     if (name === 'Reading') return read > 0.01 && read < 0.97
     if (name === 'Finished') return read >= 0.97
@@ -212,13 +220,41 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
               <option value="progress">Furthest read</option>
             </select>
           </div>
-          {shelves.length > 2 && (
+          {shelves.length > 1 && (
             <div className="chips" role="group" aria-label="Shelves">
               {shelves.map(name => (
-                <button key={name} className={(shelves.includes(shelfName) ? shelfName : 'All') === name ? 'chip on' : 'chip'} onClick={() => setShelfName(name)}>
+                <button key={name} className={[(shelves.includes(shelfName) ? shelfName : 'All') === name ? 'chip on' : 'chip', name in mine ? 'own' : ''].join(' ')} onClick={() => setShelfName(name)}>
                   {name} <span>{books.filter(book => onShelf(book, name)).length}</span>
                 </button>
               ))}
+            </div>
+          )}
+          {shelfName in mine && (
+            <div className="shelf-tools">
+              {renaming !== null
+                ? <form className="ask" onSubmit={e => {
+                    e.preventDefault()
+                    const name = renaming.trim()
+                    setRenaming(null)
+                    if (!name || name === shelfName || name in mine) return
+                    const next = { ...mine, [name]: mine[shelfName] }
+                    delete next[shelfName]
+                    setMine(next)
+                    setShelfName(name)
+                  }}>
+                    <input autoFocus value={renaming} onChange={e => setRenaming(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') setRenaming(null) }} />
+                    <button className="primary">Rename</button>
+                  </form>
+                : <button className="soft" onClick={() => setRenaming(shelfName)}><Pencil size={15} aria-hidden /> Rename the shelf</button>}
+              <button className={sure ? 'soft danger' : 'soft'} onClick={() => {
+                // Asked twice: the first tap only says what a second tap will do.
+                if (!sure) { setSure(true); setTimeout(() => setSure(false), 3500); return }
+                const next = { ...mine }
+                delete next[shelfName]
+                setMine(next)
+                setShelfName('All')
+                setSure(false)
+              }}><Trash2 size={15} aria-hidden /> {sure ? 'Tap again: the books stay in your library' : 'Take the shelf down'}</button>
             </div>
           )}
           <ul className="bookcase">
@@ -236,6 +272,20 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                   aria-label="Favourite" aria-pressed={favourites.includes(book.name)} onClick={() => onFavourite(book.name)}
                 ><Star size={15} aria-hidden /></button>
                 <button className={planned[book.name] ? 'book-plan on' : 'book-plan'} title={planned[book.name] ? `Finish by ${planned[book.name].by}` : 'Set a day to finish it by'} aria-label="Plan" onClick={() => pickDate(book.name)}><CalendarClock size={15} aria-hidden /></button>
+                <button className={Object.values(mine).some(list => list.includes(book.name)) ? 'book-shelve on' : 'book-shelve'} title="Put on a shelf of your own" aria-label="Shelves" onClick={() => { setPlacing(placing === book.name ? null : book.name); setNewShelf('') }}><FolderPlus size={15} aria-hidden /></button>
+                {placing === book.name && <>
+                  <div className="menu-backdrop" onClick={() => setPlacing(null)} />
+                  <div className="menu shelf-picker">
+                    <p className="menu-head">Shelves</p>
+                    {Object.keys(mine).sort((a, b) => a.localeCompare(b)).map(shelf => (
+                      <label key={shelf} className="menu-row"><span>{shelf}</span><input type="checkbox" checked={mine[shelf].includes(book.name)} onChange={() => toggleOn(shelf, book.name)} /></label>
+                    ))}
+                    <form className="ask" onSubmit={e => { e.preventDefault(); const name = newShelf.trim(); if (!name) return; setMine({ ...mine, [name]: [...(mine[name] ?? []).filter(other => other !== book.name), book.name] }); setNewShelf('') }}>
+                      <input value={newShelf} placeholder="A new shelf, e.g. Semester 1" onChange={e => setNewShelf(e.target.value)} />
+                      <button className="primary" disabled={!newShelf.trim()}>Add</button>
+                    </form>
+                  </div>
+                </>}
                 <button className="book-remove" title="Remove from the library" aria-label="Remove from the library" onClick={() => onRemove(book.name)}><X size={15} aria-hidden /></button>
               </li>
             ))}
