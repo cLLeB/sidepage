@@ -100,6 +100,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   as a file beside the note, with a link back to its page.
 - Drawings made on a PDF's pages are kept automatically (as a copy of the PDF beside the notes) and are there
   when the PDF is opened again.
+- A map of the book runs down the side of a PDF: marks for the pages you highlighted (in their colours), wrote
+  about in your notes, or bookmarked, where you are, and today's mark from a reading plan. Tap it to go there.
 - "All pages" shows every page of a PDF as a small picture, to jump by eye.
 - A clip lands on the Canvas, as a picture to draw around, when the Canvas is the note in front. A quote or a clip
   opens the Notes tab if it was closed.

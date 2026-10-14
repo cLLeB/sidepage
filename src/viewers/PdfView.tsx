@@ -14,6 +14,7 @@ import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
 import { planToday } from '../lib/reading'
 import { CiteMenu, keepFacts } from './Cite'
+import PageMap from './PageMap'
 import { usePref } from '../lib/prefs'
 import { lookUp, translate } from '../Extras'
 import { Menu, Tool } from '../ui'
@@ -643,6 +644,14 @@ export default function PdfView({ file }: { file: File }) {
         >
           <div className="pdfViewer" />
         </div>
+        {mode === 'scroll' && doc && (
+          <PageMap
+            file={file.name} pages={doc.numPages} current={page} goal={plan ? goalPage : undefined}
+            highlights={highlights.map(mark => ({ page: pageOf(mark.cfi), colour: mark.color ?? '#ffd84d' }))}
+            bookmarks={bookmarks.list.map(mark => pageOf(mark.place))}
+            onGo={number => go(number - page)}
+          />
+        )}
         {overview && mode === 'scroll' && doc && <PageGrid doc={doc} current={page} onPick={number => { setOverview(false); go(number - page) }} />}
         {clipping && mode === 'scroll' && (
           <div
