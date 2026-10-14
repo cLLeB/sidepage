@@ -55,3 +55,9 @@ export const placeName = (place: string) => {
   const section = place.match(/^section=(\d+)/)?.[1]
   return page ? `p. ${page}` : section ? `part ${Number(section) + 1}` : ''
 }
+
+// How many letters of a book's words are kept: next to none means a scanned book, its pages only pictures.
+export async function lettersKept(book: string) {
+  const { get } = await import('idb-keyval')
+  return ((await get<Stretch[]>(key(book))) ?? []).reduce((sum, stretch) => sum + stretch.text.length, 0)
+}

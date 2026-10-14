@@ -20,3 +20,13 @@ export async function readText(picture: HTMLCanvasElement | Blob, onProgress?: (
     await worker.terminate()
   }
 }
+
+// A reader kept open for many pictures in a row (a whole scanned book): fetched and started once.
+export async function openReader() {
+  const { createWorker } = await import('tesseract.js')
+  const worker = await createWorker(getPref('ocr-language', 'eng').split('+'), 1)
+  return {
+    read: async (picture: HTMLCanvasElement) => (await worker.recognize(picture)).data.text.replace(/-\n/g, '').replace(/\s+/g, ' ').trim(),
+    close: () => worker.terminate(),
+  }
+}

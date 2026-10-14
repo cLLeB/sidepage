@@ -11,7 +11,7 @@ import {
   ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
-import { readText } from '../lib/ocr'
+import { openReader, readText } from '../lib/ocr'
 import { planToday } from '../lib/reading'
 import { usePref } from '../lib/prefs'
 import { lookUp } from '../Extras'
@@ -19,7 +19,7 @@ import { Menu, Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
 import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, type Highlight } from '../lib/reading'
 import { canSpeak, useReadAloud } from '../lib/speech'
-import { hasWords, keepWords, type Stretch } from '../lib/library'
+import { hasWords, keepWords, lettersKept, type Stretch } from '../lib/library'
 import { pageFilter, useTheme } from '../lib/theme'
 import { baseName, debounce, loadNoteFile, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, saveNoteFile, sendClip, sendQuote, tellPlace } from '../lib/platform'
 
@@ -152,6 +152,35 @@ export default function PdfView({ file }: { file: File }) {
   const [carding, setCarding] = useState(false)
   const [cardImage, setCardImage] = useState<{ image: string; page: number } | null>(null)
   const [busy, setBusy] = useState('')
+  // A scanned book made searchable: every page's words read once, in the background, and kept with the book's
+  // words, so search, the study guide and its questions work on it as on any other.
+  const [scanned, setScanned] = useState(false)
+  const [scanning, setScanning] = useState<{ done: number; total: number } | null>(null)
+  const stopScan = useRef(false)
+  const readScan = async () => {
+    if (!doc) return
+    stopScan.current = false
+    setScanned(false)
+    setScanning({ done: 0, total: doc.numPages })
+    let reader: Awaited<ReturnType<typeof openReader>> | undefined
+    try {
+      reader = await openReader()
+      const pages: Stretch[] = []
+      for (let number = 1; number <= doc.numPages && !stopScan.current; number++) {
+        pages.push({ place: `page=${number}`, text: await reader.read(await sharpCanvas(number)) })
+        setScanning({ done: number, total: doc.numPages })
+        // Kept as it goes, so what is read already can be searched while the rest is read.
+        if (number % 5 === 0 || number === doc.numPages) await keepWords(file.name, pages)
+      }
+      if (!stopScan.current) localStorage.setItem(`sidepage:read-scan:${file.name}`, '1')
+      setBusy(stopScan.current ? 'Stopped. Pages read so far can be searched.' : 'Every page has been read: the book can now be searched.')
+    } catch {
+      setBusy('The text reader could not be fetched. It needs the internet the first time.')
+    }
+    await reader?.close()
+    setScanning(null)
+    setTimeout(() => setBusy(''), 6000)
+  }
   const wordsFrom = async (picture: HTMLCanvasElement, pageNumber: number) => {
     setBusy('Reading the text…')
     try {
@@ -165,16 +194,20 @@ export default function PdfView({ file }: { file: File }) {
   }
   // Small print on screen is too coarse to read reliably, so the page is drawn again, large, for the reader.
   // `part` is the share of the page wanted (0 to 1 each way); without it, the whole page.
-  const readPage = async (pageNumber: number, part = { x: 0, y: 0, w: 1, h: 1 }) => {
-    if (!doc) return
-    setBusy('Reading the text…')
-    const pdfPage = await doc.getPage(pageNumber)
+  const sharpCanvas = async (pageNumber: number) => {
+    const pdfPage = await doc!.getPage(pageNumber)
     const base = pdfPage.getViewport({ scale: 1 })
     const viewport = pdfPage.getViewport({ scale: Math.min(3, 2600 / Math.max(base.width, base.height)) })
     const sharp = document.createElement('canvas')
     sharp.width = viewport.width
     sharp.height = viewport.height
     await pdfPage.render({ canvas: sharp, canvasContext: sharp.getContext('2d')!, viewport }).promise
+    return sharp
+  }
+  const readPage = async (pageNumber: number, part = { x: 0, y: 0, w: 1, h: 1 }) => {
+    if (!doc) return
+    setBusy('Reading the text…')
+    const sharp = await sharpCanvas(pageNumber)
     const cut = document.createElement('canvas')
     cut.width = Math.max(1, Math.round(sharp.width * part.w))
     cut.height = Math.max(1, Math.round(sharp.height * part.h))
@@ -362,6 +395,9 @@ export default function PdfView({ file }: { file: File }) {
             if (number % 10 === 0) await new Promise(resolve => setTimeout(resolve, 30))
           }
           if (!cancelled) await keepWords(file.name, pages)
+        }).then(async () => {
+          // Next to no words on many pages: a scanned book. Offer to read its pages so it can be searched.
+          if (!cancelled && (await lettersKept(file.name)) < pdf.numPages * 40 && !localStorage.getItem(`sidepage:read-scan:${file.name}`)) setScanned(true)
         }).catch(() => {})
         // The first page, small, as the book's cover on the home screen.
         void pdf.getPage(1).then(async first => {
@@ -550,6 +586,8 @@ export default function PdfView({ file }: { file: File }) {
               }}
             />
           : <button className="viewer-pos" title="Go to a page" onClick={() => mode === 'scroll' && setJumping(true)}>{page} / {doc?.numPages ?? '…'}</button>}
+        {scanned && !scanning && <button className="viewer-pos plan-pill" title="Its pages are pictures. Read their words once so the book can be searched, summed up and quizzed on." onClick={() => void readScan()}>Scanned: make it searchable</button>}
+        {scanning && <button className="viewer-pos" title="Stop reading the pages" onClick={() => { stopScan.current = true }}>Reading pages {scanning.done} / {scanning.total} · stop</button>}
         {plan && <span className={page >= goalPage ? 'viewer-pos plan-pill done' : 'viewer-pos plan-pill'} title="Today's mark in your reading plan">{page >= goalPage ? 'Today’s reading done' : `Today: to p. ${goalPage}`}</span>}
         <span className="spacer" />
         {mode === 'scroll' && <>
@@ -561,6 +599,7 @@ export default function PdfView({ file }: { file: File }) {
             <Tool icon={Maximize} label="Fit the whole page" onClick={fitPage} />
             <Tool icon={BookCopy} label={spread ? 'One page at a time' : 'Two pages side by side'} on={spread} onClick={toggleSpread} />
             <Tool icon={RotateCw} label="Turn the pages a quarter" onClick={rotate} />
+            <Tool icon={ScanText} label="Make the whole book searchable" hint="For a scanned book: read every page's words once" onClick={() => void readScan()} />
             <Tool icon={ScanText} label="Read the text of this whole page" hint="For a scanned page: put its words into your notes" onClick={readWholePage} />
             <p className="menu-head">Scroll by itself</p>
             <div className="menu-line">
