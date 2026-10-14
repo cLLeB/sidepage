@@ -59,6 +59,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   the way search engines rank (BM25), the question's words marked. On the device; no AI service.
 - The guide also asks: a few questions on the page, each a weighty sentence with a key term taken out to pick
   back; and draws the book's ideas as a map, terms joined when they keep turning up together.
+- Every highlight is a card: with a comment, the passage then the comment; without one, the book's weightiest
+  term in it is hidden, to be recalled.
 - Picture cards: box a diagram on a PDF page, or take a picture, and cover its labels; each covered label is a
   flashcard. Words run over with the marker in a note become hidden-word cards.
 - Reading plans: choose a day to finish a book by. Home lists today's reading with each book's mark for the day,

@@ -1,6 +1,7 @@
 import { createEmptyCard, fsrs, Rating, type Card, type Grade } from 'ts-fsrs'
 import { baseName, loadNote, saveNote, shelf } from './platform'
 import { pictureCardsOf, type Box } from '../notes/PictureCards'
+import { termsOf } from './insight'
 
 // Flashcards, made from what the reader has already written rather than typed in again:
 //   • every highlight in a book: the passage on the front, the reader's comment on the back
@@ -26,8 +27,19 @@ export async function allCards(): Promise<Flashcard[]> {
   for (const book of await shelf()) {
     const notebook = baseName(book.name)
     const highlights: Highlight[] = JSON.parse((await loadNote(notebook, 'highlights.json')) ?? '[]')
+    // A highlight with a comment: the passage, then the comment. Without one, the book's weightiest term in the
+    // passage is taken out of it, to be recalled.
+    const terms = highlights.some(mark => !mark.note?.trim()) ? (await termsOf(book.name).catch(() => [])).map(term => term.term) : []
     for (const mark of highlights) {
-      cards.push({ id: idOf(`${book.name}|${mark.cfi}`), book: book.name, front: mark.text, back: mark.note?.trim() || '', place: mark.cfi })
+      if (mark.note?.trim()) { cards.push({ id: idOf(`${book.name}|${mark.cfi}`), book: book.name, front: mark.text, back: mark.note.trim(), place: mark.cfi }); continue }
+      const lower = mark.text.toLowerCase()
+      const term = terms.find(name => new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}]|$)`, 'iu').test(lower))
+      if (!term) { cards.push({ id: idOf(`${book.name}|${mark.cfi}`), book: book.name, front: mark.text, back: '', place: mark.cfi }); continue }
+      const at = lower.indexOf(term.toLowerCase())
+      cards.push({
+        id: idOf(`${book.name}|${mark.cfi}|C`), book: book.name, place: mark.cfi,
+        front: `${mark.text.slice(0, at)}［ … ］${mark.text.slice(at + term.length)}`, back: mark.text.slice(at, at + term.length),
+      })
     }
     const lines = ((await loadNote(notebook, 'notes.md')) ?? '').split('\n').map(line => line.replace(/<\/?(?:span|u|sup|sub|div)\b[^>]*>/g, '').replace(/^[\s>*\-+]+/, '').trim())
     // Words run over with the marker in the notes: the line with those words hidden, then shown.

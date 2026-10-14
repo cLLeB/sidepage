@@ -89,7 +89,17 @@ export async function gistOf(book: string, place: string, howMany = 3): Promise<
 
 // ── The terms a book turns on, each with the places it is thickest ──
 export type Term = { term: string; count: number; places: { place: string; count: number }[]; everywhere: string[] }
+// Worked out once per book (and again only if its words change), since cards and the guide both ask often.
+const knownTerms = new Map<string, { size: number; terms: Term[] }>()
 export async function termsOf(book: string, howMany = 36): Promise<Term[]> {
+  const size = (await stretchesOf(book)).length
+  const known = knownTerms.get(`${book}|${howMany}`)
+  if (known && known.size === size) return known.terms
+  const terms = await workOutTerms(book, howMany)
+  knownTerms.set(`${book}|${howMany}`, { size, terms })
+  return terms
+}
+async function workOutTerms(book: string, howMany: number): Promise<Term[]> {
   const all = await stretchesOf(book)
   if (!all.length) return []
   const tokens = all.map(stretch => wordsOf(stretch.text))
