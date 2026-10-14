@@ -19,12 +19,14 @@ const stem = (word: string) => word.replace(/(ies)$/, 'y').replace(/(sses)$/, 's
 const plainWords = (text: string) => (text.toLowerCase().match(/[\p{L}][\p{L}'’-]{2,}/gu) ?? []).filter(word => !STOP.has(word))
 export const wordsOf = (text: string) => plainWords(text).map(stem)
 
+// An entry in a list of references reads like a sentence but says nothing about the subject.
+const isReference = (sentence: string) => /[“"][^”"]{6,}[”"]s*,|et al|(Annu|Proc|Trans|Lett|Rev|Sci|Nat|Adv|Biomed|Eng).s|(doi|arXiv|ISBN)|[d+]s*[A-Z].s?[A-Z]/.test(sentence)
 const sentencesOf = (text: string) => {
   const clean = text.replace(/\s+/g, ' ').trim()
   const parts = 'Segmenter' in Intl
     ? [...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(clean)].map(part => part.segment.trim())
     : clean.match(/[^.!?]+[.!?]+/g) ?? [clean]
-  return parts.filter(sentence => sentence.length > 30 && sentence.split(' ').length >= 6)
+  return parts.filter(sentence => sentence.length > 30 && sentence.split(' ').length >= 6 && !isReference(sentence))
 }
 
 const cache = new Map<string, Stretch[]>()
@@ -332,4 +334,34 @@ export function ideaTree(terms: Term[], most = 8): IdeaTree[] {
     .sort((a, b) => (groups.get(b)?.length ?? 0) - (groups.get(a)?.length ?? 0) || count.get(b)! - count.get(a)!)
     .slice(0, most)
     .map(head => ({ topic: head, children: (groups.get(head) ?? []).slice(0, 6).map(topic => ({ topic, children: [] })) }))
+}
+
+// ── Teach it back: an explanation in your own words, held up against what the book says ──
+// The book's account of a term is the pages where it is thickest; its key words are the words those pages use
+// far more than the rest of the book does. Your explanation is checked for them (folded, so "measures" counts
+// for "measurement").
+export type Check = { covered: string[]; missed: string[]; share: number; source: string; place: string }
+export async function checkExplanation(book: string, term: Term, explanation: string): Promise<Check> {
+  const all = await stretchesOf(book)
+  const rare = rarity(all.map(stretch => wordsOf(stretch.text)))
+  const pages = term.places.slice(0, 3).map(found => all.find(stretch => stretch.place === found.place)).filter((found): found is Stretch => !!found)
+  const counts = new Map<string, number>()
+  const termWords = new Set(wordsOf(term.term))
+  for (const page of pages) for (const word of wordsOf(page.text)) if (!termWords.has(word)) counts.set(word, (counts.get(word) ?? 0) + 1)
+  const key = [...counts].map(([word, count]) => ({ word, weight: count * rare(word) })).sort((a, b) => b.weight - a.weight).slice(0, 14).map(found => found.word)
+  const mine = new Set(wordsOf(explanation))
+  const shown = (word: string) => {
+    // The book's own spelling of the folded word.
+    const spelled = pages.map(page => page.text.match(new RegExp(`\\b${word}\\w*`, 'i'))?.[0]).find(Boolean)
+    return (spelled ?? word).toLowerCase()
+  }
+  const covered = key.filter(word => mine.has(word))
+  const best = (await glossaryOf(book, [term], 1))[0]
+  return {
+    covered: covered.map(shown),
+    missed: key.filter(word => !mine.has(word)).slice(0, 8).map(shown),
+    share: key.length ? covered.length / key.length : 0,
+    source: best?.meaning ?? pages[0]?.text.slice(0, 280) ?? '',
+    place: best?.place ?? pages[0]?.place ?? '',
+  }
 }

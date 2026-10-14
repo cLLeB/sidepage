@@ -5,7 +5,7 @@ import { BookOpenText, NotebookPen } from 'lucide-react'
 import { Tool } from '../ui'
 import { baseName, goToPlace, onPlace, openBookByName, placeLink, placeNow, sendQuote, type Place } from '../lib/platform'
 import { placeName } from '../lib/library'
-import { askBooks, glossaryOf, gistOf, timelineOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Entry, type Kin, type Moment, type Question, type Term } from '../lib/insight'
+import { askBooks, checkExplanation, glossaryOf, gistOf, timelineOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Check, type Entry, type Kin, type Moment, type Question, type Term } from '../lib/insight'
 
 // The terms of a book drawn as a map: each a dot sized by how often it comes, joined to those it keeps company with.
 function IdeaMap({ terms, onPick }: { terms: Term[]; onPick(term: Term): void }) {
@@ -101,6 +101,28 @@ function Ask({ onGo }: { onGo(to: Place): void }) {
         </button>
       ))}
     </section>
+  )
+}
+
+// Teach it back: explain a term without looking, then see which of the book's key ideas you brought in.
+function TeachBack({ book, term, onGo }: { book: string; term: Term; onGo(to: Place): void }) {
+  const [text, setText] = useState('')
+  const [check, setCheck] = useState<Check | null>(null)
+  useEffect(() => { setText(''); setCheck(null) }, [term])
+  return (
+    <div className="teach">
+      <p className="eyebrow">Teach it back: explain “{term.term}” in your own words, without looking</p>
+      <textarea rows={4} value={text} placeholder={`What is ${term.term}, and why does it matter here?`} onChange={e => { setText(e.target.value); setCheck(null) }} />
+      <button className="primary" disabled={text.trim().split(/\s+/).length < 5} onClick={() => void checkExplanation(book, term, text).then(setCheck)}>Check my explanation</button>
+      {check && (
+        <div className="teach-result">
+          <p><b>{Math.round(check.share * 100)}%</b> of the book's key ideas on this, in your words.</p>
+          {check.covered.length > 0 && <p className="teach-row"><span>You brought in</span>{check.covered.map(word => <i key={word} className="chip right">{word}</i>)}</p>}
+          {check.missed.length > 0 && <p className="teach-row"><span>The book also speaks of</span>{check.missed.map(word => <i key={word} className="chip">{word}</i>)}</p>}
+          {check.source && <button className="kin" onClick={() => onGo({ book, place: check.place })}><span className="hit-book">What the book says · {placeName(check.place)}</span>{check.source}</button>}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -250,6 +272,7 @@ export default function GuideView() {
             {picked.places.map(found => <button key={found.place} className="viewer-pos" onClick={() => go({ book: here.book, place: found.place })}>{placeName(found.place)} · {found.count}×</button>)}
           </div>
         )}
+        {picked && <TeachBack book={here.book} term={picked} onGo={go} />}
       </section>
 
       {timeline && timeline.length >= 4 && (

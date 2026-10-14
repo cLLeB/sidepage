@@ -57,6 +57,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   on the device from the books' own words (word counts and rarity, no service asked).
 - Ask your books: type a question and get the passages across your whole library that best answer it, ranked
   the way search engines rank (BM25), the question's words marked. On the device; no AI service.
+- Teach it back: pick a key term, explain it in your own words without looking, and see which of the book's key
+  ideas on it you brought in and which it also speaks of, with the passage to check against.
 - Timeline: the years a book speaks of, each with its sentence, in order, to jump by or put in your notes.
 - The guide also asks: a few questions on the page, each a weighty sentence with a key term taken out to pick
   back; and draws the book's ideas as a map, terms joined when they keep turning up together.
