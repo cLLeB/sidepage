@@ -7,7 +7,7 @@ const find = dir => readdirSync(dir).flatMap(name => {
   const path = join(dir, name)
   return statSync(path).isDirectory() ? find(path) : name === 'AndroidManifest.xml' && path.includes('main') ? [path] : []
 })
-const WANTED = ['android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS']
+const WANTED = ['android.permission.INTERNET', 'android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS']
 for (const path of find('src-tauri/gen/android')) {
   let manifest = readFileSync(path, 'utf8')
   const missing = WANTED.filter(name => !manifest.includes(name))

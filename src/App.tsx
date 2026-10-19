@@ -290,7 +290,12 @@ export default function App() {
   }, [openNote])
 
   // A .sidepage file is unpacked into its book and notes first; every opened book goes on the shelf.
-  const openFile = useCallback(async (picked: File) => {
+  const openFile = useCallback(async (given: File) => {
+    // A book is known by its file name alone. Earlier versions on Windows kept the whole path as the name; such a
+    // book is opened under its own name and its old entry in the library is taken away.
+    const pathed = /[\\/]/.test(given.name) ? given.name : ''
+    const picked = pathed ? new File([given], pathed.replace(/^.*[\\/]/, ''), { type: given.type }) : given
+    if (pathed) void unshelve(pathed)
     // A file whose name does not say what it is (usual on phones) is recognised by its contents.
     const file = await withDetectedType(picked, ext => ext === BUNDLE_EXTENSION || !!viewerFor(`x.${ext}`))
     if (extensionOf(file.name) === BACKUP_EXTENSION) {

@@ -583,7 +583,7 @@ button.primary:hover:not(:disabled) { background: var(--accent); filter: brightn
 .pdf-mark { position: absolute; pointer-events: none; opacity: 0.42; border-radius: 2px; }
 /* Clip: while it is on, the page waits for a box to be dragged over it */
 .clip-layer { position: absolute; inset: 0; z-index: 8; cursor: crosshair; touch-action: none; background: rgb(0 0 0 / 0.06); }
-.clip-box { position: fixed; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); border-radius: 4px; pointer-events: none; }
+.clip-box { position: absolute; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); border-radius: 4px; pointer-events: none; }
 .written-note .milkdown img { max-width: 100%; height: auto; border-radius: 6px; }
 
 /* Home: reading time, and finding a book among many */
@@ -1033,3 +1033,7 @@ button.viewer-pos { font-weight: 500; }
 .teach-row span { color: var(--muted); font-size: 12.5px; margin-right: 4px; }
 .teach-row .chip { font-style: normal; cursor: default; }
 .teach-row .chip.right { background: #2f9e44; color: #fff; }
+
+/* Dockview draws an empty-state layer of its own; the home screen lies over it and takes the taps. */
+.home { z-index: 5; }
+.workspace .dv-watermark-container { display: none; }

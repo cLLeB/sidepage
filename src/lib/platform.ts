@@ -14,7 +14,8 @@ export const BOOK_EXTENSIONS = [
 ]
 
 export const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
-export const baseName = (name: string) => name.replace(/\.[^.]+$/, '')
+// The name a book is known by: no folders before it (a Windows path is parted by backslashes), no ending after.
+export const baseName = (name: string) => name.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '')
 
 export async function pickFile(): Promise<File | null> {
   if (isTauri) {
@@ -27,7 +28,7 @@ export async function pickFile(): Promise<File | null> {
     // On Android the "path" is an internal reference with no name in it. The app's Android side knows the real
     // name (see src-tauri/android/MainActivity.kt); failing that, openFile recognises the file by its contents.
     const android = (window as unknown as { SidepageAndroid?: { nameOf(reference: string): string } }).SidepageAndroid
-    return new File([bytes], android?.nameOf(path) || path.split(/[\/]/).pop() || 'book')
+    return new File([bytes], android?.nameOf(path) || path.split(/[\\/]/).pop() || 'book')
   }
   return new Promise(resolve => {
     const input = document.createElement('input')
@@ -45,7 +46,7 @@ export async function launchFile(): Promise<File | null> {
   if (!isTauri) return null
   const { invoke } = await import('@tauri-apps/api/core')
   const name = await invoke<string | null>('launch_file_name')
-  return name ? new File([await invoke<ArrayBuffer>('read_launch_file')], name) : null
+  return name ? new File([await invoke<ArrayBuffer>('read_launch_file')], name.replace(/^.*[\\/]/, '')) : null
 }
 
 // Hand the reader a file to keep, e.g. a PDF with their highlights.

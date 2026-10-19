@@ -322,36 +322,36 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       editorRef.current = editor
       setReady(true)
       count()
-      stopQuotes = onQuote(({ text, source, book, place, table }) => {
+      stopQuotes = onQuote(({ text, book, table }) => {
         // Each book's quotes go to its own notebook.
         if (book && baseName(book) !== notebook) return
-        const quoted = table ? text : text.split(/\n+/).map(line => `> ${line}`).join('\n')
-        // The source line links back to the exact place in the book.
-        const credit = book && place ? `[${source}](${placeLink({ book, place })})` : `*${source}*`
+        // Only the words themselves: no source line, no page, no link (as asked).
+        const quoted = table ? text : text.split(/\n+/).map(line => line.trim()).filter(Boolean).join('\n\n')
         // Quotes are added at the end of the page, like the next line in a notebook.
         editor.editor.action(ctx => {
           const view = ctx.get(editorViewCtx)
           view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)))
         })
-        editor.editor.action(insert(table ? `\n${quoted}\n\n— ${credit}\n\n` : `\n${quoted}\n>\n> — ${credit}\n\n`))
+        editor.editor.action(insert(`\n${quoted}\n\n`))
       })
     })
 
-    // A clip from a page goes in the same way as a quote: at the end, with its source linking back.
-    const stopClips = onClip(async ({ image, source, book, place }) => {
+    // A clip from a page goes in the same way as a quote: at the end, the picture alone.
+    const stopClips = onClip(async ({ image, book }) => {
       if (baseName(book) !== notebook || !crepe) return
       // With the Canvas in front and this note behind it, the clip is the Canvas's to take.
       if (!isShown(host.current) && [...document.querySelectorAll('.canvas-page')].some(isShown)) return
       const name = `clip-${Date.now().toString(36)}.jpg`
       await saveNoteFile(notebook, name, await (await fetch(image)).blob())
-      // The picture goes in as a picture block at the end of the note, then its source on the line after.
+      // The picture goes in on its own, as a picture block at the end of the note, with an empty line after it
+      // to write on.
       crepe.editor.action(ctx => {
         const view = ctx.get(editorViewCtx)
-        const picture = imageBlockSchema.type(ctx).create({ src: name, caption: source })
-        view.dispatch(view.state.tr.insert(view.state.doc.content.size, picture))
-        view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)))
+        const { schema } = view.state
+        const picture = imageBlockSchema.type(ctx).create({ src: name })
+        const tr = view.state.tr.insert(view.state.doc.content.size, [picture, schema.nodes.paragraph.create()])
+        view.dispatch(tr.setSelection(Selection.atEnd(tr.doc)).scrollIntoView())
       })
-      crepe.editor.action(insert(`\n— [${source}](${placeLink({ book, place })})\n\n`))
     })
 
     // Clicking a source link travels to that place in the book instead of leaving the app.

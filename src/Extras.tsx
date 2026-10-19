@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BookA, Play, Search, Square, Timer, X, type LucideIcon } from 'lucide-react'
 import { Menu, Tool } from './ui'
-import { sendQuote } from './lib/platform'
 import { usePref } from './lib/prefs'
+import { webFetch } from './lib/net'
+import { askBooks, type Answer } from './lib/insight'
+import { baseName as bookName, goToPlace, openBookByName, sendQuote } from './lib/platform'
+import { placeName } from './lib/library'
 
 // ── Command palette: everything the app can do, and every book, found by typing a few letters ──
 export type Command = { name: string; group: string; hint?: string; icon: LucideIcon; run(): void }
@@ -155,9 +158,37 @@ export const lookUp = (words: string | undefined | null) => {
 }
 type Entry = { phonetic?: string; meanings: { partOfSpeech: string; definitions: { definition: string; example?: string }[] }[] }
 
+// Two free dictionaries: the Free Dictionary first, then Wiktionary, which knows many more technical words.
+// "none" when neither has the word; "offline" when neither could be reached.
+async function define(word: string): Promise<Entry[] | 'none' | 'offline'> {
+  let reached = false
+  try {
+    const answer = await webFetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`)
+    reached = true
+    if (answer.ok) return await answer.json()
+  } catch { /* try the next */ }
+  const plain = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim()
+  for (const form of [word.toLowerCase(), word]) {
+    try {
+      const answer = await webFetch(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(form.replace(/ /g, '_'))}`)
+      reached = true
+      if (!answer.ok) continue
+      const found = await answer.json() as Record<string, { partOfSpeech: string; definitions: { definition: string; examples?: string[] }[] }[]>
+      const english = found.en ?? Object.values(found)[0] ?? []
+      const meanings = english.map(part => ({
+        partOfSpeech: part.partOfSpeech,
+        definitions: part.definitions.map(def => ({ definition: plain(def.definition), example: def.examples?.[0] ? plain(def.examples[0]) : undefined })).filter(def => def.definition),
+      })).filter(part => part.definitions.length)
+      if (meanings.length) return [{ meanings }]
+    } catch { /* not reached */ }
+  }
+  return reached ? 'none' : 'offline'
+}
+
 export function LookUp() {
   const [word, setWord] = useState<string | null>(null)
   const [entries, setEntries] = useState<Entry[] | 'loading' | 'none' | 'offline'>('loading')
+  const [inBooks, setInBooks] = useState<Answer[] | null>(null)
   useEffect(() => {
     const open = (e: Event) => setWord((e as CustomEvent<string>).detail)
     window.addEventListener('sidepage:lookup', open)
@@ -167,9 +198,10 @@ export function LookUp() {
     if (!word) return
     let cancelled = false
     setEntries('loading')
-    fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`)
-      .then(async answer => { if (!cancelled) setEntries(answer.ok ? await answer.json() : 'none') })
-      .catch(() => { if (!cancelled) setEntries('offline') })
+    setInBooks(null)
+    void define(word).then(found => { if (!cancelled) setEntries(found) })
+    // …and what your own books say of it, which needs no internet.
+    void askBooks(word, 3).then(found => { if (!cancelled) setInBooks(found) }).catch(() => {})
     return () => { cancelled = true }
   }, [word])
   if (word === null) return null
@@ -180,8 +212,8 @@ export function LookUp() {
         <h2><BookA size={20} aria-hidden /> {word || 'Look up'}{Array.isArray(entries) && entries[0]?.phonetic && <small>{entries[0].phonetic}</small>}</h2>
         {!word && <p className="menu-note">Select a word on the page first, then choose Look up.</p>}
         {word && entries === 'loading' && <p className="menu-note">Looking it up…</p>}
-        {word && entries === 'none' && <p className="menu-note">The dictionary has no entry for this.</p>}
-        {word && entries === 'offline' && <p className="menu-note">The dictionary is on the internet, and it cannot be reached just now.</p>}
+        {word && entries === 'none' && <p className="menu-note">Neither dictionary has an entry for this.</p>}
+        {word && entries === 'offline' && <p className="menu-note">The dictionaries are on the internet, and they cannot be reached just now.</p>}
         {Array.isArray(entries) && (
           <div className="palette-list">
             {entries.flatMap(entry => entry.meanings).slice(0, 6).map((meaning, i) => (
@@ -192,8 +224,18 @@ export function LookUp() {
             ))}
           </div>
         )}
+        {inBooks && inBooks.length > 0 && (
+          <div className="palette-list">
+            <p className="menu-head">In your books</p>
+            {inBooks.map(found => (
+              <button key={found.book + found.place} className="kin" onClick={() => { setWord(null); openBookByName(found.book); for (const delay of [100, 1200]) setTimeout(() => goToPlace(found), delay) }}>
+                <span className="hit-book">{bookName(found.book)} · {placeName(found.place)}</span>{found.sentence}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="lookup-actions">
-          {first && <button className="soft" onClick={() => { sendQuote({ text: `${word}: ${first}`, source: 'Dictionary' }); setWord(null) }}>Add to my notes</button>}
+          {first && <button className="soft" onClick={() => { sendQuote({ text: `${word}: ${first}`, source: '' }); setWord(null) }}>Add to my notes</button>}
           <button className="primary" onClick={() => setWord(null)}>Done</button>
         </div>
       </div>
@@ -297,7 +339,7 @@ export function Translator() {
         let from: string | undefined
         const done: string[] = []
         for (const piece of pieces(text).slice(0, 12)) {
-          const answer = await (await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(piece)}&langpair=Autodetect|${to}`)).json()
+          const answer = await (await webFetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(piece)}&langpair=Autodetect|${to}`)).json()
           // Asked to translate into the language it is already in, the service answers with a complaint.
           if (/two distinct languages/i.test(String(answer?.responseData?.translatedText ?? ''))) { if (!cancelled) setResult('same'); return }
           done.push(String(answer?.responseData?.translatedText ?? ''))
@@ -331,7 +373,7 @@ export function Translator() {
         <div className="lookup-actions">
           {typeof result === 'object' && <>
             <button className="soft" onClick={() => void navigator.clipboard?.writeText(result.text)}>Copy</button>
-            <button className="soft" onClick={() => { sendQuote({ text: `${result.text}\n\n(${text})`, source: `Translated into ${TRANSLATE_TO[to]}` }); setText(null) }}>Add to my notes</button>
+            <button className="soft" onClick={() => { sendQuote({ text: result.text, source: '' }); setText(null) }}>Add to my notes</button>
           </>}
           <button className="primary" onClick={() => setText(null)}>Done</button>
         </div>

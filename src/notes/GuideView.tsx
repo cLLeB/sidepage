@@ -3,7 +3,7 @@ import ForceGraph from 'force-graph'
 import { useTheme } from '../lib/theme'
 import { BookOpenText, NotebookPen } from 'lucide-react'
 import { Tool } from '../ui'
-import { baseName, goToPlace, onPlace, openBookByName, placeLink, placeNow, sendQuote, type Place } from '../lib/platform'
+import { baseName, goToPlace, onPlace, openBookByName, placeNow, sendQuote, type Place } from '../lib/platform'
 import { placeName } from '../lib/library'
 import { askBooks, checkExplanation, glossaryOf, gistOf, timelineOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Check, type Entry, type Kin, type Moment, type Question, type Term } from '../lib/insight'
 
@@ -157,8 +157,8 @@ export default function GuideView() {
   const glossaryIntoNotes = () => {
     if (!glossary || !here) return
     const cell = (text: string) => text.replace(/\|/g, '/').replace(/\s+/g, ' ')
-    const rows = glossary.map(entry => `| **${cell(entry.term)}** | ${cell(entry.meaning)} | [${placeName(entry.place)}](${placeLink({ book: here.book, place: entry.place })}) |`)
-    sendQuote({ text: `| Term | What it is | Where |\n| --- | --- | --- |\n${rows.join('\n')}`, source: `Glossary of ${baseName(here.book)}`, book: here.book, place: here.place, table: true })
+    const rows = glossary.map(entry => `| **${cell(entry.term)}** | ${cell(entry.meaning)} |`)
+    sendQuote({ text: `| Term | What it is |\n| --- | --- |\n${rows.join('\n')}`, source: `Glossary of ${baseName(here.book)}`, book: here.book, place: here.place, table: true })
   }
 
   useEffect(() => onPlace(setHere), [])
@@ -292,7 +292,7 @@ export default function GuideView() {
               ))}
             </ol>
           )}
-          {showTimeline && <Tool icon={NotebookPen} label="Put the timeline in my notes" onClick={() => sendQuote({ text: `| When | What | Where |\n| --- | --- | --- |\n${timeline.map(moment => `| **${moment.year < 0 ? `${-moment.year} BC` : moment.year}** | ${moment.sentence.replace(/\|/g, '/')} | [${placeName(moment.place)}](${placeLink({ book: here.book, place: moment.place })}) |`).join('\n')}`, source: `Timeline of ${baseName(here.book)}`, book: here.book, place: here.place, table: true })} />}
+          {showTimeline && <Tool icon={NotebookPen} label="Put the timeline in my notes" onClick={() => sendQuote({ text: `| When | What |\n| --- | --- |\n${timeline.map(moment => `| **${moment.year < 0 ? `${-moment.year} BC` : moment.year}** | ${moment.sentence.replace(/\|/g, '/')} |`).join('\n')}`, source: `Timeline of ${baseName(here.book)}`, book: here.book, place: here.place, table: true })} />}
         </section>
       )}
 

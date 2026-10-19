@@ -218,6 +218,7 @@ export default function PdfView({ file }: { file: File }) {
   }
   const readWholePage = () => void readPage(page)
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
+  const clipLayer = useRef<HTMLDivElement>(null)
   const clip = (area: { x0: number; y0: number; x1: number; y1: number }) => {
     const [left, right, top, bottom] = [Math.min(area.x0, area.x1), Math.max(area.x0, area.x1), Math.min(area.y0, area.y1), Math.max(area.y0, area.y1)]
     if (right - left < 12 || bottom - top < 12) return
@@ -675,6 +676,7 @@ export default function PdfView({ file }: { file: File }) {
         {clipping && mode === 'scroll' && (
           <div
             className="clip-layer"
+            ref={clipLayer}
             onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); setBox({ x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY }) }}
             onPointerMove={e => { if (box) setBox({ ...box, x1: e.clientX, y1: e.clientY }) }}
             onPointerUp={() => {
@@ -683,7 +685,12 @@ export default function PdfView({ file }: { file: File }) {
               setClipping(false)
             }}
           >
-            {box && <div className="clip-box" style={{ left: Math.min(box.x0, box.x1), top: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }} />}
+            {box && clipLayer.current && (() => {
+              // The box is kept in screen coordinates (what the page's position is measured in) and drawn inside the
+              // layer, so it is placed from the layer's own corner.
+              const origin = clipLayer.current.getBoundingClientRect()
+              return <div className="clip-box" style={{ left: Math.min(box.x0, box.x1) - origin.left, top: Math.min(box.y0, box.y1) - origin.top, width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }} />
+            })()}
           </div>
         )}
         {cardImage && (
