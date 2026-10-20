@@ -20,11 +20,44 @@ function sentencesOfLine(text: string): string[] {
   return clean.match(/[^.!?]+[.!?]*\s*/g) ?? [clean]
 }
 
+// Which language a page is in, told from its commonest little words: enough to give French text a French voice
+// and English text an English one, without asking.
+const COMMON: Record<string, string[]> = {
+  fr: ['le', 'la', 'les', 'des', 'est', 'une', 'et', 'du', 'que', 'dans', 'pour', 'pas', 'sur', 'qui', 'avec', 'sont', 'au', 'ce', 'ces', 'nous'],
+  en: ['the', 'and', 'of', 'to', 'is', 'in', 'that', 'it', 'for', 'with', 'as', 'are', 'this', 'be', 'on', 'by', 'which', 'from', 'was', 'not'],
+  es: ['el', 'la', 'los', 'las', 'de', 'que', 'y', 'en', 'un', 'una', 'es', 'por', 'con', 'para', 'del', 'se', 'no', 'su', 'al', 'lo'],
+  de: ['der', 'die', 'das', 'und', 'ist', 'nicht', 'ein', 'eine', 'mit', 'auf', 'den', 'dem', 'des', 'zu', 'von', 'sich', 'auch', 'als', 'wird', 'für'],
+  pt: ['o', 'os', 'as', 'de', 'que', 'e', 'em', 'um', 'uma', 'é', 'não', 'para', 'com', 'do', 'da', 'dos', 'das', 'se', 'por', 'mais'],
+  it: ['il', 'la', 'di', 'che', 'e', 'un', 'una', 'è', 'per', 'non', 'con', 'del', 'della', 'gli', 'le', 'si', 'sono', 'nel', 'alla', 'dei'],
+}
+export function languageOf(text: string): string {
+  const words = (text.toLowerCase().match(/[\p{L}]+/gu) ?? []).slice(0, 400)
+  let best = 'en', most = 0
+  for (const [code, common] of Object.entries(COMMON)) {
+    const set = new Set(common)
+    const hits = words.filter(word => set.has(word)).length
+    if (hits > most) { best = code; most = hits }
+  }
+  return best
+}
+// The voice to read in: the one chosen in the menu if it speaks this language, otherwise the device's best voice
+// for the language (its default one first).
+function voiceFor(language: string): SpeechSynthesisVoice | undefined {
+  const voices = speechSynthesis.getVoices()
+  const chosen = voices.find(found => found.name === getPref('voice', ''))
+  if (chosen && chosen.lang.toLowerCase().startsWith(language)) return chosen
+  const speaking = voices.filter(found => found.lang.toLowerCase().startsWith(language))
+  return speaking.find(found => found.default) ?? speaking.find(found => found.localService) ?? speaking[0] ?? chosen
+}
+let reading = 'en'
+
 const say = (sentence: string) => new Promise<void>(resolve => {
   const utterance = new SpeechSynthesisUtterance(sentence)
+  utterance.lang = reading
+  const fitting = voiceFor(reading)
+  if (fitting) utterance.voice = fitting
+  utterance.pitch = getPref('voice-pitch', 1)
   // The voice and pace chosen in the menu; otherwise the device's own.
-  const voice = speechSynthesis.getVoices().find(found => found.name === getPref('voice', ''))
-  if (voice) utterance.voice = voice
   utterance.rate = getPref('voice-rate', 1)
   utterance.onend = utterance.onerror = () => resolve()
   speechSynthesis.speak(utterance)
@@ -54,6 +87,8 @@ export function useReadAloud() {
       const text = await next()
       if (mine !== run.current) return
       if (text === null) break
+      // Each page's language is told from its words, so a French page is read in French.
+      reading = languageOf(text)
       for (const sentence of sentences(text)) {
         onSentence?.(sentence)
         await say(sentence)

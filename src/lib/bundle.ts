@@ -6,7 +6,7 @@ import { bookmarksFile } from './reading'
 //   book/<file>       the book, document or deck, untouched
 //   notes/<file>      notes.md, canvas pages, mindmap.json, highlights.json
 export const BUNDLE_EXTENSION = 'sidepage'
-const NOTE_FILES = ['notes.md', 'mindmap.json', 'highlights.json', 'canvas.excalidraw', 'picture-cards.json', 'notes-history.json']
+const NOTE_FILES = ['notes.md', 'mindmap.json', 'highlights.json', 'canvas.excalidraw', 'picture-cards.json', 'notes-history.json', 'anchors.json']
 
 export async function packBundle(book: File): Promise<Uint8Array> {
   const { default: JSZip } = await import('jszip')

@@ -45,7 +45,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   colours and narrow or wide lines, typewriter writing, checklist progress, read the note aloud, and save it as
   a Word document or a web page.
 - Flashcards can be saved for Anki; highlights, a canvas page and the mind map can each be saved as a file.
-- Reading aloud takes a voice and a pace of your choosing and can stop by itself after a set time. The screen
+- Reading aloud takes a voice, a pace and a pitch of your choosing and can stop by itself after a set time. Each
+  page is read in its own language: French with a French voice, English with an English one, where the device has them. The screen
   can be kept on while a book is open, and Focus takes the whole screen and shows the time.
 - Closing a book tells what that sitting came to: time, how far you got, highlights and notes added, cards answered.
 - Home shows how long you have spent with each book, roughly how long the rest will take, and one of your own
@@ -81,8 +82,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   moment, and tapping a stamp plays the recording from there. Recordings travel in the one-file bundle and backup.
 - Lecture notes: a heading for each page or slide. Turn to a slide (in a deck or a PDF of slides) and the note
   goes to that slide's heading, made the first time; a heading you leave empty is taken away again.
-- Notes keep pace with the book: turn to a page of a PDF, or read on in an EPUB, MOBI or FB2, and the note
-  moves to what you quoted or clipped from there.
+- Notes keep pace with the book: turn to a page and the note moves to what you quoted or clipped from there.
+  Where each piece came from is kept beside the note (anchors.json), not written in it.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
   book and drag the tabs to rearrange.
 - Paper styles for notes: blank, lined (exercise book), grid and dots. Writing sits on the rules as it does in

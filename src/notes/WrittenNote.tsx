@@ -12,6 +12,7 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { imageBlockSchema } from '@milkdown/kit/component/image-block'
 import { insert, replaceAll } from '@milkdown/kit/utils'
 import { HistoryDialog, keepVersion } from './History'
+import { addAnchor, anchorsOf, squash as letters } from './anchors'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 import {
@@ -118,14 +119,28 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   const [pace, setPace] = usePref('pace', false)
   useEffect(() => {
     if (!pace || byPage) return
-    return onPlace(({ book, place, cfi }) => {
+    let latest = 0
+    return onPlace(async ({ book, place, cfi }) => {
       if (baseName(book) !== notebook) return
+      // Pages can turn faster than the note is searched: only the newest turn moves the note.
+      const mine = ++latest
       const page = place.match(/^page=(\d+)/)?.[1]
       const part = place.match(/^section=(\d+)/)?.[1]
-      const links = [...(host.current?.querySelectorAll<HTMLAnchorElement>('a[href^="#sidepage-open"]') ?? [])]
-        .map(link => ({ link, at: parsePlaceLink(link.getAttribute('href') ?? '')?.place ?? '' }))
-      let first: HTMLAnchorElement | undefined
+      // Each quote or clip, with where it came from: from the record kept beside the note, and from source links
+      // that notes made by earlier versions still carry.
+      const blocks = [...(host.current?.querySelectorAll<HTMLElement>('.ProseMirror > *') ?? [])]
+      const found: { link: HTMLElement; at: string }[] = []
+      for (const anchor of (await anchorsOf(notebook)).filter(anchor => anchor.book === book)) {
+        const block = anchor.kind === 'picture'
+          ? blocks.find(found => [...found.querySelectorAll('img')].some(img => img.dataset.src === anchor.key || img.getAttribute('src') === anchor.key)) ?? pictureBlock(anchor.key)
+          : blocks.find(found => letters(found.textContent ?? '').includes(anchor.key.slice(0, 40)))
+        if (block) found.push({ link: block, at: anchor.place })
+      }
+      const links = [...found, ...[...(host.current?.querySelectorAll<HTMLAnchorElement>('a[href^="#sidepage-open"]') ?? [])]
+        .map(link => ({ link: link as HTMLElement, at: parsePlaceLink(link.getAttribute('href') ?? '')?.place ?? '' }))]
+      let first: HTMLElement | undefined
       if (page) first = links.find(({ at }) => at.match(/^page=(\d+)/)?.[1] === page)?.link
+      if (!first && place.startsWith('slide=')) first = links.find(({ at }) => at === place)?.link
       else if (part) {
         // A book of flowing text: a quote's place names its part of the book (the step after "/6/") and the
         // exact spot in it. Of the quotes from this part, the one wanted is the last at or before where the
@@ -136,11 +151,24 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         first = (cfi ? inPart.filter(({ at }) => order(at, cfi) <= 0).pop() : undefined)?.link ?? inPart[0]?.link
       }
       const block = first?.closest('.ProseMirror > *') as HTMLElement | null | undefined
-      if (!block) return
+      if (!block || mine !== latest) return
       block.scrollIntoView({ block: 'center', behavior: 'smooth' })
       block.animate([{ backgroundColor: 'color-mix(in srgb, var(--accent) 22%, transparent)' }, { backgroundColor: 'transparent' }], { duration: 1600 })
     })
   }, [pace, notebook, byPage])
+  // The block of the note that shows a given picture file (its picture is shown through a temporary address, so
+  // it is found through the editor's own record of the note).
+  const pictureBlock = (file: string): HTMLElement | undefined => {
+    let block: HTMLElement | undefined
+    editorRef.current?.editor.action(ctx => {
+      const view = ctx.get(editorViewCtx)
+      if (!view.state) return
+      view.state.doc.forEach((node, at) => {
+        if (!block && node.type.name === 'image-block' && node.attrs.src === file) block = view.nodeDOM(at) as HTMLElement
+      })
+    })
+    return block
+  }
 
   // Sound: a lecture or your own voice recorded beside the note. While it records, each new line you start is
   // stamped with the moment it was written; tap a stamp later to hear what was being said just then.
@@ -336,7 +364,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       editorRef.current = editor
       setReady(true)
       count()
-      stopQuotes = onQuote(({ text, book, table }) => {
+      stopQuotes = onQuote(({ text, book, place, table }) => {
         // Each book's quotes go to its own notebook.
         if (book && baseName(book) !== notebook) return
         // Only the words themselves: no source line, no page, no link (as asked).
@@ -347,16 +375,19 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)))
         })
         editor.editor.action(insert(`\n${quoted}\n\n`))
+        // Where it came from is remembered beside the note, out of sight.
+        if (book && place && !table) void addAnchor(notebook, { kind: 'text', key: letters(quoted).slice(0, 80), book, place })
       })
     })
 
     // A clip from a page goes in the same way as a quote: at the end, the picture alone.
-    const stopClips = onClip(async ({ image, book }) => {
+    const stopClips = onClip(async ({ image, book, place }) => {
       if (baseName(book) !== notebook || !crepe) return
       // With the Canvas in front and this note behind it, the clip is the Canvas's to take.
       if (!isShown(host.current) && [...document.querySelectorAll('.canvas-page')].some(isShown)) return
       const name = `clip-${Date.now().toString(36)}.jpg`
       await saveNoteFile(notebook, name, await (await fetch(image)).blob())
+      void addAnchor(notebook, { kind: 'picture', key: name, book, place })
       // The picture goes in on its own, as a picture block at the end of the note, with an empty line after it
       // to write on.
       crepe.editor.action(ctx => {

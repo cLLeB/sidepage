@@ -363,7 +363,7 @@ export async function unshelve(name: string) {
 // under its own name, what was kept in the old notebook is copied to the new one (if that is still empty).
 export async function moveNotebook(from: string, to: string) {
   if (from === to || (await loadNote(to, 'notes.md'))) return
-  const files = ['notes.md', 'canvas.excalidraw', 'mindmap.json', 'highlights.json', 'picture-cards.json', 'notes-history.json', 'bookmarks-pdf.json', 'bookmarks-epub.json', 'bookmarks-docx.json', 'bookmarks-pptx.json', 'bookmarks-djvu.json']
+  const files = ['notes.md', 'canvas.excalidraw', 'mindmap.json', 'highlights.json', 'picture-cards.json', 'notes-history.json', 'anchors.json', 'bookmarks-pdf.json', 'bookmarks-epub.json', 'bookmarks-docx.json', 'bookmarks-pptx.json', 'bookmarks-djvu.json']
   for (let page = 2; page < 200; page++) files.push(`canvas-${page}.excalidraw`)
   for (const file of files) {
     const text = await loadNote(from, file).catch(() => null)

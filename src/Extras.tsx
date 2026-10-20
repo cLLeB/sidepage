@@ -248,6 +248,7 @@ export function VoiceSettings() {
   const [voice, setVoice] = usePref('voice', '')
   const [rate, setRate] = usePref('voice-rate', 1)
   const [sleep, setSleep] = usePref('voice-sleep', 0)
+  const [pitch, setPitch] = usePref('voice-pitch', 1)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   useEffect(() => {
     if (!('speechSynthesis' in window)) return
@@ -262,8 +263,10 @@ export function VoiceSettings() {
     {voices.length > 0 && (
       <label className="menu-row">Voice
         <select value={voice} onChange={e => setVoice(e.target.value)}>
-          <option value="">The device's own</option>
-          {voices.map(found => <option key={found.name} value={found.name}>{found.name.replace(/^Microsoft | Online \(Natural\)/g, '')}</option>)}
+          <option value="">Chosen for each page's language</option>
+          {[...voices].sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name)).map(found => (
+            <option key={found.name} value={found.name}>{languageName(found.lang)} · {found.name.replace(/^(Microsoft|Google) | Online \(Natural\)|- [A-Z][a-z]+ \([^)]*\)/g, '').trim()}</option>
+          ))}
         </select>
       </label>
     )}
@@ -272,6 +275,12 @@ export function VoiceSettings() {
         {[['Slow', 0.8], ['Normal', 1], ['Brisk', 1.25], ['Fast', 1.5], ['Very fast', 2]].map(([name, value]) => <option key={name} value={value}>{name}</option>)}
       </select>
     </label>
+    <label className="menu-row">Pitch
+      <select value={pitch} onChange={e => setPitch(Number(e.target.value))}>
+        {[['Deep', 0.7], ['Lower', 0.85], ['Normal', 1], ['Higher', 1.2], ['High', 1.45]].map(([name, value]) => <option key={name} value={value}>{name}</option>)}
+      </select>
+    </label>
+    <p className="menu-note">A page in French is read with a French voice, an English page with an English one, when the device has them. A chosen voice is used for pages in its own language.</p>
     <label className="menu-row">Stop after
       <select value={sleep} onChange={e => setSleep(Number(e.target.value))}>
         <option value={0}>Never</option>
@@ -512,4 +521,16 @@ export function Soundscape() {
     return () => { stops.forEach(stop => { try { stop() } catch { /* already stopped */ } }); void audio.close(); master.current = null }
   }, [sound]) // eslint-disable-line react-hooks/exhaustive-deps
   return null
+}
+
+// "fr-FR" as a person would say it: "French (France)".
+function languageName(code: string) {
+  try {
+    const [language, region] = code.replace('_', '-').split('-')
+    const names = new Intl.DisplayNames(undefined, { type: 'language' })
+    const regions = new Intl.DisplayNames(undefined, { type: 'region' })
+    return `${names.of(language) ?? language}${region ? ` (${regions.of(region.toUpperCase()) ?? region})` : ''}`
+  } catch {
+    return code
+  }
 }
