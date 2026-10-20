@@ -138,11 +138,11 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   lines in your notes, and come back when [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) says it is time.
 - Export notes: a book's notes, highlights and bookmarks as one Markdown file.
 - The home screen shows each recent book with its cover and how far you have read.
-- Light, sepia and dark themes for the whole workspace. On dark PDF and document pages the text turns
+- Light, sepia, dark and black themes for the whole workspace (or follow the device). On dark PDF and document pages the text turns
   light-on-dark while photographs keep their real colours, cut out along their own outlines.
 - Stylus friendly: touch the canvas or a PDF page with a pencil and the pen tool is picked up for you.
-- Cite: the open book as an APA, MLA, Chicago or BibTeX reference, from what the file says about itself; copy it
-  or put it in your notes. Go to anything saves a bibliography (.bib) or a reading list of the whole library.
+- Cite (View menu, or Go to anything): the open book as an APA, MLA, Chicago or BibTeX reference, the page in
+  front as an in-text citation, and the selected passage with its source; copy any of them or put it in your notes. Go to anything saves a bibliography (.bib) or a reading list of the whole library.
 - Translate a selected passage into English, French and ten other languages (by MyMemory, a free online
   service), and put the translation in your notes with the original under it.
 - Earlier versions of a note are kept as you write (every ten minutes or so, the last sixty): compare any of

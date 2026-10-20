@@ -34,10 +34,11 @@ const cache = new Map<string, Stretch[]>()
 
 // Running heads and feet (a copyright line, the course name, the date on every slide) say nothing about any one
 // page, yet would pass for a book's favourite words. Any run of four words found on many of its pages is taken out.
-function withoutRunningLines(stretches: Stretch[]): Stretch[] {
-  if (stretches.length < 6) return stretches
+const fold = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+const runningOf = new Map<string, Set<string>>()
+function runningGrams(stretches: Stretch[]): Set<string> {
+  if (stretches.length < 6) return new Set()
   const words = stretches.map(stretch => stretch.text.split(/\s+/).filter(Boolean))
-  const fold = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
   const pagesWith = new Map<string, number>()
   for (const page of words) {
     const seen = new Set<string>()
@@ -45,14 +46,27 @@ function withoutRunningLines(stretches: Stretch[]): Stretch[] {
     for (const gram of seen) pagesWith.set(gram, (pagesWith.get(gram) ?? 0) + 1)
   }
   const often = Math.max(4, stretches.length * 0.35)
-  const running = new Set([...pagesWith].filter(([gram, count]) => count >= often && gram.replace(/ /g, '').length > 6).map(([gram]) => gram))
-  if (!running.size) return stretches
-  return stretches.map((stretch, n) => {
-    const page = words[n]
-    const drop = new Array(page.length).fill(false)
-    for (let i = 0; i + 4 <= page.length; i++) if (running.has(page.slice(i, i + 4).map(fold).join(' '))) drop.fill(true, i, i + 4)
-    return { ...stretch, text: page.filter((_, i) => !drop[i]).join(' ') }
-  })
+  return new Set([...pagesWith].filter(([gram, count]) => count >= often && gram.replace(/ /g, '').length > 6).map(([gram]) => gram))
+}
+// A page's text without them, and without a bare page number at its start or end.
+function withoutRunning(text: string, running: Set<string>) {
+  const page = text.split(/\s+/).filter(Boolean)
+  const drop = new Array(page.length).fill(false)
+  if (running.size) for (let i = 0; i + 4 <= page.length; i++) if (running.has(page.slice(i, i + 4).map(fold).join(' '))) drop.fill(true, i, i + 4)
+  return page.filter((_, i) => !drop[i]).join(' ').replace(/^\d{1,4}\s+|\s+\d{1,4}$/g, '')
+}
+function withoutRunningLines(stretches: Stretch[]): Stretch[] {
+  const running = runningGrams(stretches)
+  return running.size ? stretches.map(stretch => ({ ...stretch, text: withoutRunning(stretch.text, running) })) : stretches
+}
+
+// What is worth reading aloud on a page: its own words, without what is repeated on every page.
+export async function readableText(book: string, text: string): Promise<string> {
+  if (!runningOf.has(book)) {
+    const { get } = await import('idb-keyval')
+    runningOf.set(book, runningGrams((await get<Stretch[]>(`text:${book}`)) ?? []))
+  }
+  return withoutRunning(text, runningOf.get(book)!)
 }
 export async function stretchesOf(book: string): Promise<Stretch[]> {
   if (!cache.has(book)) {
@@ -257,8 +271,15 @@ export async function glossaryOf(book: string, terms: Term[], most = 24): Promis
 // Ranked the way search engines rank (BM25): a passage scores for each word of the question it holds, more for
 // rare words, less as the passage grows long. The best sentence in each passage is the one shown.
 export type Answer = { book: string; place: string; sentence: string; score: number; words: string[] }
+// The words a question is put in ("explain", "give an example", "according to the lecture") say how to answer,
+// not what about, so they are not looked for.
+const ASKING = new Set(['question', 'lecture', 'paper', 'according', 'mention', 'mentioned', 'give', 'name', 'example', 'explain', 'describe',
+  'least', 'list', 'state', 'discuss', 'complete', 'sentence', 'answer', 'idea', 'justify', 'justified', 'scientifically', 'link', 'role', 'difference', 'synthesis', 'define', 'definition'].map(word => stem(word)))
+const squashed = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+
 export async function askBooks(question: string, most = 8): Promise<Answer[]> {
-  const asked = [...new Set(wordsOf(question))]
+  const meant = [...new Set(wordsOf(question))].filter(word => !ASKING.has(word))
+  const asked = meant.length ? meant : [...new Set(wordsOf(question))]
   if (!asked.length) return []
   const passages: { book: string; stretch: Stretch; words: string[] }[] = []
   for (const book of await shelf()) for (const stretch of await stretchesOf(book.name)) passages.push({ book: book.name, stretch, words: wordsOf(stretch.text) })
@@ -273,12 +294,29 @@ export async function askBooks(question: string, most = 8): Promise<Answer[]> {
     let score = 0
     for (const [word, count] of counts) score += weight(word) * (count * (k + 1)) / (count + k * (1 - b + b * passage.words.length / average))
     // Holding more of the question's different words counts for more than repeating one of them.
-    return { passage, score: score * (1 + counts.size / asked.length) }
+    score *= 1 + counts.size / asked.length
+    // The page the question was copied from answers nothing, and a page of questions (a quiz, a questionnaire)
+    // rarely does: the pages that teach come first.
+    const text = passage.stretch.text
+    if (squashed(question).length > 24 && squashed(text).includes(squashed(question).slice(0, 48))) score = 0
+    else if ((text.match(/\?/g)?.length ?? 0) >= 2 || /\b(questionnaire|synthesis question|exercise|quiz)\b/i.test(text)) score *= 0.15
+    return { passage, score }
   }).filter(found => found.score > 0).sort((x, y) => y.score - x.score).slice(0, most)
   return scored.map(({ passage, score }) => {
-    const best = sentencesOf(passage.stretch.text)
+    const sentences = sentencesOf(passage.stretch.text)
       .map(sentence => ({ sentence, held: new Set(wordsOf(sentence).filter(word => holding.has(word))).size }))
-      .sort((x, y) => y.held - x.held)[0]?.sentence ?? passage.stretch.text.slice(0, 240)
+      .sort((x, y) => y.held - x.held)
+    // Slides are written in fragments rather than sentences: then the stretch of some forty words that holds most
+    // of the question's words is shown.
+    const best = sentences[0]?.held ? sentences[0].sentence : (() => {
+      const words = passage.stretch.text.split(/\s+/).filter(Boolean)
+      let at = 0, most = -1
+      for (let i = 0; i < Math.max(1, words.length - 10); i += 3) {
+        const held = new Set(wordsOf(words.slice(i, i + 40).join(' ')).filter(word => holding.has(word))).size
+        if (held > most) { most = held; at = i }
+      }
+      return `${at ? '… ' : ''}${words.slice(at, at + 40).join(' ')}${at + 40 < words.length ? ' …' : ''}`
+    })()
     return { book: passage.book, place: passage.stretch.place, sentence: best.length > 320 ? `${best.slice(0, 320)}…` : best, score, words: asked }
   })
 }

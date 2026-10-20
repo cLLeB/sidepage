@@ -29,7 +29,19 @@ export default function FlipBook({ pages, ratio, startPage = 0, onFlip, tinted =
       maxShadowOpacity: 0.4,
       mobileScrollSupport: false,
     })
-    flip.loadFromImages(pages)
+    // Each page is a real picture in the page, so the browser draws it at the screen's full sharpness.
+    const leaves = pages.map(url => {
+      const leaf = document.createElement('div')
+      leaf.className = 'flip-leaf'
+      const picture = document.createElement('img')
+      picture.src = url
+      picture.alt = ''
+      picture.draggable = false
+      leaf.append(picture)
+      return leaf
+    })
+    root.append(...leaves)
+    flip.loadFromHTML(leaves)
     flip.on('flip', (e: { data: number }) => onFlip?.(e.data))
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'PageDown') flip.flipNext()

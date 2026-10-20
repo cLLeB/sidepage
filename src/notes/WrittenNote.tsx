@@ -15,7 +15,7 @@ import { HistoryDialog, keepVersion } from './History'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
 import {
-  baseName, debounce, onPlace, goToPlace, isMobile, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
+  baseName, debounce, onPlace, onSaveNow, goToPlace, isMobile, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
   parsePlaceLink, placeLink, saveFileAs, saveNote, shelf,
 } from '../lib/platform'
 import {
@@ -191,6 +191,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     stamp(false)
   }
   const [soundNote, setSoundNote] = useState('')
+  // Whether what is on the page has reached storage: shown in the bar, so there is never a doubt.
+  const [saved, setSaved] = useState<'saved' | 'saving' | 'failed'>('saved')
   const [history, setHistory] = useState<string | null>(null)
   const openHistory = () => setHistory(editorRef.current?.getMarkdown() ?? '')
   const play = async (name: string, at: number) => {
@@ -253,9 +255,13 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     let crepe: Crepe | undefined
     let cancelled = false
     let stopQuotes = () => {}
+    let stopSaveNow = () => {}
     const shown = new Map<string, string>()
+    let lastSaved: string | null = null
     const save = debounce((markdown: string) => {
-      void saveNote(notebook, 'notes.md', markdown)
+      if (markdown === lastSaved) return setSaved('saved')
+      lastSaved = markdown
+      void saveNote(notebook, 'notes.md', markdown).then(() => setSaved('saved'), () => setSaved('failed'))
       // Every ten minutes or so of writing, the note as it stands is kept as an earlier version.
       void keepVersion(notebook, markdown)
     }, 500)
@@ -304,6 +310,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       }, 400)
       editor.on(listener => listener
         .markdownUpdated((_, markdown) => {
+          setSaved('saving')
           save(markdown)
           count()
           // While sound is recording, the first letter of a new line stamps that line with its moment.
@@ -319,6 +326,13 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
       await editor.create()
       if (cancelled) return void editor.destroy()
       crepe = editor
+      lastSaved = editor.getMarkdown()
+      // Closing the app saves the page as it stands, even mid-word.
+      stopSaveNow = onSaveNow(() => {
+        const markdown = editor.getMarkdown()
+        if (markdown !== lastSaved) { lastSaved = markdown; void saveNote(notebook, 'notes.md', markdown) }
+      })
+      if (import.meta.env.DEV) Object.assign(window, { __crepe: editor })
       editorRef.current = editor
       setReady(true)
       count()
@@ -386,6 +400,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     return () => {
       cancelled = true
       stopQuotes()
+      stopSaveNow()
       stopFinding()
       stopClips()
       root?.removeEventListener('click', follow, true)
@@ -448,8 +463,15 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     void voice.start(async () => (told ? null : (told = true, host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')))
   }
   // The note as a document other programs open: a Word file, or a web page. Pictures go inside it.
-  const saveAs = async (kind: 'doc' | 'html') => {
-    const page = host.current?.querySelector('.ProseMirror')?.cloneNode(true) as HTMLElement | undefined
+  const saveAs = async (kind: 'docx' | 'html') => {
+    const live = host.current?.querySelector<HTMLElement>('.ProseMirror')
+    if (live && kind === 'docx') {
+      // A real Word document, pictures and all.
+      const { noteAsWord } = await import('../lib/word')
+      const font = { sans: 'Calibri', serif: 'Georgia', hand: 'Segoe Print', mono: 'Courier New' }[writing.face]
+      return saveFileAs(`${notebook} notes.docx`, await noteAsWord(live, notebook, font))
+    }
+    const page = live?.cloneNode(true) as HTMLElement | undefined
     if (!page) return
     page.querySelectorAll('.ProseMirror-widget, [data-decoration], button, input').forEach(extra => extra.remove())
     for (const picture of page.querySelectorAll('img')) {
@@ -649,10 +671,11 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
           <Tool icon={HistoryIcon} label="Earlier versions" hint="See how the note looked before, and bring a version back" onClick={openHistory} />
           <Tool icon={ClipboardCopy} label="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
-          <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('doc')} />
+          <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('docx')} />
           <Tool icon={Globe} label="Save as a web page" onClick={() => void saveAs('html')} />
           {!isMobile && <Tool icon={Printer} label="Print this note" onClick={print} />}
         </Menu>
+        <span className={saved === 'failed' ? 'viewer-pos save-state failed' : 'viewer-pos save-state'} title="Notes save themselves as you write">{saved === 'saving' ? 'Saving…' : saved === 'saved' ? 'Saved' : 'Not saved: storage refused'}</span>
         {boxes.all > 0 && <span className="viewer-pos" title="Checklist boxes ticked">{boxes.done} of {boxes.all} done</span>}
         {words > 0 && <span className="viewer-pos" title="Words on this page">{words.toLocaleString()} {words === 1 ? 'word' : 'words'}</span>}
         {backlinks.length > 0 && <span className="viewer-pos">Linked from</span>}

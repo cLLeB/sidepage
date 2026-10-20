@@ -85,10 +85,10 @@
 
 /* Pages that are plain pictures (scanned books) can only be shaded as a whole: warmed in sepia,
    dimmed in dark. They are not inverted, so photographs keep their real colours. */
-:root[data-theme='sepia'] :is(.djvu-page, .flipbook.tinted canvas) { filter: sepia(0.35) brightness(0.97); }
-:root[data-theme='dark'] :is(.djvu-page, .flipbook.tinted canvas) { filter: brightness(0.78); }
+:root[data-theme='sepia'] :is(.djvu-page, .flipbook.tinted :is(canvas, img)) { filter: sepia(0.35) brightness(0.97); }
+:root[data-theme='dark'] :is(.djvu-page, .flipbook.tinted :is(canvas, img)) { filter: brightness(0.78); }
 
-:root[data-theme='dark'] .invert-scans :is(.djvu-page, .flipbook.tinted canvas) { filter: invert(1) hue-rotate(180deg); }
+:root[data-theme='dark'] .invert-scans :is(.djvu-page, .flipbook.tinted :is(canvas, img)) { filter: invert(1) hue-rotate(180deg); }
 
 /* Pages made of real text and shapes (Word, RTF, ODT, .doc, .ppt): in dark the page is inverted to light-on-dark
    and every picture inside it is inverted back, which returns it to its real colours. */
@@ -1037,3 +1037,31 @@ button.viewer-pos { font-weight: 500; }
 /* Dockview draws an empty-state layer of its own; the home screen lies over it and takes the taps. */
 .home { z-index: 5; }
 .workspace .dv-watermark-container { display: none; }
+
+/* A page in the page-turn view: the page drawn as a picture, filling its leaf */
+.flip-leaf { background: #fff; overflow: hidden; }
+.flip-leaf img { display: block; width: 100%; height: 100%; object-fit: fill; user-select: none; -webkit-user-drag: none; }
+
+.cite .chips { margin: 4px 0 8px; }
+.cite h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Black: the dark theme on pure black */
+:root[data-shade='black'] { --bg: #000; --panel: #0d0d0e; --border: #26272b; --hover: #1a1b1e; --paper-bg: #0a0a0b; --paper-line: #25282f; --shadow-soft: 0 0 0 1px #1c1d20; }
+
+/* A paper colour chosen in a dark theme is that paper, with dark ink on it, as a real notebook would be. */
+:root[data-theme='dark'] .written-wrap[data-tint='white'] { --paper-bg: #ffffff; }
+:root[data-theme='dark'] .written-wrap[data-tint='cream'] { --paper-bg: #fbf3df; --paper-line: #d9c9a8; }
+:root[data-theme='dark'] .written-wrap[data-tint='yellow'] { --paper-bg: #fff7b8; --paper-line: #9db7d6; }
+:root[data-theme='dark'] .written-wrap[data-tint='blue'] { --paper-bg: #eaf3fd; --paper-line: #b4c9e4; }
+:root[data-theme='dark'] .written-wrap[data-tint='green'] { --paper-bg: #eaf6ea; --paper-line: #b9d3ba; }
+:root[data-theme='dark'] .written-wrap[data-tint='pink'] { --paper-bg: #fdeef1; --paper-line: #e4bfc8; }
+:root[data-theme='dark'] .written-wrap:not([data-tint='paper']) { --paper-margin: #e7a3a3; }
+:root[data-theme='dark'] .written-wrap:not([data-tint='paper']) .milkdown { --crepe-color-on-background: #2e3035; --crepe-color-on-surface: #2e3035; --crepe-color-on-surface-variant: #6d6f78; --crepe-color-outline: #9a9ca3; }
+:root[data-theme='dark'] .written-wrap:not([data-tint='paper']) .ProseMirror { color: #2e3035; }
+:root[data-theme='dark'] .written-wrap:not([data-tint='paper'])[data-ink='blue'] .ProseMirror { color: #2450b8; }
+:root[data-theme='dark'] .written-wrap:not([data-tint='paper'])[data-ink='black'] .ProseMirror { color: #111; }
+:root[data-theme='dark'] .written-wrap:not([data-tint='paper'])[data-ink='green'] .ProseMirror { color: #1f7a3a; }
+:root[data-theme='dark'] .written-wrap:not([data-tint='paper'])[data-ink='red'] .ProseMirror { color: #c62828; }
+
+.save-state { opacity: 0.75; }
+.save-state.failed { color: #e5484d; opacity: 1; }

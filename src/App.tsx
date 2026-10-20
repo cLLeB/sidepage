@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { DockviewReact, type DockviewApi, type DockviewTheme, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react'
 import { ErrorBoundary } from 'react-error-boundary'
 import {
-  Coffee, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
+  Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
   BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
@@ -14,17 +14,17 @@ import { Comfort, FocusClock, LookUp, Palette, SittingCard, Soundscape, StudyTim
 import { beginSitting, endSitting, type Sitting } from './lib/session'
 import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
 import { OCR_LANGUAGES } from './lib/ocr'
-import { bibliography } from './viewers/Cite'
+import { bibliography, CiteDialog, openCite } from './viewers/Cite'
 import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
-  baseName, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, launchFile, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
-  onNotesFolderChange, pickFile, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, launchFile, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
+  onNotesFolderChange, pickFile, placeNow, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
-import { setTheme, THEME_CHOICES, useThemeChoice, type ThemeChoice } from './lib/theme'
+import { deviceIsDark, setTheme, THEME_CHOICES, useThemeChoice, type ThemeChoice } from './lib/theme'
 import { BACKUP_EXTENSION, packBackup, restoreBackup } from './lib/backup'
 import { addReadingTime, addSpent, asTime } from './lib/reading'
 
@@ -72,8 +72,10 @@ function viewerFor(name: string) {
 const LAYOUTS = { auto: 'Automatic', side: 'Side by side', stacked: 'Book above notes', tabs: 'One at a time' } as const
 type Layout = keyof typeof LAYOUTS
 const LAYOUT_ICONS = { auto: LayoutDashboard, side: Columns2, stacked: Rows2, tabs: PanelTop } as const
-const THEME_ICONS = { auto: SunMoon, light: Sun, sepia: Coffee, dark: Moon } as const
-const THEME_NAMES = { auto: 'Follow the device', light: 'Light', sepia: 'Sepia', dark: 'Dark' } as const
+const THEME_ICONS = { auto: SunMoon, light: Sun, sepia: Coffee, dark: Moon, black: MoonStar } as const
+const THEME_NAMES = { auto: 'Follow the device', light: 'Light', sepia: 'Sepia', dark: 'Dark', black: 'Black' } as const
+// The theme button goes round the looks that differ; following the device is chosen in the More menu.
+const CYCLE = ['light', 'sepia', 'dark', 'black'] as const
 // The choice after this one, going round.
 const next = <T,>(all: readonly T[], current: T) => all[(all.indexOf(current) + 1) % all.length]
 const chosenLayout = () => (localStorage.getItem('sidepage:layout') as Layout) || 'auto'
@@ -178,7 +180,43 @@ export default function App() {
   // Focus: nothing on screen but the page and the notes. Escape, or the corner button, brings the bars back.
   const [focus, setFocus] = useState(false)
   useScreenOn(awake && !empty)
+  // Notes save themselves a moment after you stop writing. Closing the app, or putting it in the background, saves
+  // at once whatever is still waiting, so nothing typed is lost and there is nothing to be asked about.
+  useEffect(() => {
+    const hidden = () => { if (document.visibilityState === 'hidden') saveWaiting() }
+    window.addEventListener('pagehide', saveWaiting)
+    window.addEventListener('beforeunload', saveWaiting)
+    document.addEventListener('visibilitychange', hidden)
+    let stop: (() => void) | undefined
+    if ('__TAURI_INTERNALS__' in window) {
+      void import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
+        const win = getCurrentWindow()
+        stop = await win.onCloseRequested(async event => {
+          event.preventDefault()
+          await finishSaving()
+          await win.destroy()
+        })
+      }).catch(() => {})
+    }
+    return () => {
+      window.removeEventListener('pagehide', saveWaiting)
+      window.removeEventListener('beforeunload', saveWaiting)
+      document.removeEventListener('visibilitychange', hidden)
+      stop?.()
+    }
+  }, [])
   // Focus also takes the whole screen, where the device lets an app do that.
+  // Entering or leaving Focus changes the room the panels have: they are laid out again once the bars are gone
+  // (or back) and the screen has settled, so the notes sit beside the book and never over it.
+  useEffect(() => {
+    const relayout = () => {
+      const room = document.querySelector<HTMLElement>('.workspace')
+      if (room && api.current) api.current.layout(room.clientWidth, room.clientHeight, true)
+    }
+    const timers = [50, 300, 900].map(delay => setTimeout(relayout, delay))
+    document.addEventListener('fullscreenchange', relayout)
+    return () => { timers.forEach(clearTimeout); document.removeEventListener('fullscreenchange', relayout) }
+  }, [focus])
   useEffect(() => {
     if (!focus) return
     void document.documentElement.requestFullscreen?.().catch(() => {})
@@ -295,7 +333,10 @@ export default function App() {
     // book is opened under its own name and its old entry in the library is taken away.
     const pathed = /[\\/]/.test(given.name) ? given.name : ''
     const picked = pathed ? new File([given], pathed.replace(/^.*[\\/]/, ''), { type: given.type }) : given
-    if (pathed) void unshelve(pathed)
+    if (pathed) {
+      void unshelve(pathed)
+      await moveNotebook(pathed.replace(/\.[^.]+$/, ''), baseName(picked.name))
+    }
     // A file whose name does not say what it is (usual on phones) is recognised by its contents.
     const file = await withDetectedType(picked, ext => ext === BUNDLE_EXTENSION || !!viewerFor(`x.${ext}`))
     if (extensionOf(file.name) === BACKUP_EXTENSION) {
@@ -423,7 +464,7 @@ export default function App() {
       else if (key === '2' && !e.shiftKey) act(() => openNote('canvas', notebook))
       else if (key === '3' && !e.shiftKey) act(() => openNote('mindmap', notebook))
       else if (key === 'l' && e.shiftKey) act(() => setLayout(current => next(Object.keys(LAYOUTS) as Layout[], current)))
-      else if (key === 'd' && e.shiftKey) act(() => setTheme(next(THEME_CHOICES, theme)))
+      else if (key === 'd' && e.shiftKey) act(() => setTheme(next(CYCLE, theme === 'auto' ? (deviceIsDark() ? 'dark' : 'light') : theme)))
       else if (key === '.' && !e.shiftKey) act(() => setFocus(on => !on && !empty))
       else if (key === 'k' && !e.shiftKey) act(() => setPalette(on => !on))
     }
@@ -497,6 +538,7 @@ export default function App() {
     { group: 'Keep', name: 'Save the book and its notes as one file', icon: Package, run: () => void saveWhole() },
     { group: 'Keep', name: 'Export this book\'s notes', icon: FileDown, run: () => void exportNotes() },
     { group: 'Study', name: 'Make a study pack for this book', icon: BookMarked, run: () => void makeStudyPack() },
+    { group: 'Keep', name: 'Cite this book…', icon: FileDown, run: () => { const here = placeNow(); if (here) openCite({ book: here.book, place: here.place }) } },
     { group: 'Keep', name: 'Save a bibliography of every book (BibTeX)', icon: FileDown, run: () => void bibliography('BibTeX').then(text => saveFileAs('Sidepage library.bib', new TextEncoder().encode(text + '\n'))) },
     { group: 'Keep', name: 'Save a reading list of every book (APA)', icon: FileDown, run: () => void bibliography('APA').then(text => saveFileAs('Reading list.md', new TextEncoder().encode('# Reading list\n\n' + text.split('\n\n').map(line => `- ${line}`).join('\n') + '\n'))) },
     ...books.map(book => ({ group: 'Your books', name: baseName(book.name), icon: BookOpenText, run: () => openFromShelf(book.name) })),
@@ -560,7 +602,7 @@ export default function App() {
         <NotesSearch />
         <StudyTimer onNotice={setNotice} />
         <Tool quiet icon={Maximize2} label="Focus" hint="Hide everything but the page and your notes (Ctrl+.)" disabled={empty} onClick={() => setFocus(true)} />
-        <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${THEME_NAMES[theme]}`} hint={`Theme: ${THEME_NAMES[theme]}. Tap to change.`} onClick={() => setTheme(next(THEME_CHOICES, theme))} />
+        <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${THEME_NAMES[theme]}`} hint={`Theme: ${THEME_NAMES[theme]}. Tap to change.`} onClick={() => setTheme(next(CYCLE, theme === 'auto' ? (deviceIsDark() ? 'dark' : 'light') : theme))} />
         <Tool quiet icon={Ellipsis} label="More" on={more} onClick={() => setMore(!more)} />
         {more && <>
           <div className="menu-backdrop" onClick={() => setMore(false)} />
@@ -627,7 +669,7 @@ export default function App() {
             <label className="menu-row">
               Theme
               <select value={theme} onChange={e => setTheme(e.target.value as ThemeChoice)}>
-                {THEME_CHOICES.map(t => <option key={t} value={t}>{THEME_NAMES[t]}</option>)}
+                {THEME_CHOICES.map(t => <option key={t} value={t}>{t === 'auto' ? `Follow the device (${deviceIsDark() ? 'dark' : 'light'} now)` : THEME_NAMES[t]}</option>)}
               </select>
             </label>
           </div>
@@ -640,6 +682,7 @@ export default function App() {
       {sitting && <SittingCard sitting={sitting} onClose={() => setSitting(null)} />}
       <LookUp />
       <Translator />
+      <CiteDialog />
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">

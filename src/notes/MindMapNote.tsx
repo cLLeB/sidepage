@@ -60,7 +60,10 @@ export default function MindMapNote({ notebook }: { notebook: string }) {
     loadNote(notebook, 'mindmap.json').then(saved => {
       if (cancelled || !host.current) return
       mind = new MindElixir({ el: host.current, direction: MindElixir.SIDE })
-      mind.init(saved ? JSON.parse(saved) : MindElixir.new(notebook))
+      const data = saved ? JSON.parse(saved) : MindElixir.new(notebook)
+      // Older versions named a book by its whole Windows path; the centre of its map shows the name alone.
+      if (/[\\/]/.test(data.nodeData?.topic ?? '')) data.nodeData.topic = data.nodeData.topic.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '')
+      mind.init(data)
       map.current = mind
       if (themeAtStart.current === 'dark') mind.changeTheme(MindElixir.DARK_THEME)
       mind.bus.addListener('operation', save)

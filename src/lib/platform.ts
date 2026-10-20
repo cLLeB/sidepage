@@ -144,7 +144,10 @@ export async function loadNote(notebook: string, file: string): Promise<string |
   }
 }
 
-export async function saveNote(notebook: string, file: string, text: string): Promise<void> {
+export function saveNote(notebook: string, file: string, text: string): Promise<void> {
+  return track(writeNote(notebook, file, text))
+}
+async function writeNote(notebook: string, file: string, text: string): Promise<void> {
   if (usesComputerFiles) {
     const { writeTextFile, mkdir, BaseDirectory } = await import('@tauri-apps/plugin-fs')
     await mkdir(`${ROOT}/${safe(notebook)}`, { baseDir: BaseDirectory.Document, recursive: true })
@@ -161,7 +164,10 @@ export async function saveNote(notebook: string, file: string, text: string): Pr
 }
 
 // A picture kept in a notebook, beside its notes.
-export async function saveNoteFile(notebook: string, file: string, data: Blob): Promise<void> {
+export function saveNoteFile(notebook: string, file: string, data: Blob): Promise<void> {
+  return track(writeNoteFile(notebook, file, data))
+}
+async function writeNoteFile(notebook: string, file: string, data: Blob): Promise<void> {
   if (usesComputerFiles) {
     const { writeFile, mkdir, BaseDirectory } = await import('@tauri-apps/plugin-fs')
     await mkdir(`${ROOT}/${safe(notebook)}`, { baseDir: BaseDirectory.Document, recursive: true })
@@ -205,12 +211,37 @@ export const picturesIn = (markdown: string) => [...new Set([
   ...[...markdown.matchAll(/"file":"(card-[\w.-]+)"/g)].map(match => match[1]),
 ])]
 
+// Notes are saved a moment after the last keystroke. What is still waiting for that moment is listed here, so it
+// can be saved at once when the app is closed or put in the background.
+const waiting = new Set<() => void>()
 export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number) {
   let timer: ReturnType<typeof setTimeout> | undefined
+  let run: (() => void) | undefined
   return (...args: A) => {
     clearTimeout(timer)
-    timer = setTimeout(() => fn(...args), ms)
+    if (run) waiting.delete(run)
+    const now = () => { clearTimeout(timer); waiting.delete(now); run = undefined; fn(...args) }
+    run = now
+    waiting.add(now)
+    timer = setTimeout(now, ms)
   }
+}
+const writing = new Set<Promise<unknown>>()
+const track = <T,>(work: Promise<T>) => {
+  writing.add(work)
+  void work.finally(() => writing.delete(work)).catch(() => {})
+  return work
+}
+// An open note can also be asked to save what is on its page right now (the editor itself reports changes only
+// after a short pause of its own).
+const savers = new Set<() => void>()
+export const onSaveNow = (save: () => void) => { savers.add(save); return () => { savers.delete(save) } }
+// Save everything still waiting, now. (Returns at once; the writes carry on.)
+export const saveWaiting = () => { for (const run of [...waiting]) run(); for (const save of savers) save() }
+// Save everything still waiting and wait until every write has reached storage.
+export async function finishSaving() {
+  saveWaiting()
+  await Promise.allSettled([...writing])
 }
 
 // Whether books open as pages to turn (Flip) or as a scroll; the last choice is kept.
@@ -326,4 +357,20 @@ export async function unshelve(name: string) {
   const { get, set, del } = await import('idb-keyval')
   await del(`book:${name}`)
   await set('shelf', ((await get<Shelved[]>('shelf')) ?? []).filter(book => book.name !== name))
+}
+
+// Earlier versions on Windows named a book's notebook after the book's whole path. When such a book is opened
+// under its own name, what was kept in the old notebook is copied to the new one (if that is still empty).
+export async function moveNotebook(from: string, to: string) {
+  if (from === to || (await loadNote(to, 'notes.md'))) return
+  const files = ['notes.md', 'canvas.excalidraw', 'mindmap.json', 'highlights.json', 'picture-cards.json', 'notes-history.json', 'bookmarks-pdf.json', 'bookmarks-epub.json', 'bookmarks-docx.json', 'bookmarks-pptx.json', 'bookmarks-djvu.json']
+  for (let page = 2; page < 200; page++) files.push(`canvas-${page}.excalidraw`)
+  for (const file of files) {
+    const text = await loadNote(from, file).catch(() => null)
+    if (text !== null) await saveNote(to, file, file === 'mindmap.json' ? text.replace(/"topic":"[^"]*[\\\\/][^"]*"/, `"topic":${JSON.stringify(to)}`) : text)
+  }
+  for (const name of picturesIn(((await loadNote(from, 'notes.md')) ?? '') + ((await loadNote(from, 'picture-cards.json')) ?? ''))) {
+    const data = await loadNoteFile(from, name).catch(() => null)
+    if (data) await saveNoteFile(to, name, data)
+  }
 }

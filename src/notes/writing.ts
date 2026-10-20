@@ -65,7 +65,7 @@ const TAG_NAMES = Object.keys(TAGS) as Tagged[]
 const isTagged = (kind: string | undefined): kind is Tagged => !!kind && kind in TAGS
 const LOOK_NAMES = Object.keys(LOOKS) as Look[]
 
-type Mdast = { type: string; value?: string; children?: Mdast[]; kind?: string; look?: string; align?: string }
+type Mdast = { type: string; value?: string; children?: Mdast[]; kind?: string; look?: string; align?: string; title?: string | null }
 
 const styledSpan = /^<span style="([^"<>]*)">$/
 // The looks an opening tag asks for, outermost first; nothing if it is not one of ours.
@@ -87,6 +87,9 @@ const ALIGNED = /^<div align="(left|center|right|justify)">$/
 // Markdown reads our HTML as loose tags among the text. Pair them up again, so a tag and its closing tag
 // become one piece of styled text, and a `<div align>` becomes the alignment of the paragraphs inside it.
 function readLooks(node: Mdast) {
+  // A picture with no caption comes from Markdown with its caption missing (null), which the editor refuses, and
+  // the picture would quietly disappear from the note. It is given an empty caption instead.
+  if ((node.type === 'image' || node.type === 'image-block') && node.title == null) node.title = ''
   if (!node.children) return
   node.children.forEach(readLooks)
   const out: Mdast[] = []

@@ -12,8 +12,9 @@ import {
 } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
+import { readableText } from '../lib/insight'
 import { planToday } from '../lib/reading'
-import { CiteMenu, keepFacts } from './Cite'
+import { keepFacts, openCite } from './Cite'
 import PageMap from './PageMap'
 import { usePref } from '../lib/prefs'
 import { lookUp, translate } from '../Extras'
@@ -260,7 +261,8 @@ export default function PdfView({ file }: { file: File }) {
       }
       first = false
       const content = await (await doc.getPage(number)).getTextContent()
-      return content.items.map(item => ('str' in item ? item.str : '')).join(' ')
+      // The copyright line, course title or date that stands on every page is not read out each time.
+      return readableText(file.name, content.items.map(item => ('str' in item ? item.str : '')).join(' '))
     }, sentence => light(number, sentence))
   }
   // Read along: the words of the page's text layer are matched against the sentence being spoken, letters only,
@@ -352,8 +354,18 @@ export default function PdfView({ file }: { file: File }) {
       setProgress(file.name, viewer.pagesCount > 1 ? (e.pageNumber - 1) / (viewer.pagesCount - 1) : 1)
     })
 
+    // When the panel changes size (the screen turned, Focus, the divider dragged), the page is fitted to the new
+    // width if it was fitted before, or if it no longer fits at all and would be cut off at the edge.
+    let lastWidth = 0
     const resize = new ResizeObserver(() => {
-      if (viewer.pdfDocument && container.current?.clientWidth && fitted.current) viewer.currentScaleValue = 'page-width'
+      const width = container.current?.clientWidth ?? 0
+      if (!viewer.pdfDocument || !width || Math.abs(width - lastWidth) < 2) return
+      lastWidth = width
+      const page = container.current?.querySelector<HTMLElement>('.page')
+      if (fitted.current || (page && page.offsetWidth > width - 8)) {
+        fitted.current = true
+        viewer.currentScaleValue = 'page-width'
+      }
     })
     resize.observe(container.current!)
 
@@ -460,7 +472,9 @@ export default function PdfView({ file }: { file: File }) {
       let ratio = 1.4
       for (let n = first; n <= last && !cancelled; n++) {
         const pdfPage = await doc.getPage(n)
-        const viewport = pdfPage.getViewport({ scale: 1.6 })
+        const natural = pdfPage.getViewport({ scale: 1 })
+        const wanted = Math.min(2400, Math.max(1400, Math.round(window.screen.width * (window.devicePixelRatio || 1) * 0.55)))
+        const viewport = pdfPage.getViewport({ scale: wanted / natural.width })
         if (n === first) ratio = viewport.height / viewport.width
         const canvas = document.createElement('canvas')
         canvas.width = viewport.width
@@ -478,7 +492,7 @@ export default function PdfView({ file }: { file: File }) {
           const pictures = await picturesOf(pdfPage, viewport, canvas).catch(() => null)
           if (pictures) ink.drawImage(pictures, 0, 0)
         }
-        const blob = await new Promise<Blob | null>(resolve => shaded.toBlob(resolve, 'image/jpeg', 0.85))
+        const blob = await new Promise<Blob | null>(resolve => shaded.toBlob(resolve, 'image/jpeg', 0.92))
         if (blob) urls.push(URL.createObjectURL(blob))
       }
       if (!cancelled) setFlip({ pages: urls, ratio, first })
@@ -626,6 +640,7 @@ export default function PdfView({ file }: { file: File }) {
             <Tool icon={Maximize} label="Fit the whole page" onClick={fitPage} />
             <Tool icon={BookCopy} label={spread ? 'One page at a time' : 'Two pages side by side'} on={spread} onClick={toggleSpread} />
             <Tool icon={RotateCw} label="Turn the pages a quarter" onClick={rotate} />
+            <Tool icon={TextQuote} label="Cite this book…" hint="As a reference, in your text with this page, or the selected passage with its source" onClick={() => openCite({ book: file.name, place: `page=${page}`, passage: window.getSelection()?.toString() })} />
             <Tool icon={ScanText} label="Make the whole book searchable" hint="For a scanned book: read every page's words once" onClick={() => void readScan()} />
             <Tool icon={ScanText} label="Read the text of this whole page" hint="For a scanned page: put its words into your notes" onClick={readWholePage} />
             <p className="menu-head">Scroll by itself</p>
@@ -637,7 +652,6 @@ export default function PdfView({ file }: { file: File }) {
           </Menu>
           {cameFrom > 0 && cameFrom !== page && <button className="viewer-pos" title="Return to the page you were on" onClick={() => go(cameFrom - page)}>↩ p. {cameFrom}</button>}
           {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
-          <CiteMenu book={file.name} />
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />

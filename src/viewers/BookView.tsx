@@ -5,7 +5,7 @@ import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
 import { BookA, Languages, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2 } from 'lucide-react'
 import { lookUp, translate } from '../Extras'
-import { CiteMenu, keepFacts } from './Cite'
+import { keepFacts } from './Cite'
 import { Tool } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
 import { canSpeak, useReadAloud } from '../lib/speech'
@@ -389,7 +389,6 @@ export default function BookView({ file }: { file: File }) {
         <span className="viewer-pos" title={where.label}>{where.label ? `${where.label} · ` : ''}{Math.round(where.fraction * 100)}%</span>
         <span className="spacer" />
         <SearchBox onSearch={query => void search(query)} onClear={clearSearch} status={searching} hits={hits} />
-        <CiteMenu book={file.name} />
         <BookmarksMenu
           marks={bookmarks}
           here={where.cfi ? { place: where.cfi, label: `${where.label || 'Page'} · ${Math.round(where.fraction * 100)}%` } : null}

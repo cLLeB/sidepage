@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Copy, NotebookPen, Quote } from 'lucide-react'
-import { Menu } from '../ui'
 import { baseName, sendQuote, shelf } from '../lib/platform'
 
 // What a book says about itself (its title, authors, year, publisher), kept when it is opened, so it can be cited.
@@ -25,7 +24,8 @@ export async function keepFacts(book: string, facts: Partial<BookFacts>) {
 }
 export async function factsOf(book: string): Promise<BookFacts> {
   const { get } = await import('idb-keyval')
-  return (await get<BookFacts>(key(book))) ?? { title: baseName(book), authors: [], kind: 'book' }
+  const found = (await get<BookFacts>(key(book))) ?? { title: baseName(book), authors: [], kind: 'book' }
+  return /[\\/]/.test(found.title) ? { ...found, title: baseName(found.title) } : found
 }
 
 // "Mary Ann Smith" → family name and initials, the way citation styles want them.
@@ -74,45 +74,76 @@ export async function bibliography(style: Style) {
   return (style === 'BibTeX' ? all : all.sort((a, b) => a.localeCompare(b))).join('\n\n')
 }
 
-// The reader's Cite menu: the open book in each style, to copy or to put in the notes.
-export function CiteMenu({ book }: { book: string }) {
+// ── Citing: the open book as a reference, a page of it in the text of an essay, or a passage with its source ──
+export type CiteAsk = { book: string; place?: string; passage?: string }
+export const openCite = (ask: CiteAsk) => window.dispatchEvent(new CustomEvent('sidepage:cite', { detail: ask }))
+
+// How a page is cited inside the text of an essay, in each style.
+function inText(facts: BookFacts, style: Style, page?: string) {
+  const family = facts.authors.filter(Boolean).map(name => split(name).family)
+  const who = family.length === 0 ? `“${facts.title}”` : family.length === 1 ? family[0] : family.length === 2 ? `${family[0]} ${style === 'APA' ? '&' : 'and'} ${family[1]}` : `${family[0]} et al.`
+  const year = facts.year ?? 'n.d.'
+  if (style === 'APA') return `(${who}, ${year}${page ? `, p. ${page}` : ''})`
+  if (style === 'MLA') return `(${who}${page ? ` ${page}` : ''})`
+  return `(${who} ${year}${page ? `, ${page}` : ''})`
+}
+
+export function CiteDialog() {
+  const [ask, setAsk] = useState<CiteAsk | null>(null)
   const [facts, setFacts] = useState<BookFacts | null>(null)
+  const [style, setStyle] = useState<Style>('APA')
   const [copied, setCopied] = useState('')
   const [editing, setEditing] = useState(false)
-  // Read again each time the menu opens: the details are kept a moment after the book opens, or edited.
-  const [opened, setOpened] = useState(0)
-  useEffect(() => { void factsOf(book).then(setFacts) }, [book, opened])
+  useEffect(() => {
+    const open = (e: Event) => { setAsk((e as CustomEvent<CiteAsk>).detail); setCopied(''); setEditing(false) }
+    window.addEventListener('sidepage:cite', open)
+    return () => window.removeEventListener('sidepage:cite', open)
+  }, [])
+  useEffect(() => { if (ask) void factsOf(ask.book).then(setFacts) }, [ask])
+  if (!ask || !facts) return null
   const change = (part: Partial<BookFacts>) => {
-    if (!facts) return
     const next = { ...facts, ...part }
     setFacts(next)
-    void keepFacts(book, next)
+    void keepFacts(ask.book, next)
   }
+  const page = ask.place?.match(/^(?:page|slide)=(\d+)/)?.[1]
+  const reference = cite(facts, style).replace(/\*/g, '')
+  const citation = style === 'BibTeX' ? '' : inText(facts, style, page)
+  const passage = ask.passage?.trim()
+  const copy = (what: string, text: string) => void navigator.clipboard?.writeText(text).then(() => setCopied(what))
+  const row = (what: string, text: string, toNotes = true) => (
+    <div className="cite-style">
+      <p className="menu-head">{what}</p>
+      <pre>{text}</pre>
+      <div className="menu-line">
+        <button className="menu-item" onClick={() => copy(what, text)}><Copy size={14} aria-hidden /> {copied === what ? 'Copied' : 'Copy'}</button>
+        {toNotes && <button className="menu-item" onClick={() => { sendQuote({ text, source: '' }); setAsk(null) }}><NotebookPen size={14} aria-hidden /> Into my notes</button>}
+      </div>
+    </div>
+  )
   return (
-    <Menu quiet icon={Quote} label="Cite" hint="This book as a reference: APA, MLA, Chicago or BibTeX">
-      {() => facts && <div className="cite" ref={() => { if (!opened) setOpened(Date.now()) }}>
-        <button className="menu-item stay" onClick={() => setEditing(!editing)}>{editing ? 'Done with the details' : 'Edit the details (title, authors, year, publisher)'}</button>
-        {editing && <div className="cite-edit">
-          <label>Title<input value={facts.title} onChange={e => change({ title: e.target.value })} /></label>
-          <label>Authors, one per line<textarea rows={3} value={facts.authors.join('\n')} onChange={e => change({ authors: e.target.value.split('\n') })} /></label>
-          <label>Year<input value={facts.year ?? ''} inputMode="numeric" onChange={e => change({ year: e.target.value })} /></label>
-          <label>Publisher<input value={facts.publisher ?? ''} onChange={e => change({ publisher: e.target.value })} /></label>
-        </div>}
-        {STYLES.map(style => {
-          const text = cite(facts, style)
-          return (
-            <div key={style} className="cite-style">
-              <p className="menu-head">{style}</p>
-              <pre>{text.replace(/\*/g, '')}</pre>
-              <div className="menu-line">
-                <button className="menu-item stay" onClick={() => void navigator.clipboard?.writeText(text.replace(/\*/g, '')).then(() => setCopied(style))}><Copy size={14} aria-hidden /> {copied === style ? 'Copied' : 'Copy'}</button>
-                {style !== 'BibTeX' && <button className="menu-item" onClick={() => sendQuote({ text: text.replace(/\*/g, ''), source: `${style} reference` })}><NotebookPen size={14} aria-hidden /> Into my notes</button>}
-              </div>
-            </div>
-          )
-        })}
-        {!facts.authors.filter(Boolean).length && !editing && <p className="menu-note">This file does not name its author: add it under “Edit the details”.</p>}
-      </div>}
-    </Menu>
+    <div className="palette-shade" onClick={() => setAsk(null)}>
+      <div className="palette lookup cite" role="dialog" aria-label="Cite" onClick={e => e.stopPropagation()}>
+        <h2><Quote size={20} aria-hidden /> Cite {facts.title}</h2>
+        <div className="chips" role="group" aria-label="Style">
+          {STYLES.map(name => <button key={name} className={name === style ? 'chip on' : 'chip'} onClick={() => setStyle(name)}>{name}</button>)}
+        </div>
+        <div className="palette-list">
+          {row(style === 'BibTeX' ? 'BibTeX entry' : 'In the list of references', reference, style !== 'BibTeX')}
+          {citation && row(page ? `In your text, for this page (${page})` : 'In your text', citation)}
+          {passage && citation && row('The selected passage, with its source', `“${passage.replace(/\s+/g, ' ')}” ${citation}`)}
+          {!passage && style !== 'BibTeX' && <p className="menu-note">Select a passage first to get it back quoted with its source.</p>}
+          <button className="menu-item" onClick={() => setEditing(!editing)}>{editing ? 'Done with the details' : 'Edit the details (title, authors, year, publisher)'}</button>
+          {editing && <div className="cite-edit">
+            <label>Title<input value={facts.title} onChange={e => change({ title: e.target.value })} /></label>
+            <label>Authors, one per line<textarea rows={3} value={facts.authors.join('\n')} onChange={e => change({ authors: e.target.value.split('\n') })} /></label>
+            <label>Year<input value={facts.year ?? ''} inputMode="numeric" onChange={e => change({ year: e.target.value })} /></label>
+            <label>Publisher<input value={facts.publisher ?? ''} onChange={e => change({ publisher: e.target.value })} /></label>
+          </div>}
+          {!facts.authors.filter(Boolean).length && !editing && <p className="menu-note">This file does not name its author: add it under “Edit the details”.</p>}
+        </div>
+        <div className="lookup-actions"><button className="primary" onClick={() => setAsk(null)}>Done</button></div>
+      </div>
+    </div>
   )
 }

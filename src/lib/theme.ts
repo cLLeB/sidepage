@@ -2,9 +2,10 @@ import { useSyncExternalStore } from 'react'
 
 // What the reader can choose, and what the app is then drawn in. "auto" follows the device's own light or dark
 // setting, and changes with it.
-export const THEME_CHOICES = ['auto', 'light', 'sepia', 'dark'] as const
+// "black" is the dark theme on pure black (kind to OLED screens); for pages and pictures it is dark.
+export const THEME_CHOICES = ['auto', 'light', 'sepia', 'dark', 'black'] as const
 export type ThemeChoice = (typeof THEME_CHOICES)[number]
-export type Theme = Exclude<ThemeChoice, 'auto'>
+export type Theme = 'light' | 'sepia' | 'dark'
 
 const deviceDark = window.matchMedia('(prefers-color-scheme: dark)')
 const listeners = new Set<() => void>()
@@ -12,11 +13,14 @@ const listeners = new Set<() => void>()
 export const currentChoice = (): ThemeChoice => (localStorage.getItem('sidepage:theme') as ThemeChoice) || 'light'
 export const currentTheme = (): Theme => {
   const choice = currentChoice()
-  return choice === 'auto' ? (deviceDark.matches ? 'dark' : 'light') : choice
+  return choice === 'auto' ? (deviceDark.matches ? 'dark' : 'light') : choice === 'black' ? 'dark' : choice
 }
+// What "Follow the device" comes to just now.
+export const deviceIsDark = () => deviceDark.matches
 
 const apply = () => {
   document.documentElement.dataset.theme = currentTheme()
+  document.documentElement.dataset.shade = currentChoice() === 'black' ? 'black' : ''
   listeners.forEach(listener => listener())
 }
 
@@ -42,3 +46,4 @@ export const pageFilter = (theme: Theme) =>
 
 deviceDark.addEventListener('change', apply)
 document.documentElement.dataset.theme = currentTheme()
+document.documentElement.dataset.shade = currentChoice() === 'black' ? 'black' : ''
