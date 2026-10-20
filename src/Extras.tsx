@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { uiLocale } from './lib/language'
 import { BookA, Play, Search, Square, Timer, X, type LucideIcon } from 'lucide-react'
 import { Menu, Tool } from './ui'
 import { usePref } from './lib/prefs'
@@ -297,7 +298,7 @@ export function FocusClock() {
     const tick = setInterval(() => setNow(new Date()), 20_000)
     return () => clearInterval(tick)
   }, [])
-  return <span className="focus-clock">{now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
+  return <span className="focus-clock">{now.toLocaleTimeString(uiLocale(), { hour: 'numeric', minute: '2-digit' })}</span>
 }
 
 // Keep the screen from dimming and locking while a book is open, where the device allows it.
@@ -374,7 +375,7 @@ export function Translator() {
         {text && <>
           <blockquote className="translate-from">{text.length > 900 ? `${text.slice(0, 900)}…` : text}</blockquote>
           {result === 'loading' && <p className="menu-note">Translating…</p>}
-          {result === 'same' && <p className="menu-note">This passage is already in {TRANSLATE_TO[to]}. Choose another language above.</p>}
+          {result === 'same' && <p className="menu-note">{`This passage is already in ${TRANSLATE_TO[to]}. Choose another language above.`}</p>}
           {result === 'failed' && <p className="menu-note">The translation service is on the internet, and it cannot be reached just now.</p>}
           {typeof result === 'object' && <p className="translate-to">{result.text}</p>}
           <p className="menu-note small">Sent to MyMemory, a free translation service, to be translated.</p>
@@ -527,8 +528,8 @@ export function Soundscape() {
 function languageName(code: string) {
   try {
     const [language, region] = code.replace('_', '-').split('-')
-    const names = new Intl.DisplayNames(undefined, { type: 'language' })
-    const regions = new Intl.DisplayNames(undefined, { type: 'region' })
+    const names = new Intl.DisplayNames(uiLocale(), { type: 'language' })
+    const regions = new Intl.DisplayNames(uiLocale(), { type: 'region' })
     return `${names.of(language) ?? language}${region ? ` (${regions.of(region.toUpperCase()) ?? region})` : ''}`
   } catch {
     return code

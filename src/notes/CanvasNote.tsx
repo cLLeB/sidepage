@@ -7,6 +7,7 @@ import { BookOpen, ChevronLeft, ChevronRight, ImageDown, Plus } from 'lucide-rea
 import { Tool } from '../ui'
 import { baseName, debounce, isShown, loadNote, onClip, saveFileAs, saveNote } from '../lib/platform'
 import { useTheme } from '../lib/theme'
+import { uiLanguage } from '../lib/language'
 
 type Initial = NonNullable<Parameters<typeof Excalidraw>[0]['initialData']>
 
@@ -68,6 +69,7 @@ function CanvasPage({ notebook, file, latest }: { notebook: string; file: string
       }}
     >
       <Excalidraw
+        langCode={uiLanguage() === 'fr' ? 'fr-FR' : 'en'}
         initialData={initial}
         excalidrawAPI={api => { drawing.current = api }}
         theme={theme === 'dark' ? 'dark' : 'light'}

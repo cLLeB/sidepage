@@ -14,6 +14,7 @@ import { Comfort, FocusClock, LookUp, Palette, SittingCard, Soundscape, StudyTim
 import { beginSitting, endSitting, type Sitting } from './lib/session'
 import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
 import { OCR_LANGUAGES } from './lib/ocr'
+import { LANGUAGES, setLanguage, uiLanguage, type Language } from './lib/language'
 import { bibliography, CiteDialog, openCite } from './viewers/Cite'
 import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
@@ -628,6 +629,11 @@ export default function App() {
                 onClick={() => void chooseNotesFolder()}
               />
             )}
+            <label className="menu-row">Language
+              <select value={uiLanguage()} onChange={e => { setLanguage(e.target.value as Language); setMore(false) }}>
+                {(Object.keys(LANGUAGES) as Language[]).map(code => <option key={code} value={code}>{LANGUAGES[code]}</option>)}
+              </select>
+            </label>
             <p className="menu-head">Look</p>
             <div className="menu-row">Accent
               <span className="swatches">

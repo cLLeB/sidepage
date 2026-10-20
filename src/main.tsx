@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './lib/theme'
+import './lib/language'
 import App from './App.tsx'
 import { isTauri } from './lib/platform'
 

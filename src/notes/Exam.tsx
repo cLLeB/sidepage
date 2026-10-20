@@ -65,7 +65,7 @@ export default function Exam({ onLeave }: { onLeave(): void }) {
           {withCards.map(book => (
             <label key={book} className="exam-book">
               <input type="checkbox" checked={books.includes(book)} onChange={e => setBooks(e.target.checked ? [...books, book] : books.filter(other => other !== book))} />
-              {baseName(book)} <span>{cards.filter(card => card.book === book && card.back).length} cards</span>
+              {baseName(book)} <span>{`${cards.filter(card => card.book === book && card.back).length} cards`}</span>
             </label>
           ))}
         </div>
@@ -99,7 +99,7 @@ export default function Exam({ onLeave }: { onLeave(): void }) {
     return (
       <div className="exam">
         <h2>{Math.round((right / total) * 100)}%</h2>
-        <p className="review-note">{right} of {total} right{ends ? (now >= ends ? ' · time ran out' : '') : ''}</p>
+        <p className="review-note">{`${right} of ${total} right${ends && now >= ends ? ' · time ran out' : ''}`}</p>
         <div className="exam-results">
           {byBook.map(row => (
             <div key={row.book} className="exam-row"><span>{baseName(row.book)}</span><span className="meter"><i style={{ width: `${(row.right / row.of) * 100}%` }} /></span><b>{row.right}/{row.of}</b></div>
@@ -136,7 +136,7 @@ export default function Exam({ onLeave }: { onLeave(): void }) {
   return (
     <div className="exam">
       <p className="review-count">
-        Question {Math.min(at, total - 1) + 1} of {total} · {baseName(question.card.book)}
+        {`Question ${Math.min(at, total - 1) + 1} of ${total} · ${baseName(question.card.book)}`}
         {ends > 0 && <span className={left < 60 ? 'exam-clock low' : 'exam-clock'}><Timer size={13} aria-hidden /> {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>}
       </p>
       <div className="review-card">

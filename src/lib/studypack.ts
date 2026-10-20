@@ -1,4 +1,5 @@
 import { marked } from 'marked'
+import { uiLocale } from './language'
 import { baseName, loadNote, loadNoteFile } from './platform'
 import { asTime, progressOf, spentOn, type Highlight } from './reading'
 import { allCards } from './review'
@@ -82,7 +83,7 @@ export async function studyPack(book: string): Promise<string> {
   <p class="label">Study pack</p>
   <h1>${escape(facts.title)}</h1>
   <p class="meta">${[facts.authors.filter(Boolean).join(', '), facts.year, facts.publisher].filter((part): part is string => !!part).map(escape).join(' · ')}</p>
-  <p class="meta">${read}% read${spent ? ` · ${asTime(spent)} spent with it` : ''} · made ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })} with Sidepage</p>
+  <p class="meta">${read}% read${spent ? ` · ${asTime(spent)} spent with it` : ''} · made ${new Date().toLocaleDateString(uiLocale(), { day: 'numeric', month: 'long', year: 'numeric' })} with Sidepage</p>
   <p class="meta">Reference (APA): ${escape(cite(facts, 'APA').replace(/\*/g, ''))}</p>
 </header>
 <ol class="contents">

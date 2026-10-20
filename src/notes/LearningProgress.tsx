@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { uiLocale } from '../lib/language'
 import { learningProgress, type Progress } from '../lib/review'
 
 // How learning is going, drawn plainly: where the cards stand, what is coming, and how well things are remembered.
@@ -16,9 +17,9 @@ export default function LearningProgress() {
         <i className="fresh" style={{ width: share(progress.fresh) }} />
       </div>
       <div className="learning-key">
-        <span><i className="known" />{progress.known} known</span>
-        <span><i className="learning-now" />{progress.learning} learning</span>
-        <span><i className="fresh" />{progress.fresh} new</span>
+        <span><i className="known" />{`${progress.known} known`}</span>
+        <span><i className="learning-now" />{`${progress.learning} learning`}</span>
+        <span><i className="fresh" />{`${progress.fresh} new`}</span>
       </div>
       <div className="learning-figures">
         <span><b>{progress.answered ? Math.round((progress.remembered / progress.answered) * 100) : 0}%</b> remembered</span>
@@ -28,10 +29,10 @@ export default function LearningProgress() {
       <p className="eyebrow">The next two weeks</p>
       <div className="ahead">
         {progress.ahead.map((day, i) => (
-          <div key={i} className="ahead-day" title={`${day.day.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}: ${day.due} card${day.due === 1 ? '' : 's'}`}>
+          <div key={i} className="ahead-day" title={`${day.day.toLocaleDateString(uiLocale(), { weekday: 'long', day: 'numeric', month: 'short' })}: ${day.due} card${day.due === 1 ? '' : 's'}`}>
             <span className="ahead-count">{day.due || ''}</span>
             <i style={{ height: `${(day.due / most) * 100}%` }} />
-            <span className="ahead-name">{i === 0 ? 'Today' : day.day.toLocaleDateString(undefined, { weekday: 'narrow' })}</span>
+            <span className="ahead-name">{i === 0 ? 'Today' : day.day.toLocaleDateString(uiLocale(), { weekday: 'narrow' })}</span>
           </div>
         ))}
       </div>

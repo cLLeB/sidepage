@@ -80,7 +80,7 @@ export function PictureCardMaker({ image, onSave, onCancel }: { image: string; o
           </div>
         )}
         <div className="lookup-actions">
-          <span className="viewer-pos">{boxes.length} card{boxes.length === 1 ? '' : 's'}</span>
+          <span className="viewer-pos">{`${boxes.length} card${boxes.length === 1 ? '' : 's'}`}</span>
           <span className="spacer" />
           <button className="soft" onClick={onCancel}><X size={17} aria-hidden /> Cancel</button>
           <button className="primary" disabled={!boxes.length} onClick={() => onSave(boxes)}><Check size={17} aria-hidden /> Make the cards</button>

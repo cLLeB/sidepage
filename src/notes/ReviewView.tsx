@@ -96,7 +96,7 @@ export default function ReviewView() {
         if (turned && picked) void answer(picked.rating)
       }}
     >
-      <p className="review-count">{practice ? 'Practice · ' : ''}{cards.length} to go · {baseName(card.book)}</p>
+      <p className="review-count">{`${practice ? 'Practice · ' : ''}${cards.length} to go · ${baseName(card.book)}`}</p>
       <div className="review-card">
         {card.picture
           ? <>

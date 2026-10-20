@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { uiLocale } from '../lib/language'
 import { History as HistoryIcon, RotateCcw } from 'lucide-react'
 import { loadNote, saveNote } from '../lib/platform'
 
@@ -46,7 +47,7 @@ function compare(before: string, after: string): Line[] {
 const when = (at: number) => {
   const date = new Date(at)
   const today = new Date().toDateString() === date.toDateString()
-  return today ? `Today, ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : date.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+  return today ? `Today, ${date.toLocaleTimeString(uiLocale(), { hour: 'numeric', minute: '2-digit' })}` : date.toLocaleString(uiLocale(), { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 }
 
 export function HistoryDialog({ notebook, current, onRestore, onClose }: { notebook: string; current: string; onRestore(text: string): void; onClose(): void }) {

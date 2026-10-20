@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { uiLocale } from './lib/language'
 import { BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, FolderPlus, Library, NotebookText, Pencil, Quote, Star, Target, Trash2, X } from 'lucide-react'
 import { usePref } from './lib/prefs'
 import { baseName, extensionOf, loadNote, type Shelved } from './lib/platform'
@@ -108,7 +109,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
       <div className="home-inner">
         <header className="home-top">
           <div>
-            <p className="home-day">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <p className="home-day">{new Date().toLocaleDateString(uiLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             <h1>{greeting()}</h1>
           </div>
           <div className="home-actions">
@@ -153,7 +154,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
               </div>
               <div className="tile">
                 <span className="tile-icon"><Flame size={17} aria-hidden /></span>
-                <b>{stats.streak} {stats.streak === 1 ? 'day' : 'days'}</b>
+                <b>{`${stats.streak} ${stats.streak === 1 ? 'day' : 'days'}`}</b>
                 <span>in a row</span>
               </div>
               <div className="tile wide">
@@ -162,7 +163,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                   {days.map(({ date, minutes }) => (
                     <i
                       key={date.toDateString()}
-                      title={`${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}: ${minutes ? asTime(minutes) : 'nothing read'}`}
+                      title={`${date.toLocaleDateString(uiLocale(), { day: 'numeric', month: 'short' })}: ${minutes ? asTime(minutes) : 'nothing read'}`}
                       style={{ opacity: minutes ? 0.25 + 0.75 * Math.min(1, minutes / most) : undefined }}
                       className={minutes ? 'read' : undefined}
                     />
@@ -184,7 +185,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                   <button className="plan-book" onClick={() => onOpen(book.name)}>
                     <span className="plan-name">{baseName(book.name)}</span>
                     <span className="book-meta">
-                      {today.late ? 'The finish day has passed' : `Finish by ${today.by.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} · ${today.daysLeft} day${today.daysLeft === 1 ? '' : 's'} left`}
+                      {today.late ? 'The finish day has passed' : `Finish by ${today.by.toLocaleDateString(uiLocale(), { weekday: 'short', day: 'numeric', month: 'short' })} · ${today.daysLeft} day${today.daysLeft === 1 ? '' : 's'} left`}
                     </span>
                     <span className="meter plan-meter">
                       <i style={{ width: `${Math.round(today.read * 100)}%` }} />

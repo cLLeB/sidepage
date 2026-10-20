@@ -160,6 +160,8 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   passages stay highlighted in EPUB-family books, and clicking a highlight shows the note that quotes it.
 - **One file for everything**: "Save as one file" writes a `.sidepage` file holding the book and all its notes,
   drawings, mind map, highlights and reading position. Open it on any device to get the whole thing back.
+- The interface in English or French (More menu → Language). Book pages, notes and other things you brought are
+  never translated.
 - The home screen lists the books you opened recently.
 - Reopens each book where you left off.
 - Notes are plain files (`notes.md`, `canvas.excalidraw`, `mindmap.json`) in one folder per book.

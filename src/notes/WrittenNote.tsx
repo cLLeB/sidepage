@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { uiLocale } from '../lib/language'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
   List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
@@ -674,7 +675,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={ImagePlus} label="Picture" onClick={() => picker.current?.click()} />
           <Tool icon={Table} label="Table" onClick={() => insertTable(crepe())} />
           <Tool icon={Minus} label="Dividing line" onClick={() => insertLine(crepe())} />
-          <Tool icon={CalendarDays} label="Today's date" onClick={() => type(new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} />
+          <Tool icon={CalendarDays} label="Today's date" onClick={() => type(new Date().toLocaleDateString(uiLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} />
           <Tool icon={Link2} label="Link to this page of the book" hint="A link back to where the book is open now" onClick={() => void linkToPage()} />
           <p className="menu-head"><Omega size={12} aria-hidden /> Symbols</p>
           <div className="symbols">{SYMBOLS.map(symbol => <button key={symbol} onClick={() => type(symbol)}>{symbol}</button>)}</div>

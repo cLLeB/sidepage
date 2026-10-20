@@ -63,7 +63,7 @@ function Quiz({ questions }: { questions: Question[] }) {
           </div>
         </div>
       ))}
-      {Object.keys(picked).length === questions.length && <p className="quiz-score">{right} of {questions.length} right</p>}
+      {Object.keys(picked).length === questions.length && <p className="quiz-score">{`${right} of ${questions.length} right`}</p>}
     </div>
   )
 }
