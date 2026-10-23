@@ -466,7 +466,7 @@ export const FRENCH: Record<string, string> = {
   'Practise every card anyway': 'Réviser toutes les cartes quand même',
   'Go through all your cards now, without changing when they are due': 'Parcourir toutes vos cartes maintenant, sans changer leurs échéances',
   'Save the cards for Anki': 'Enregistrer les cartes pour Anki',
-  'A text file other flashcard apps can import': 'Un fichier texte que les autres applis de cartes peuvent importer',
+  'An Anki deck (.apkg), one sub-deck for each book, picture cards included. Saving it again updates the cards already in Anki.': 'Un paquet Anki (.apkg), un sous-paquet par livre, cartes d’images comprises. L’enregistrer à nouveau met à jour les cartes déjà dans Anki.',
   'Show the other side': 'Voir l’autre face',
   'Open in the book': 'Ouvrir dans le livre',
   'Space turns the card · 1 to 4 say how it went': 'Espace retourne la carte · 1 à 4 disent comment ça s’est passé',

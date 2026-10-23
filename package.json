@@ -22,6 +22,7 @@
     "@tauri-apps/plugin-dialog": "^2.8.1",
     "@tauri-apps/plugin-fs": "^2.6.0",
     "@tauri-apps/plugin-http": "^2.8.3",
+    "anki-apkg-export": "^5.0.0",
     "djvujs-dist": "^0.5.4",
     "dockview-react": "^8.4.1",
     "docx": "^9.13.0",
@@ -44,6 +45,7 @@
     "react-dom": "^19.2.8",
     "react-error-boundary": "^6.1.6",
     "rtf.js": "^3.0.9",
+    "sql.js": "^1.15.1",
     "tesseract.js": "^7.0.0",
     "ts-fsrs": "^5.4.2",
     "turndown": "^7.2.4"

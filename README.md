@@ -33,6 +33,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
 - Shelves of your own: put books on shelves you name ("Semester 1 — Biology"); a book can stand on several.
+- Anki deck: every flashcard saved as an .apkg deck for Anki, AnkiDroid or AnkiMobile (one sub-deck for each book, hidden-word
+  cards as cloze cards, picture cards as pictures), by [anki-apkg-export](https://github.com/repeat-space/anki-apkg-export) (MIT)
+  and [sql.js](https://github.com/sql-js/sql.js) (MIT).
 - Ask by meaning: a switch in Ask your books finds passages that say the same thing in other words, or in another
   language, with [multilingual E5](https://huggingface.co/intfloat/multilingual-e5-small) (MIT) run on the device by transformers.js.
   Each book is read once and kept; the model (about 120 MB) is fetched the first time.

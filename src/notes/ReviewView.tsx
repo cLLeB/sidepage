@@ -7,11 +7,11 @@ import { PictureCard } from './PictureCards'
 import LearningProgress from './LearningProgress'
 import Exam from './Exam'
 
-// Every card, front and back on one line with a tab between: the form Anki and most flashcard apps import.
+// Every card as an Anki deck (.apkg): Anki, AnkiDroid and AnkiMobile open it as it is, picture cards included.
 const exportCards = async () => {
-  const flat = (text: string) => text.replace(/\s+/g, ' ').trim()
-  const lines = (await allCards()).filter(card => card.back && !card.picture).map(card => `${flat(card.front)}\t${flat(card.back)}\t${baseName(card.book)}`)
-  await saveFileAs('Sidepage flashcards.txt', new TextEncoder().encode(lines.join('\n') + '\n'))
+  const { ankiDeck } = await import('../lib/anki')
+  const { bytes } = await ankiDeck()
+  await saveFileAs('Sidepage flashcards.apkg', bytes)
 }
 
 const focusHere = (card: HTMLDivElement | null) => card?.focus({ preventScroll: true })
@@ -68,7 +68,7 @@ export default function ReviewView() {
           {total > 0 && <LearningProgress key={done} />}
           {total > 0 && <Tool icon={ClipboardCheck} label="Mock exam" hint="A timed test of four-answer questions from the books you choose" onClick={() => setExam(true)} />}
           {total > 0 && <Tool icon={Repeat} label="Practise every card anyway" hint="Go through all your cards now, without changing when they are due" onClick={practise} />}
-          {total > 0 && <Tool icon={FileDown} label="Save the cards for Anki" hint="A text file other flashcard apps can import" onClick={() => void exportCards()} />}
+          {total > 0 && <Tool icon={FileDown} label="Save the cards for Anki" hint="An Anki deck (.apkg), one sub-deck for each book, picture cards included. Saving it again updates the cards already in Anki." onClick={() => void exportCards()} />}
         </div>
       </div>
     )
@@ -115,7 +115,7 @@ export default function ReviewView() {
         : <button className="primary" onClick={() => setTurned(true)}>Show the other side</button>}
       <div className="review-grades">
         <Tool icon={BookOpen} label="Open in the book" onClick={openInBook} />
-        <Tool icon={FileDown} label="Save the cards for Anki" hint="A text file other flashcard apps can import" onClick={() => void exportCards()} />
+        <Tool icon={FileDown} label="Save the cards for Anki" hint="An Anki deck (.apkg), one sub-deck for each book, picture cards included. Saving it again updates the cards already in Anki." onClick={() => void exportCards()} />
         <Tool icon={ClipboardCheck} label="Mock exam" onClick={() => setExam(true)} />
       </div>
       <p className="review-note keys">Space turns the card · 1 to 4 say how it went</p>
