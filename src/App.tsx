@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -138,6 +138,14 @@ export default function App() {
   const [palette, setPalette] = useState(false)
   // Reading a web page: an address asked for, the article taken from it and opened like a book.
   const [asking, setAsking] = useState<null | { address: string; busy: boolean; problem: string }>(null)
+  // Reading plans and the coming flashcard reviews, as a calendar file for any calendar app.
+  const toCalendar = async () => {
+    const { calendarFile } = await import('./lib/calendar')
+    const { text, count } = await calendarFile()
+    if (!count) return setNotice('Nothing to put in a calendar yet: set a plan for a book, or make some flashcards.')
+    await saveFileAs('Sidepage reading.ics', new TextEncoder().encode(text))
+    setNotice('Calendar saved. Open it (or import it in Google Calendar, Outlook or Apple Calendar) to get the reminders.')
+  }
   const readWebPage = async (address: string) => {
     setAsking({ address, busy: true, problem: '' })
     try {
@@ -558,6 +566,7 @@ export default function App() {
     { group: 'Keep', name: 'Cite this book…', icon: FileDown, run: () => { const here = placeNow(); if (here) openCite({ book: here.book, place: here.place }) } },
     { group: 'Keep', name: 'Save a bibliography of every book (BibTeX)', icon: FileDown, run: () => void bibliography('BibTeX').then(text => saveFileAs('Sidepage library.bib', new TextEncoder().encode(text + '\n'))) },
     { group: 'Keep', name: 'Save a reading list of every book (APA)', icon: FileDown, run: () => void bibliography('APA').then(text => saveFileAs('Reading list.md', new TextEncoder().encode('# Reading list\n\n' + text.split('\n\n').map(line => `- ${line}`).join('\n') + '\n'))) },
+    { group: 'Keep', name: 'Put reading plans and reviews in your calendar (.ics)', icon: CalendarPlus, run: () => void toCalendar() },
     ...books.map(book => ({ group: 'Your books', name: baseName(book.name), icon: BookOpenText, run: () => openFromShelf(book.name) })),
   ]
 
