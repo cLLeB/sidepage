@@ -24,6 +24,9 @@
         },
         {
           "url": "https://api.mymemory.translated.net/*"
+        },
+        {
+          "url": "https://api.languagetool.org/*"
         }
       ]
     }

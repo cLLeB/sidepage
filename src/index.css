@@ -1065,3 +1065,19 @@ button.viewer-pos { font-weight: 500; }
 
 .save-state { opacity: 0.75; }
 .save-state.failed { color: #e5484d; opacity: 1; }
+
+/* Diagrams drawn from text in a note */
+.written-note .diagram { display: grid; place-items: center; padding: 8px 0; overflow-x: auto; }
+.written-note .diagram svg { max-width: 100%; height: auto; }
+.diagram-error { color: #e5484d; font-size: 13px; }
+
+/* Spelling and grammar */
+.proofread { max-height: 40%; overflow: auto; padding: 8px 12px 10px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.proofread-head { display: flex; align-items: center; gap: 8px; }
+.issue { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: baseline; padding: 6px 8px; background: var(--bg); border-radius: 10px; border-left: 3px solid #e5484d; }
+.issue.grammar, .issue.typographical { border-left-color: #f08c00; }
+.issue.style, .issue.uncategorized { border-left-color: var(--accent); }
+.issue-found { padding: 0; font-weight: 650; text-decoration: underline wavy #e5484d; text-underline-offset: 3px; background: none; }
+.issue-message { font-size: 13px; color: var(--muted); }
+.issue-fixes { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
+.issue-fixes .chip { padding: 4px 10px; font-size: 13px; }

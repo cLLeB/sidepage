@@ -12,6 +12,8 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { Plugin, PluginKey, Selection, TextSelection } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view'
 import { $markSchema, $prose, $remark } from '@milkdown/kit/utils'
+import { codeBlockConfig } from '@milkdown/kit/component/code-block'
+import { currentTheme } from '../lib/theme'
 
 // How the writing in a note looks: its colour, marker, size, typeface, underline and which side it leans to.
 // Markdown has no words for these, so they are kept the way Markdown allows: as small pieces of HTML inside
@@ -265,9 +267,35 @@ const fitRules = $prose(() => new Plugin<DecorationSet>({
 }))
 
 // Everything above, added to an editor before it is created.
+// Diagrams written as text (Mermaid): a code block marked "mermaid" is drawn as its flowchart, timeline, sequence,
+// mind map or chart, and turns back into its text to edit it.
+let drawn = 0
+async function drawDiagram(text: string): Promise<string> {
+  const { default: mermaid } = await import('mermaid')
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: currentTheme() === 'dark' ? 'dark' : 'neutral', fontFamily: 'inherit' })
+  try {
+    return (await mermaid.render(`sidepage-diagram-${++drawn}`, text)).svg
+  } catch (error) {
+    return `<p class="diagram-error">This diagram has a mistake in it: ${String((error as Error)?.message ?? error).split('\n')[0].replace(/</g, '&lt;')}</p>`
+  }
+}
+
 export function addLooks(crepe: Crepe) {
   crepe.editor
     .config(ctx => {
+      ctx.update(codeBlockConfig.key, previous => ({
+        ...previous,
+        renderPreview: (language, content, applyPreview) => {
+          if (language.toLowerCase() !== 'mermaid' || !content.trim()) return previous.renderPreview(language, content, applyPreview)
+          void drawDiagram(content).then(svg => {
+            const holder = document.createElement('div')
+            holder.className = 'diagram'
+            holder.innerHTML = svg
+            applyPreview(holder)
+          })
+          return null
+        },
+      }))
       ctx.update(remarkStringifyOptionsCtx, options => ({
         ...options,
         handlers: { ...options.handlers, textStyle: writeLook } as typeof options.handlers,

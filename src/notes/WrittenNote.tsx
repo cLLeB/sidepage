@@ -3,7 +3,7 @@ import { uiLocale } from '../lib/language'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
   List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
-  AlignVerticalJustifyCenter, Footprints, Presentation, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
+  AlignVerticalJustifyCenter, SpellCheck, Footprints, Presentation, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
@@ -13,6 +13,7 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { imageBlockSchema } from '@milkdown/kit/component/image-block'
 import { insert, replaceAll } from '@milkdown/kit/utils'
 import { HistoryDialog, keepVersion } from './History'
+import { Proofread } from './Proofread'
 import { addAnchor, anchorsOf, squash as letters } from './anchors'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
@@ -41,6 +42,15 @@ const withoutMadeTitle = (note: string, notebook: string) => {
 // On a touch screen the device shows its own Cut / Copy / Paste bubble over the selection, right where the
 // editor's floating toolbar would be. There the note's own bar does that work instead.
 const touch = matchMedia('(pointer: coarse)').matches
+
+// Diagrams to start from (Mermaid): edit the words and the drawing follows.
+const DIAGRAMS = {
+  'Flowchart': 'flowchart TD\n  A[Question] --> B{Hypothesis}\n  B -->|holds| C[Conclusion]\n  B -->|fails| D[Revise]',
+  'Timeline': 'timeline\n  title Key dates\n  1789 : Revolution\n  1804 : Empire\n  1815 : Restoration',
+  'Mind map': 'mindmap\n  root((Topic))\n    Idea one\n      Detail\n    Idea two\n    Idea three',
+  'Sequence of steps': 'sequenceDiagram\n  Sample->>Sensor: interaction\n  Sensor->>Transducer: signal\n  Transducer->>Reader: information',
+  'Pie chart': 'pie title Share of time\n  "Reading" : 50\n  "Notes" : 30\n  "Review" : 20',
+}
 
 // Ready-made layouts for a note. "Question and answer" lines become flashcards (see lib/review.ts).
 const TEMPLATES = {
@@ -220,6 +230,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     stamp(false)
   }
   const [soundNote, setSoundNote] = useState('')
+  const [proofing, setProofing] = useState(false)
   // Whether what is on the page has reached storage: shown in the bar, so there is never a doubt.
   const [saved, setSaved] = useState<'saved' | 'saving' | 'failed'>('saved')
   const [history, setHistory] = useState<string | null>(null)
@@ -679,6 +690,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={Link2} label="Link to this page of the book" hint="A link back to where the book is open now" onClick={() => void linkToPage()} />
           <p className="menu-head"><Omega size={12} aria-hidden /> Symbols</p>
           <div className="symbols">{SYMBOLS.map(symbol => <button key={symbol} onClick={() => type(symbol)}>{symbol}</button>)}</div>
+          <p className="menu-head">Diagrams (drawn from a few lines of text)</p>
+          {Object.entries(DIAGRAMS).map(([name, text]) => (
+            <button key={name} className="menu-item" onClick={() => put(`\n\`\`\`mermaid\n${text}\n\`\`\`\n`)}>{name}</button>
+          ))}
           <p className="menu-head">Layouts</p>
           {Object.keys(TEMPLATES).map(name => (
             <button key={name} className="menu-item" onClick={() => put(TEMPLATES[name as keyof typeof TEMPLATES])}>{name}</button>
@@ -701,6 +716,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={Presentation} label={byPage ? 'A heading for each page or slide: on' : 'A heading for each page or slide'} hint="Lecture notes: turn to a slide and the note goes to that slide's heading, made when first needed" on={byPage} onClick={() => setByPage(!byPage)} />
           <Tool icon={Footprints} label={pace ? 'Keep pace with the book: on' : 'Keep pace with the book'} hint="As you turn the pages of the book, show what you quoted or clipped from there" on={pace} onClick={() => setPace(!pace)} />
           <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
+          <Tool icon={SpellCheck} label="Check spelling and grammar" hint="Mistakes and suggestions from LanguageTool, in the note's own language" onClick={() => setProofing(true)} />
           <Tool icon={HistoryIcon} label="Earlier versions" hint="See how the note looked before, and bring a version back" onClick={openHistory} />
           <Tool icon={ClipboardCopy} label="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
           <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('docx')} />
@@ -731,6 +747,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           {soundNote && <span className="viewer-pos">{soundNote}</span>}
         </div>
       )}
+      {proofing && <Proofread crepe={editorRef.current} onClose={() => setProofing(false)} />}
       {history !== null && (
         <HistoryDialog
           notebook={notebook} current={history} onClose={() => setHistory(null)}

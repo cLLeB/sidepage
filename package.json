@@ -32,6 +32,7 @@
     "libarchive.js": "^2.0.2",
     "lucide-react": "^1.55.0",
     "marked": "^16.4.2",
+    "mermaid": "^11.17.2",
     "mind-elixir": "^6.0.0-next.4",
     "odf-kit": "^0.14.4",
     "page-flip": "^2.0.7",

@@ -152,6 +152,10 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   score book by book, what you missed with the right answers, and the choice to count it in your reviews.
 - Review shows how learning is going: cards known, learning and new, how often you remember, days in a row,
   and how many cards fall due on each of the next fourteen days.
+- Diagrams in notes ([Mermaid](https://mermaid.js.org), MIT): a few lines of text in a "mermaid" block are drawn as a
+  flowchart, timeline, mind map, sequence or chart. Insert → Diagrams starts one.
+- Spelling and grammar for notes ([LanguageTool](https://languagetool.org), open source; its free online service), in the
+  note's own language: each mistake with suggestions, one tap to fix.
 - Type [[ in a note to link to another book's notes, picking it from a list that narrows as you type.
 - Link one book's notes to another's, see which notes link back ("Linked from"), and view all of it as a graph.
 - Highlight and draw on PDF pages, and save a copy with the marks in it.
