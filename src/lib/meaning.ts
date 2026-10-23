@@ -109,6 +109,8 @@ export async function askByMeaning(question: string, onStep: (step: string) => v
   const query = await asked
   const best: typeof found = []
   for (const hit of found.sort((a, b) => b.score - a.score)) {
+    // Passages much further in meaning than the best one are left out rather than shown as answers.
+    if (hit.score < found[0].score - 0.035) break
     // One answer from each page: the next best piece of a page already given adds little.
     if (best.some(other => other.book === hit.book && other.piece.place === hit.piece.place)) continue
     best.push(hit)

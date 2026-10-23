@@ -16,6 +16,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2,wasm}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // The speech and meaning engine (ONNX Runtime, 27 MB) is fetched only when those are first used.
+        globIgnores: ['**/ort-wasm*'],
       },
       manifest: {
         name: 'Sidepage',
