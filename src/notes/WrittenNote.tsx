@@ -14,6 +14,8 @@ import { imageBlockSchema } from '@milkdown/kit/component/image-block'
 import { insert, replaceAll } from '@milkdown/kit/utils'
 import { HistoryDialog, keepVersion } from './History'
 import { Proofread } from './Proofread'
+import { SPOKEN } from '../lib/transcribe'
+import { uiLanguage } from '../lib/language'
 import { addAnchor, anchorsOf, squash as letters } from './anchors'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/frame.css'
@@ -187,7 +189,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   const recordingNow = useRef(recording)
   recordingNow.current = recording
   const [elapsed, setElapsed] = useState(0)
-  const [player, setPlayer] = useState<{ url: string; at: number } | null>(null)
+  const [player, setPlayer] = useState<{ url: string; at: number; name: string; sound: Blob } | null>(null)
+  const [writingOut, setWritingOut] = useState('')
+  // The language the recording is in: chosen here, or told from what the note is written in.
+  const [spoken, setSpoken] = usePref('spoken-language', 'auto')
   const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds) % 60).padStart(2, '0')}`
   useEffect(() => {
     if (!recording) return
@@ -238,7 +243,34 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   const play = async (name: string, at: number) => {
     const sound = await loadNoteFile(notebook, name)
     if (!sound) return setSoundNote('That recording is not in this notebook any more.')
-    setPlayer(old => { if (old) URL.revokeObjectURL(old.url); return { url: URL.createObjectURL(sound), at } })
+    setPlayer(old => { if (old) URL.revokeObjectURL(old.url); return { url: URL.createObjectURL(sound), at, name, sound } })
+  }
+  // The recording written out as text (Whisper, on the device), at the end of the note, each passage starting
+  // with the stamp of its moment so a tap plays it from there.
+  const writeItOut = async () => {
+    if (!player || writingOut) return
+    const { writeOut } = await import('../lib/transcribe')
+    const { languageOf } = await import('../lib/speech')
+    const noteText = host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? ''
+    const language = spoken !== 'auto' ? spoken : noteText.split(/\s+/).length > 12 ? languageOf(noteText) : uiLanguage()
+    try {
+      const passages = await writeOut(player.sound, language, setWritingOut)
+      setWritingOut('')
+      if (!passages.length) return setSoundNote('No speech was heard in this recording.')
+      editorRef.current?.editor.action(ctx => {
+        const view = ctx.get(editorViewCtx)
+        const { schema } = view.state
+        const link = (seconds: number) => schema.marks.link.create({ href: `#sidepage-sound?file=${player.name}&t=${seconds}` })
+        const blocks = passages.map(passage => schema.nodes.paragraph.create(null, [schema.text(`▸ ${clock(passage.from)}`, [link(passage.from)]), schema.text(` ${passage.text}`)]))
+        const tr = view.state.tr.insert(view.state.doc.content.size, blocks)
+        view.dispatch(tr.scrollIntoView())
+      })
+    } catch (error) {
+      console.warn('Writing out the recording failed', error)
+      if (import.meta.env.DEV) Object.assign(window, { __writeOutError: String((error as Error)?.stack ?? error) })
+      setWritingOut('')
+      setSoundNote('The speech recogniser could not be fetched. It needs the internet the first time.')
+    }
   }
   const playNow = useRef(play)
   playNow.current = play
@@ -742,6 +774,13 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
               key={player.url + player.at} src={player.url} controls autoPlay
               onLoadedMetadata={e => { e.currentTarget.currentTime = player.at }}
             />
+            {!writingOut && (
+              <select value={spoken} onChange={e => setSpoken(e.target.value)} title="The language spoken in the recording">
+                <option value="auto">Language of the note</option>
+                {Object.entries(SPOKEN).map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+              </select>
+            )}
+            {writingOut ? <span className="viewer-pos">{writingOut}</span> : <button onClick={() => void writeItOut()} title="Turn the speech in this recording into text in the note (on this device)">Write it out</button>}
             <Tool quiet icon={X} label="Close the player" onClick={() => setPlayer(null)} />
           </>}
           {soundNote && <span className="viewer-pos">{soundNote}</span>}

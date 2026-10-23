@@ -82,6 +82,10 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   moment, and tapping a stamp plays the recording from there. Recordings travel in the one-file bundle and backup.
 - Lecture notes: a heading for each page or slide. Turn to a slide (in a deck or a PDF of slides) and the note
   goes to that slide's heading, made the first time; a heading you leave empty is taken away again.
+- Write out a recording: the speech in a sound recording is turned into text in the note by
+  [Whisper](https://github.com/openai/whisper) (MIT) run on the device with [transformers.js](https://github.com/huggingface/transformers.js)
+  (Apache-2.0), each passage stamped with its moment. Any language, French included. The recogniser (about 80 MB) is
+  fetched once, the first time.
 - Notes keep pace with the book: turn to a page and the note moves to what you quoted or clipped from there.
   Where each piece came from is kept beside the note (anchors.json), not written in it.
 - Three kinds of notes per book: written notes, a paged canvas, and a mind map. Open any of them beside the
