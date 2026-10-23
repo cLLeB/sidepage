@@ -22,7 +22,7 @@ export const wordsOf = (text: string) => plainWords(text).map(stem)
 // An entry in a list of references reads like a sentence but says nothing about the subject.
 const isReference = (sentence: string) =>
   /[“"][^”"]{6,}[”"]\s*,|,[”"]\s|\bet al\b|\b(Annu|Proc|Trans|Lett|Rev|Sci|Nat|Adv|Biomed|Eng)\.(\s|$)|\b(doi|arXiv|ISBN)\b|\[\d+\]\s*[A-Z]\.\s?[A-Z]/.test(sentence)
-const sentencesOf = (text: string) => {
+export const sentencesOf = (text: string) => {
   const clean = text.replace(/\s+/g, ' ').trim()
   const parts = 'Segmenter' in Intl
     ? [...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(clean)].map(part => part.segment.trim())

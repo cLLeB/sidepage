@@ -5,6 +5,7 @@ import { BookOpenText, NotebookPen } from 'lucide-react'
 import { Tool } from '../ui'
 import { baseName, goToPlace, onPlace, openBookByName, placeNow, sendQuote, type Place } from '../lib/platform'
 import { placeName } from '../lib/library'
+import { usePref } from '../lib/prefs'
 import { askBooks, checkExplanation, glossaryOf, gistOf, timelineOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Check, type Entry, type Kin, type Moment, type Question, type Term } from '../lib/insight'
 
 // The terms of a book drawn as a map: each a dot sized by how often it comes, joined to those it keeps company with.
@@ -75,11 +76,23 @@ function Ask({ onGo }: { onGo(to: Place): void }) {
   const [question, setQuestion] = useState('')
   const [answers, setAnswers] = useState<Answer[] | null>(null)
   const [busy, setBusy] = useState(false)
+  // By meaning: passages that say the same thing in other words (or another language), found by a model on the device.
+  const [byMeaning, setByMeaning] = usePref('ask-by-meaning', false)
+  const [step, setStep] = useState('')
+  const [problem, setProblem] = useState('')
   const ask = async () => {
     if (!question.trim()) return
-    setBusy(true)
-    setAnswers(await askBooks(question))
-    setBusy(false)
+    setBusy(true); setProblem('')
+    try {
+      if (byMeaning) {
+        const { askByMeaning } = await import('../lib/meaning')
+        setAnswers(await askByMeaning(question, setStep))
+      } else setAnswers(await askBooks(question))
+    } catch {
+      setProblem('The meaning model could not be fetched. It needs the internet the first time.')
+      setAnswers(await askBooks(question))
+    }
+    setStep(''); setBusy(false)
   }
   // The words of the question, shown in the passage.
   const lit = (sentence: string, words: string[]) => sentence.split(/(\s+)/).map((part, i) => {
@@ -93,6 +106,11 @@ function Ask({ onGo }: { onGo(to: Place): void }) {
         <input value={question} placeholder="What do you want to know? e.g. why do dry electrodes have higher impedance" onChange={e => setQuestion(e.target.value)} />
         <button className="primary" disabled={busy || !question.trim()}>{busy ? 'Looking…' : 'Ask'}</button>
       </form>
+      <label className="ask-meaning" title="Find passages that say the same thing in other words, or in another language. Works on this device; the first time it fetches a model (about 120 MB).">
+        <input type="checkbox" checked={byMeaning} onChange={e => setByMeaning(e.target.checked)} /> By meaning, not only by the words
+      </label>
+      {step && <p className="guide-wait">{step}</p>}
+      {problem && <p className="guide-wait">{problem}</p>}
       {answers?.length === 0 && <p className="guide-wait">Nothing in your books speaks to that. Try other words.</p>}
       {answers?.map(found => (
         <button key={found.book + found.place} className="kin" onClick={() => onGo(found)}>

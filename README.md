@@ -33,6 +33,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
 - Shelves of your own: put books on shelves you name ("Semester 1 — Biology"); a book can stand on several.
+- Ask by meaning: a switch in Ask your books finds passages that say the same thing in other words, or in another
+  language, with [multilingual E5](https://huggingface.co/intfloat/multilingual-e5-small) (MIT) run on the device by transformers.js.
+  Each book is read once and kept; the model (about 120 MB) is fetched the first time.
 - Calendar: reading plans (a daily reminder until the day, and the day itself) and the coming flashcard reviews saved
   as an iCalendar file by [ics](https://github.com/adamgibbons/ics) (ISC), for Google Calendar, Outlook or Apple Calendar.
 - Read a web page: paste an article's address; [Readability](https://github.com/mozilla/readability) (Apache-2.0, Firefox's

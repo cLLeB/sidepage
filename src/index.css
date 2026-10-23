@@ -1081,3 +1081,6 @@ button.viewer-pos { font-weight: 500; }
 .issue-message { font-size: 13px; color: var(--muted); }
 .issue-fixes { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
 .issue-fixes .chip { padding: 4px 10px; font-size: 13px; }
+
+/* Asking by meaning: a quiet switch under the question. */
+.ask-meaning { display: flex; align-items: center; gap: 6px; margin: 6px 0 2px; font-size: 13px; color: var(--muted); cursor: pointer; }
