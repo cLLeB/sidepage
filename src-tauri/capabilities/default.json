@@ -27,6 +27,12 @@
         },
         {
           "url": "https://api.languagetool.org/*"
+        },
+        {
+          "url": "https://*"
+        },
+        {
+          "url": "http://*"
         }
       ]
     }

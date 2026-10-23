@@ -33,6 +33,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
 - Shelves of your own: put books on shelves you name ("Semester 1 — Biology"); a book can stand on several.
+- Read a web page: paste an article's address; [Readability](https://github.com/mozilla/readability) (Apache-2.0, Firefox's
+  Reader View) keeps the article alone and [Turndown](https://github.com/mixmark-io/turndown) (MIT) writes it as Markdown, opened
+  like a book with notes, highlights and quotes.
 - Home is a library: the book you were reading on top, your reading time, a twelve-week reading calendar,
   shelves to filter by (favourites, reading, finished, kind of file), and cloth-bound covers for books that
   have none. "Quick notes" is a notebook that belongs to no book.

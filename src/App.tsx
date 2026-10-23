@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -31,6 +31,8 @@ import { addReadingTime, addSpent, asTime } from './lib/reading'
 
 // The panels float a little apart, each a sheet of its own.
 const PANELS: DockviewTheme = { name: 'sidepage', className: 'dockview-theme-light', gap: 8, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
+
+const isTauriApp = '__TAURI_INTERNALS__' in window
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
@@ -134,6 +136,19 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [notice])
   const [palette, setPalette] = useState(false)
+  // Reading a web page: an address asked for, the article taken from it and opened like a book.
+  const [asking, setAsking] = useState<null | { address: string; busy: boolean; problem: string }>(null)
+  const readWebPage = async (address: string) => {
+    setAsking({ address, busy: true, problem: '' })
+    try {
+      const { articleFrom } = await import('./lib/webpage')
+      const article = await articleFrom(address)
+      setAsking(null)
+      void openFile(article)
+    } catch (error) {
+      setAsking({ address, busy: false, problem: isTauriApp ? String((error as Error)?.message ?? error) : 'In the browser version, most sites do not let other pages read them. The installed app can.' })
+    }
+  }
   const [sitting, setSitting] = useState<Sitting | null>(null)
   const [accent, setAccent] = usePref<Accent>('accent', 'graphite')
   const [warmth, setWarmth] = usePref('warmth', 0)
@@ -522,6 +537,7 @@ export default function App() {
   const commands = (): Command[] => [
     { group: 'Go to', name: 'Open a book or document…', hint: 'Ctrl+O', icon: FolderOpen, run: () => void browse() },
     { group: 'Go to', name: 'Home: your library', icon: HomeIcon, run: goHome },
+    { group: 'Go to', name: 'Read a web page…', icon: Globe, run: () => setAsking({ address: '', busy: false, problem: '' }) },
     { group: 'Go to', name: 'Quick notes', icon: NotebookText, run: () => openNote('written', 'Quick notes') },
     { group: 'Write', name: 'Notes for this book', hint: 'Ctrl+1', icon: NotebookPen, run: () => openNote('written', notebook) },
     { group: 'Write', name: 'Canvas: draw and handwrite', hint: 'Ctrl+2', icon: PenLine, run: () => openNote('canvas', notebook) },
@@ -689,6 +705,20 @@ export default function App() {
       <LookUp />
       <Translator />
       <CiteDialog />
+      {asking && (
+        <div className="palette-shade" onClick={() => setAsking(null)}>
+          <form className="palette lookup" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); if (asking.address.trim()) void readWebPage(asking.address) }}>
+            <h2><Globe size={20} aria-hidden /> Read a web page</h2>
+            <p className="menu-note">Paste the address of an article. Only the article is kept (no menus or adverts), and it opens like a book, with your notes beside it.</p>
+            <input className="menu-input" autoFocus value={asking.address} placeholder="https://…" onChange={e => setAsking({ ...asking, address: e.target.value, problem: '' })} />
+            {asking.problem && <p className="menu-note">{asking.problem}</p>}
+            <div className="lookup-actions">
+              <button type="button" className="soft" onClick={() => setAsking(null)}>Cancel</button>
+              <button className="primary" disabled={asking.busy || !asking.address.trim()}>{asking.busy ? 'Fetching the article…' : 'Read it'}</button>
+            </div>
+          </form>
+        </div>
+      )}
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">
@@ -699,6 +729,7 @@ export default function App() {
             onOpen={openFromShelf} onBrowse={() => void browse()} onFavourite={toggleFavourite}
             onRemove={name => void unshelve(name).then(shelf).then(setBooks)}
             onQuickNotes={() => openNote('written', 'Quick notes')}
+            onWebPage={() => setAsking({ address: '', busy: false, problem: '' })}
           />
         )}
       </main>

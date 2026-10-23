@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { uiLocale } from './lib/language'
-import { BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, FolderPlus, Library, NotebookText, Pencil, Quote, Star, Target, Trash2, X } from 'lucide-react'
+import { Globe, BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, FolderPlus, Library, NotebookText, Pencil, Quote, Star, Target, Trash2, X } from 'lucide-react'
 import { usePref } from './lib/prefs'
 import { baseName, extensionOf, loadNote, type Shelved } from './lib/platform'
 import { asTime, planToday, progressOf, readingDays, readingStats, setPlan, spentOn, timeLeft, type Plan } from './lib/reading'
@@ -33,7 +33,7 @@ function Cover({ name, cover, large }: { name: string; cover?: string; large?: b
     )
 }
 
-export default function Home({ books, covers, favourites, goal, onOpen, onBrowse, onRemove, onFavourite, onQuickNotes }: {
+export default function Home({ books, covers, favourites, goal, onOpen, onBrowse, onRemove, onFavourite, onQuickNotes, onWebPage }: {
   books: Shelved[]
   covers: Record<string, string>
   favourites: string[]
@@ -43,6 +43,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
   onRemove(name: string): void
   onFavourite(name: string): void
   onQuickNotes(): void
+  onWebPage(): void
 }) {
   const [wanted, setWanted] = useState('')
   const [shelfName, setShelfName] = useState('All')
@@ -113,6 +114,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
             <h1>{greeting()}</h1>
           </div>
           <div className="home-actions">
+            <button className="soft" onClick={onWebPage} title="Read an article from the web beside your notes"><Globe size={18} aria-hidden /> Web page</button>
             <button className="soft" onClick={onQuickNotes}><NotebookText size={18} aria-hidden /> Quick notes</button>
             <button className="primary" onClick={onBrowse}><FolderOpen size={18} aria-hidden /> Open a book</button>
           </div>
