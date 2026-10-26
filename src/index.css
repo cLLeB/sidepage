@@ -1090,3 +1090,21 @@ button.viewer-pos { font-weight: 500; }
 .side-actions button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
 .side-actions button:hover { background: rgba(127, 127, 127, 0.14); color: inherit; }
 @media (pointer: coarse) { .side-actions button { width: 40px; height: 40px; } }
+
+/* Compare: two books word by word. */
+.compare { padding: 16px 20px; overflow: auto; }
+.compare-bar { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 10px; }
+.compare-pick { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.compare-pick select { max-width: 260px; padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(127, 127, 127, 0.3); background: var(--panel); color: inherit; font: inherit; font-size: 14px; }
+.compare-summary { font-weight: 600; margin: 6px 0 10px; }
+.compare-change del { background: rgba(220, 70, 70, 0.18); color: inherit; text-decoration-color: rgba(200, 50, 50, 0.8); border-radius: 3px; padding: 0 2px; }
+.compare-change ins { background: rgba(60, 170, 90, 0.2); text-decoration: none; border-radius: 3px; padding: 0 2px; }
+
+/* Reading side by side: no room wasted between the books, and one thin, light page line at the right edge. */
+.app.reading .workspace { margin: 0; }
+.app.reading .viewer[data-side='left'] .pdfViewer .page { margin-right: 0; border-right-width: 0; }
+.app.reading .viewer[data-side='right'] .pdfViewer .page { margin-left: 0; border-left-width: 0; }
+.app.reading .viewer[data-side='left'] .page-map, .app.reading .viewer[data-side='middle'] .page-map { display: none; }
+.app.reading .page-map { width: 3px; right: 1px; top: 12px; bottom: 12px; background: color-mix(in srgb, var(--muted) 18%, transparent); box-shadow: none; opacity: 0.5; }
+.app.reading .page-map i:not(.map-here) { display: none; }
+.app.reading .page-map:hover { width: 8px; opacity: 0.9; }

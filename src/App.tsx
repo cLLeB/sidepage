@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -31,6 +31,8 @@ import { addReadingTime, addSpent, asTime } from './lib/reading'
 
 // The panels float a little apart, each a sheet of its own.
 const PANELS: DockviewTheme = { name: 'sidepage', className: 'dockview-theme-light', gap: 8, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
+// Reading side by side: the books meet with a hairline between them.
+const PANELS_READING: DockviewTheme = { ...PANELS, name: 'sidepage-reading', gap: 2 }
 
 const isTauriApp = '__TAURI_INTERNALS__' in window
 
@@ -117,6 +119,8 @@ function NotePanel({ params }: IDockviewPanelProps<{ kind: NoteKind; notebook: s
 const GraphPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><GraphView /></Suspense></ErrorBoundary>
 
 const HighlightsView = lazy(() => import('./notes/HighlightsView'))
+const CompareView = lazy(() => import('./notes/CompareView'))
+const ComparePanel = ({ params }: IDockviewPanelProps<{ older?: string; newer?: string }>) => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><CompareView older={params.older} newer={params.newer} /></Suspense></ErrorBoundary>
 const HighlightsPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><HighlightsView /></Suspense></ErrorBoundary>
 const ReviewPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><ReviewView /></Suspense></ErrorBoundary>
 
@@ -164,7 +168,7 @@ function SideActions({ group, containerApi }: IDockviewHeaderActionsProps) {
   )
 }
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel }
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -247,6 +251,9 @@ export default function App() {
 
   // Focus: nothing on screen but the page and the notes. Escape, or the corner button, brings the bars back.
   const [focus, setFocus] = useState(false)
+  // Reading two books side by side, full screen (see readSideBySide).
+  const [reading, setReading] = useState(false)
+  useEffect(() => { if (!focus) setReading(false) }, [focus])
   useScreenOn(awake && !empty)
   // Notes save themselves a moment after you stop writing. Closing the app, or putting it in the background, saves
   // at once whatever is still waiting, so nothing typed is lost and there is nothing to be asked about.
@@ -468,6 +475,16 @@ export default function App() {
     dock.addPanel({ id: 'graph', component: 'graph', title: 'Graph', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
   }, [])
 
+  // Two books compared word by word. With two books side by side, those two: the left one as the earlier.
+  const openCompare = useCallback(() => {
+    const dock = api.current
+    if (!dock) return
+    dock.getPanel('compare')?.api.close()
+    const columns = dock.groups.map(group => group.activePanel).filter(panel => panel?.id.startsWith('doc:'))
+    const [older, newer] = columns.length >= 2 ? [columns[0]!.id.slice(4), columns[1]!.id.slice(4)] : [undefined, undefined]
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    dock.addPanel({ id: 'compare', component: 'compare', title: 'Compare', params: { older, newer }, position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
+  }, [])
   const openHighlights = useCallback(() => {
     const dock = api.current
     if (!dock) return
@@ -634,6 +651,13 @@ export default function App() {
       group.api.setVisible(false)
       hiddenForReading.current.push(group.id)
     }
+    // Each book is told which side it is on, so its pages can sit against the middle.
+    const columns = withBooks().sort((a, b) => a.element.getBoundingClientRect().left - b.element.getBoundingClientRect().left)
+    columns.forEach((group, i) => {
+      const side = i === 0 ? 'left' : i === columns.length - 1 ? 'right' : 'middle'
+      for (const panel of group.panels) panel.view.content.element.querySelector<HTMLElement>('.viewer')?.setAttribute('data-side', side)
+    })
+    setReading(true)
     setFocus(true)
     for (const delay of [100, 500, 1200]) shareWidth(delay)
   }
@@ -665,6 +689,7 @@ export default function App() {
     { group: 'Study', name: 'Study guide for this page', icon: Sparkles, run: openGuide },
     { group: 'Study', name: 'Ask your books a question', icon: Sparkles, run: () => { openGuide(); setTimeout(() => document.querySelector<HTMLInputElement>('.ask input')?.focus(), 600) } },
     { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
+    { group: 'Study', name: 'Compare two books, word by word', icon: ArrowLeftRight, run: openCompare },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
     { group: 'Study', name: 'Graph of linked notes', icon: Share2, run: openGraph },
     { group: 'View', name: 'Focus: hide the toolbars', hint: 'Ctrl+.', icon: Maximize2, run: () => setFocus(!empty) },
@@ -708,7 +733,7 @@ export default function App() {
 
   return (
     <div
-      className={focus ? 'app focus' : 'app'}
+      className={`app${focus ? ' focus' : ''}${reading ? ' reading' : ''}`}
       // Dropped files are books for Sidepage; they stop here so PDF.js does not also try to paste them into a page.
       onDragOver={e => {
         if (!e.dataTransfer.types.includes('Files')) return
@@ -845,7 +870,7 @@ export default function App() {
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">
-        <DockviewReact components={components} onReady={onReady} theme={PANELS} defaultRenderer="always" rightHeaderActionsComponent={SideActions} />
+        <DockviewReact components={components} onReady={onReady} theme={reading ? PANELS_READING : PANELS} defaultRenderer="always" rightHeaderActionsComponent={SideActions} />
         {empty && (
           <Home
             books={books} covers={covers} favourites={favourites} goal={goal}
