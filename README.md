@@ -33,6 +33,11 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
 - Shelves of your own: put books on shelves you name ("Semester 1 — Biology"); a book can stand on several.
+- Two books side by side in one window, each in its own tall column with its own bars; either side can fill the window;
+  and Read side by side puts the books alone on the whole screen, pages meeting in the middle, with no notes and no bars.
+  Panels by [Dockview](https://github.com/mathuo/dockview) (MIT).
+- Compare two books: a draft and its final version, sentence by sentence and then word by word, every change with its
+  page, by [jsdiff](https://github.com/kpdecker/jsdiff) (BSD-3-Clause).
 - Anki deck: every flashcard saved as an .apkg deck for Anki, AnkiDroid or AnkiMobile (one sub-deck for each book, hidden-word
   cards as cloze cards, picture cards as pictures), by [anki-apkg-export](https://github.com/repeat-space/anki-apkg-export) (MIT)
   and [sql.js](https://github.com/sql-js/sql.js) (MIT).
