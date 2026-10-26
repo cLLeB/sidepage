@@ -1,10 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { DockviewReact, type DockviewApi, type DockviewTheme, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react'
+import { DockviewReact, type DockviewApi, type DockviewTheme, type DockviewReadyEvent, type IDockviewHeaderActionsProps, type IDockviewPanelProps } from 'dockview-react'
 import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -119,6 +119,50 @@ const GraphPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fal
 const HighlightsView = lazy(() => import('./notes/HighlightsView'))
 const HighlightsPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><HighlightsView /></Suspense></ErrorBoundary>
 const ReviewPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><ReviewView /></Suspense></ErrorBoundary>
+
+// Books the reader set in a column of their own, beside the others: the automatic arrangement leaves them there.
+const apart = new Set<string>()
+// What the buttons at the end of each tab strip do; App fills these in.
+const sides = { beside: (_group: string) => {}, openBeside: (_group: string) => {}, read: () => {} }
+
+// At the end of each tab strip: put this book in its own column (or open another book beside it), and fill the
+// window with this side alone, then show every side again.
+function SideActions({ group, containerApi }: IDockviewHeaderActionsProps) {
+  const [, redraw] = useState(0)
+  useEffect(() => {
+    const again = () => redraw(n => n + 1)
+    const watching = [containerApi.onDidMaximizedGroupChange(again), containerApi.onDidLayoutChange(again), containerApi.onDidActivePanelChange(again)]
+    return () => watching.forEach(watch => watch.dispose())
+  }, [containerApi])
+  const books = group.panels.filter(panel => panel.id.startsWith('doc:'))
+  const filled = group.api.isMaximized()
+  const wide = window.innerWidth >= 700
+  return (
+    <div className="side-actions">
+      {wide && books.length > 0 && !filled && (
+        <button
+          title={books.length > 1 ? 'Put this book in its own column, beside the others' : 'Open another book beside this one'}
+          aria-label={books.length > 1 ? 'Put this book beside' : 'Open a book beside'}
+          onClick={() => (books.length > 1 ? sides.beside(group.id) : sides.openBeside(group.id))}
+        ><Columns2 size={17} aria-hidden /></button>
+      )}
+      {wide && !filled && books.length > 0 && containerApi.groups.filter(other => other.panels.some(panel => panel.id.startsWith('doc:'))).length > 1 && (
+        <button
+          title="Read side by side: the books share the whole screen, with no notes and no bars (Esc to come back)"
+          aria-label="Read side by side"
+          onClick={() => sides.read()}
+        ><BookOpen size={17} aria-hidden /></button>
+      )}
+      {(filled || containerApi.groups.length > 1) && (
+        <button
+          title={filled ? 'Show every side again' : 'Fill the window with this side (the full screen button then gives it the whole screen)'}
+          aria-label={filled ? 'Show every side' : 'Fill the window with this side'}
+          onClick={() => (filled ? containerApi.exitMaximizedGroup() : group.api.maximize())}
+        >{filled ? <Minimize2 size={17} aria-hidden /> : <Maximize2 size={17} aria-hidden />}</button>
+      )}
+    </div>
+  )
+}
 
 const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel }
 
@@ -242,6 +286,12 @@ export default function App() {
     return () => { timers.forEach(clearTimeout); document.removeEventListener('fullscreenchange', relayout) }
   }, [focus])
   useEffect(() => {
+    if (focus || !hiddenForReading.current.length) return
+    for (const id of hiddenForReading.current) api.current?.groups.find(group => group.id === id)?.api.setVisible(true)
+    hiddenForReading.current = []
+    shareNow.current()
+  }, [focus])
+  useEffect(() => {
     if (!focus) return
     void document.documentElement.requestFullscreen?.().catch(() => {})
     const left = () => { if (!document.fullscreenElement) setFocus(false) }
@@ -269,7 +319,7 @@ export default function App() {
     if (!books.length || !notes.length) return
     const shown = [dock.activePanel, ...dock.groups.map(group => group.activePanel)]
     const home = books[0].group
-    for (const book of books.slice(1)) if (book.group !== home) book.api.moveTo({ group: home, position: 'center' })
+    for (const book of books.slice(1)) if (book.group !== home && !apart.has(book.id)) book.api.moveTo({ group: home, position: 'center' })
     const where = besideBook()
     notes[0].api.moveTo({ group: home, position: where === 'right' ? 'right' : where === 'below' ? 'bottom' : 'center' })
     for (const note of notes.slice(1)) note.api.moveTo({ group: notes[0].group, position: 'center' })
@@ -328,6 +378,12 @@ export default function App() {
     })
   }, [])
 
+  // The group a book about to be opened goes beside (set by the side-by-side button, used once).
+  const besideNext = useRef('')
+  const shareNow = useRef<() => void>(() => {})
+  const readNow = useRef<() => void>(() => {})
+  // Note columns put out of sight while reading side by side.
+  const hiddenForReading = useRef<string[]>([])
   const openBook = useCallback((file: File) => {
     const dock = api.current
     if (!dock) return
@@ -338,17 +394,24 @@ export default function App() {
     if (existing) return existing.api.setActive()
     const sibling = dock.panels.find(p => p.id.startsWith('doc:'))
     const note = dock.panels.find(p => p.id.startsWith('note:'))
+    // Asked for beside a book: a column of its own to the right of that book.
+    const besideGroup = besideNext.current ? dock.groups.find(group => group.id === besideNext.current) : undefined
+    besideNext.current = ''
+    if (besideGroup) apart.add(id)
     dock.addPanel({
       id,
       component: 'doc',
       title: file.name,
       params: { file },
-      position: sibling
+      position: besideGroup
+        ? { referenceGroup: besideGroup, direction: 'right' }
+        : sibling
         ? { referencePanel: sibling.id, direction: 'within' }
         : note ? { referencePanel: note.id, direction: besideNotes() } : undefined,
     })
     openNote('written', book)
     dock.getPanel(id)?.api.setActive()
+    if (besideGroup) shareNow.current()
   }, [openNote])
 
   // A .sidepage file is unpacked into its book and notes first; every opened book goes on the shelf.
@@ -529,6 +592,53 @@ export default function App() {
     if (file) void openFile(file)
   }, [openFile])
   browseNow.current = () => void browse()
+  // Two books side by side, each in a tall column with its own bars.
+  sides.openBeside = groupId => { besideNext.current = groupId; void browse().finally(() => { setTimeout(() => { besideNext.current = '' }, 2000) }) }
+  sides.beside = groupId => {
+    const group = api.current?.groups.find(found => found.id === groupId)
+    const book = group?.activePanel
+    if (!group || !book?.id.startsWith('doc:')) return
+    apart.add(book.id)
+    book.api.moveTo({ group, position: 'right' })
+    shareWidth()
+  }
+  // With books side by side the books take most of the width, shared equally; the notes keep a narrower column.
+  const shareWidth = (delay = 60) => setTimeout(() => {
+    const dock = api.current
+    if (!dock) return
+    const room = document.querySelector<HTMLElement>('.workspace')?.clientWidth ?? window.innerWidth
+    const bookGroups = dock.groups.filter(group => group.panels.some(panel => panel.id.startsWith('doc:')))
+    const noteGroups = dock.groups.filter(group => !bookGroups.includes(group) && group.api.isVisible)
+    if (bookGroups.length < 2 || (noteGroups.length && besideBook() !== 'right')) return
+    const notes = noteGroups.length ? Math.max(340, Math.round(room * 0.26)) : 0
+    for (const group of noteGroups) group.api.setSize({ width: notes })
+    for (const group of bookGroups) group.api.setSize({ width: Math.floor((room - notes) / bookGroups.length) })
+  }, delay)
+  shareNow.current = shareWidth
+
+  // Reading two books side by side and nothing else: the notes are put out of sight (not closed), the books share
+  // the screen equally, and the screen is taken whole with every bar hidden. Leaving it brings the notes back.
+  const readSideBySide = () => {
+    const dock = api.current
+    if (!dock) return
+    if (dock.hasMaximizedGroup()) dock.exitMaximizedGroup()
+    const withBooks = () => dock.groups.filter(group => group.panels.some(panel => panel.id.startsWith('doc:')))
+    // Two books in one tab strip are first set in columns of their own.
+    if (withBooks().length < 2) {
+      const crowded = withBooks().find(group => group.panels.filter(panel => panel.id.startsWith('doc:')).length > 1)
+      if (!crowded) return setNotice('Open a second book first (the columns button at the end of the tab strip opens one beside).')
+      sides.beside(crowded.id)
+    }
+    for (const group of dock.groups) {
+      if (withBooks().includes(group) || !group.api.isVisible) continue
+      group.api.setVisible(false)
+      hiddenForReading.current.push(group.id)
+    }
+    setFocus(true)
+    for (const delay of [100, 500, 1200]) shareWidth(delay)
+  }
+  readNow.current = readSideBySide
+  sides.read = readSideBySide
 
   // Dev helper: open a file by URL from the console, e.g. __open('/samples/sample.pdf').
   useEffect(() => {
@@ -546,6 +656,8 @@ export default function App() {
     { group: 'Go to', name: 'Open a book or document…', hint: 'Ctrl+O', icon: FolderOpen, run: () => void browse() },
     { group: 'Go to', name: 'Home: your library', icon: HomeIcon, run: goHome },
     { group: 'Go to', name: 'Read a web page…', icon: Globe, run: () => setAsking({ address: '', busy: false, problem: '' }) },
+    { group: 'Go to', name: 'Open a book beside this one…', icon: Columns2, run: () => { const book = api.current?.panels.find(p => p.id.startsWith('doc:') && p.api.isActive) ?? api.current?.panels.find(p => p.id.startsWith('doc:')); if (book) sides.openBeside(book.group.id); else void browse() } },
+    { group: 'Go to', name: 'Read side by side, full screen', icon: BookOpen, run: () => readNow.current() },
     { group: 'Go to', name: 'Quick notes', icon: NotebookText, run: () => openNote('written', 'Quick notes') },
     { group: 'Write', name: 'Notes for this book', hint: 'Ctrl+1', icon: NotebookPen, run: () => openNote('written', notebook) },
     { group: 'Write', name: 'Canvas: draw and handwrite', hint: 'Ctrl+2', icon: PenLine, run: () => openNote('canvas', notebook) },
@@ -581,6 +693,8 @@ export default function App() {
     event.api.onDidRemovePanel(panel => {
       sync()
       // A book closed: what that sitting with it came to.
+      apart.delete(panel.id)
+      if (!panel.id.startsWith('doc:')) shareNow.current()
       if (panel.id.startsWith('doc:')) void endSitting(panel.id.slice(4)).then(found => { if (found) setSitting(found) })
     })
     event.api.onDidActivePanelChange(() => {
@@ -731,7 +845,7 @@ export default function App() {
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">
-        <DockviewReact components={components} onReady={onReady} theme={PANELS} defaultRenderer="always" />
+        <DockviewReact components={components} onReady={onReady} theme={PANELS} defaultRenderer="always" rightHeaderActionsComponent={SideActions} />
         {empty && (
           <Home
             books={books} covers={covers} favourites={favourites} goal={goal}
