@@ -33,6 +33,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
 - Shelves of your own: put books on shelves you name ("Semester 1 — Biology"); a book can stand on several.
+- Folders: open a folder once (or, on phones and tablets, choose files to keep together) and go back to it any time: its
+  files as a tree with search ([react-arborist](https://github.com/brimdata/react-arborist), MIT), opened with a tap, and stepped through
+  with Previous and Next (Alt+Up, Alt+Down, or the small stepper over the book on a phone).
 - Ask AI with your own subscription: a chat beside the book that runs the AI's own tool for computers, signed in with the
   plan you already have ([Claude Code](https://github.com/anthropics/claude-code) for Claude Pro or Max,
   [Codex](https://github.com/openai/codex) for ChatGPT, [Gemini CLI](https://github.com/google-gemini/gemini-cli) for a Google account).

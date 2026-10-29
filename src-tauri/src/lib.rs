@@ -27,14 +27,50 @@ fn read_path(path: String) -> Result<tauri::ipc::Response, String> {
   std::fs::read(path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
 }
 
+// A folder the reader opened in Sidepage: its readable files and subfolders, as a tree (hidden folders and the
+// usual heaps of program files left out, at most a few thousand entries).
+#[derive(serde::Serialize)]
+struct Entry { id: String, name: String, children: Option<Vec<Entry>>, size: u64 }
+
+fn walk(root: &std::path::Path, dir: &std::path::Path, kinds: &[String], depth: u32, budget: &mut u32) -> Vec<Entry> {
+  let mut found = Vec::new();
+  if depth > 8 || *budget == 0 { return found; }
+  let Ok(read) = std::fs::read_dir(dir) else { return found };
+  let mut items: Vec<_> = read.flatten().collect();
+  items.sort_by_key(|item| item.file_name().to_string_lossy().to_lowercase());
+  for item in items {
+    if *budget == 0 { break; }
+    let name = item.file_name().to_string_lossy().into_owned();
+    if name.starts_with('.') || ["node_modules", "$RECYCLE.BIN", "System Volume Information"].contains(&name.as_str()) { continue; }
+    let path = item.path();
+    let id = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+    if path.is_dir() {
+      let children = walk(root, &path, kinds, depth + 1, budget);
+      if !children.is_empty() { found.push(Entry { id, name, children: Some(children), size: 0 }); }
+    } else if kinds.iter().any(|kind| name.to_lowercase().ends_with(&format!(".{kind}"))) {
+      *budget -= 1;
+      found.push(Entry { id, name, children: None, size: item.metadata().map(|m| m.len()).unwrap_or(0) });
+    }
+  }
+  found
+}
+
+#[tauri::command]
+fn list_folder(path: String, kinds: Vec<String>) -> Result<Vec<Entry>, String> {
+  let root = std::path::PathBuf::from(&path);
+  if !root.is_dir() { return Err("This folder is not there any more.".into()); }
+  let mut budget = 5000;
+  Ok(walk(&root, &root, &kinds, 0, &mut budget))
+}
+
 // The AI commands exist on computers only: a phone cannot start other programs.
 #[cfg(desktop)]
 fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool {
-  tauri::generate_handler![take_opened, read_path, ai::ai_tools, ai::ai_start, ai::ai_stop]
+  tauri::generate_handler![take_opened, read_path, list_folder, ai::ai_tools, ai::ai_start, ai::ai_stop]
 }
 #[cfg(mobile)]
 fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool {
-  tauri::generate_handler![take_opened, read_path]
+  tauri::generate_handler![take_opened, read_path, list_folder]
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

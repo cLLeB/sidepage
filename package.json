@@ -1,7 +1,7 @@
 {
   "name": "sidepage",
   "private": true,
-  "version": "0.32.0",
+  "version": "0.33.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -45,6 +45,9 @@
     "page-flip": "^2.0.7",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.2.8",
+    "react-arborist": "^4.0.1",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^19.2.8",
     "react-error-boundary": "^6.1.6",
     "rtf.js": "^3.0.9",

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { uiLocale } from './lib/language'
-import { Globe, BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, FolderPlus, Library, NotebookText, Pencil, Quote, Star, Target, Trash2, X } from 'lucide-react'
+import { Folders, Globe, BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, FolderPlus, Library, NotebookText, Pencil, Quote, Star, Target, Trash2, X } from 'lucide-react'
 import { usePref } from './lib/prefs'
 import { baseName, extensionOf, loadNote, type Shelved } from './lib/platform'
 import { asTime, planToday, progressOf, readingDays, readingStats, setPlan, spentOn, timeLeft, type Plan } from './lib/reading'
+import { folders } from './lib/folders'
 
 // What a book is, said plainly, and the shelves it can be filtered into.
 const KINDS: Record<string, string> = {
@@ -33,7 +34,7 @@ function Cover({ name, cover, large }: { name: string; cover?: string; large?: b
     )
 }
 
-export default function Home({ books, covers, favourites, goal, onOpen, onBrowse, onRemove, onFavourite, onQuickNotes, onWebPage }: {
+export default function Home({ books, covers, favourites, goal, onOpen, onBrowse, onRemove, onFavourite, onQuickNotes, onWebPage, onFolder }: {
   books: Shelved[]
   covers: Record<string, string>
   favourites: string[]
@@ -44,7 +45,9 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
   onFavourite(name: string): void
   onQuickNotes(): void
   onWebPage(): void
+  onFolder(id?: string): void
 }) {
+  const folderList = folders()
   const [wanted, setWanted] = useState('')
   const [shelfName, setShelfName] = useState('All')
   const [order, setOrder] = useState(() => localStorage.getItem('sidepage:order') ?? 'recent')
@@ -115,6 +118,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
           </div>
           <div className="home-actions">
             <button className="soft" onClick={onWebPage} title="Read an article from the web beside your notes"><Globe size={18} aria-hidden /> Web page</button>
+            <button className="soft" onClick={() => onFolder()} title="Open a folder of files and move through them"><Folders size={18} aria-hidden /> Folder</button>
             <button className="soft" onClick={onQuickNotes}><NotebookText size={18} aria-hidden /> Quick notes</button>
             <button className="primary" onClick={onBrowse}><FolderOpen size={18} aria-hidden /> Open a book</button>
           </div>
@@ -174,6 +178,21 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
               </div>
             </section>
           </div>
+        )}
+
+        {folderList.length > 0 && (
+          <section className="home-folders" aria-label="Your folders">
+            <h2 className="shelf-title"><Folders size={16} aria-hidden /> Your folders</h2>
+            <div className="home-folder-row">
+              {folderList.map(folder => (
+                <button key={folder.id} className="home-folder" onClick={() => onFolder(folder.id)}>
+                  <FolderOpen size={22} aria-hidden />
+                  <span className="home-folder-name">{folder.name}</span>
+                  <span className="home-folder-kind">{folder.kind === 'kept' ? 'Kept in Sidepage' : folder.kind === 'path' ? 'On this computer' : 'In this browser'}</span>
+                </button>
+              ))}
+            </div>
+          </section>
         )}
 
         {plannedBooks.length > 0 && (

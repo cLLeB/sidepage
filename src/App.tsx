@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -12,7 +12,7 @@ import { coverOf } from './lib/reading'
 import Home from './Home'
 import { Comfort, FocusClock, LookUp, Palette, SittingCard, Soundscape, StudyTimer, Translator, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { beginSitting, endSitting, type Sitting } from './lib/session'
-import { ACCENTS, applyAccent, usePref, type Accent } from './lib/prefs'
+import { ACCENTS, applyAccent, usePref, type Accent, setPref } from './lib/prefs'
 import { OCR_LANGUAGES } from './lib/ocr'
 import { LANGUAGES, setLanguage, uiLanguage, type Language } from './lib/language'
 import { bibliography, CiteDialog, openCite } from './viewers/Cite'
@@ -122,6 +122,8 @@ const HighlightsView = lazy(() => import('./notes/HighlightsView'))
 const CompareView = lazy(() => import('./notes/CompareView'))
 const PapersView = lazy(() => import('./notes/PapersView'))
 const AskView = lazy(() => import('./notes/AskView'))
+const FilesView = lazy(() => import('./notes/FilesView'))
+const FilesPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><FilesView /></Suspense></ErrorBoundary>
 const AskPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><AskView /></Suspense></ErrorBoundary>
 const PapersPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><PapersView /></Suspense></ErrorBoundary>
 const ComparePanel = ({ params }: IDockviewPanelProps<{ older?: string; newer?: string }>) => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><CompareView older={params.older} newer={params.newer} /></Suspense></ErrorBoundary>
@@ -172,7 +174,38 @@ function SideActions({ group, containerApi }: IDockviewHeaderActionsProps) {
   )
 }
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel }
+// Over the book, when the folder's list is out of sight: the file's place in its folder, and the files either side.
+function FolderStepper() {
+  const [where, setWhere] = useState<{ index: number; total: number; shown: boolean } | null>(null)
+  useEffect(() => {
+    const hear = (e: Event) => setWhere((e as CustomEvent<{ index: number; total: number; shown: boolean }>).detail)
+    window.addEventListener('sidepage:folder-position', hear)
+    return () => window.removeEventListener('sidepage:folder-position', hear)
+  }, [])
+  // Whether the list of files is really in sight (a panel behind another tab keeps its size): looked at often, it is cheap.
+  const [listInSight, setListInSight] = useState(false)
+  useEffect(() => {
+    const look = () => {
+      const list = document.querySelector<HTMLElement>('.note.files')
+      const box = list?.getBoundingClientRect()
+      setListInSight(!!list && !!box && box.width > 0 && list.contains(document.elementFromPoint(box.left + box.width / 2, box.top + Math.min(box.height / 2, 120))))
+    }
+    look()
+    const timer = setInterval(look, 700)
+    return () => clearInterval(timer)
+  }, [where])
+  if (!where || listInSight || where.index < 0 || where.total < 2) return null
+  const step = (by: number) => window.dispatchEvent(new CustomEvent('sidepage:folder-step', { detail: by }))
+  return (
+    <div className="folder-stepper" role="group" aria-label="Files in this folder">
+      <button onClick={() => step(-1)} aria-label="The previous file" title="The previous file (Alt+↑)"><ChevronLeft size={18} aria-hidden /></button>
+      <span>{`${where.index + 1} of ${where.total}`}</span>
+      <button onClick={() => step(1)} aria-label="The next file" title="The next file (Alt+↓)"><ChevronRight size={18} aria-hidden /></button>
+    </div>
+  )
+}
+
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel, files: FilesPanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -337,7 +370,8 @@ export default function App() {
     const dock = api.current
     if (!dock) return
     const books = dock.panels.filter(p => p.id.startsWith('doc:'))
-    const notes = dock.panels.filter(p => !p.id.startsWith('doc:'))
+    // The folders panel keeps its own column, to the left.
+    const notes = dock.panels.filter(p => !p.id.startsWith('doc:') && p.id !== 'files')
     if (!books.length || !notes.length) return
     const shown = [dock.activePanel, ...dock.groups.map(group => group.activePanel)]
     const home = books[0].group
@@ -429,10 +463,20 @@ export default function App() {
         ? { referenceGroup: besideGroup, direction: 'right' }
         : sibling
         ? { referencePanel: sibling.id, direction: 'within' }
-        : note ? { referencePanel: note.id, direction: besideNotes() } : undefined,
+        : note ? { referencePanel: note.id, direction: besideNotes() }
+        : dock.getPanel('files') && window.innerWidth >= 700 ? { referencePanel: 'files', direction: 'right' } : undefined,
     })
     openNote('written', book)
     dock.getPanel(id)?.api.setActive()
+    // The folder's files stay a narrow column beside the book.
+    const files = dock.getPanel('files')
+    if (files && window.innerWidth >= 700 && files.group.width > 360) setTimeout(() => {
+      const narrow = Math.min(340, Math.max(260, Math.round(window.innerWidth * 0.2)))
+      files.group.api.setSize({ width: narrow })
+      // What is left goes mostly to the book.
+      const room = (document.querySelector<HTMLElement>('.workspace')?.clientWidth ?? window.innerWidth) - narrow
+      if (besideBook() === 'right') dock.getPanel(id)?.group.api.setSize({ width: Math.round(room * 0.56) })
+    }, 50)
     if (besideGroup) shareNow.current()
   }, [openNote])
 
@@ -497,8 +541,23 @@ export default function App() {
     dock.getPanel('compare')?.api.close()
     const columns = dock.groups.map(group => group.activePanel).filter(panel => panel?.id.startsWith('doc:'))
     const [older, newer] = columns.length >= 2 ? [columns[0]!.id.slice(4), columns[1]!.id.slice(4)] : [undefined, undefined]
-    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:') && p.id !== 'files')
     dock.addPanel({ id: 'compare', component: 'compare', title: 'Compare', params: { older, newer }, position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
+  }, [])
+  // A folder's files, to the left of the book (or in the same tab strip on a phone).
+  const openFiles = useCallback((folderId?: string) => {
+    const dock = api.current
+    if (!dock) return
+    if (folderId) setPref('folder-current', folderId)
+    const existing = dock.getPanel('files')
+    if (existing) return existing.api.setActive()
+    const book = dock.panels.find(p => p.id.startsWith('doc:'))
+    const narrow = window.innerWidth < 700
+    dock.addPanel({
+      id: 'files', component: 'files', title: 'Files',
+      position: book ? { referenceGroup: book.group, direction: narrow ? 'within' : 'left' } : undefined,
+      initialWidth: narrow ? undefined : Math.min(340, Math.max(260, Math.round(window.innerWidth * 0.2))),
+    })
   }, [])
   // Ask AI: the reader's own AI subscription, beside the book, in place of the notes.
   const openAsk = useCallback(() => {
@@ -506,7 +565,7 @@ export default function App() {
     if (!dock) return
     const existing = dock.getPanel('ai')
     if (existing) return existing.api.setActive()
-    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:') && p.id !== 'files')
     const book = dock.panels.find(p => p.id.startsWith('doc:'))
     dock.addPanel({ id: 'ai', component: 'ai', title: 'Ask AI', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : book ? { referencePanel: book.id, direction: besideBook() } : undefined })
   }, [])
@@ -516,7 +575,7 @@ export default function App() {
     if (!dock) return
     const existing = dock.getPanel('papers')
     if (existing) return existing.api.setActive()
-    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:') && p.id !== 'files')
     const book = dock.panels.find(p => p.id.startsWith('doc:'))
     dock.addPanel({ id: 'papers', component: 'papers', title: 'Papers', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : book ? { referencePanel: book.id, direction: besideBook() } : undefined })
   }, [])
@@ -525,7 +584,7 @@ export default function App() {
     if (!dock) return
     // Closed and opened again, so it always shows what has been highlighted since.
     dock.getPanel('highlights')?.api.close()
-    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:') && p.id !== 'files')
     dock.addPanel({ id: 'highlights', component: 'highlights', title: 'Highlights', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
   }, [])
 
@@ -534,7 +593,7 @@ export default function App() {
     if (!dock) return
     const existing = dock.getPanel('guide')
     if (existing) return existing.api.setActive()
-    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:') && p.id !== 'files')
     const reference = dock.panels.find(p => p.id.startsWith('doc:'))
     dock.addPanel({
       id: 'guide', component: 'guide', title: 'Study guide',
@@ -556,7 +615,7 @@ export default function App() {
     if (!dock) return
     const existing = dock.getPanel('review')
     if (existing) return existing.api.setActive()
-    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:') && p.id !== 'files')
     dock.addPanel({ id: 'review', component: 'review', title: 'Review', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
   }, [])
 
@@ -660,11 +719,12 @@ export default function App() {
     if (!dock) return
     const room = document.querySelector<HTMLElement>('.workspace')?.clientWidth ?? window.innerWidth
     const bookGroups = dock.groups.filter(group => group.panels.some(panel => panel.id.startsWith('doc:')))
-    const noteGroups = dock.groups.filter(group => !bookGroups.includes(group) && group.api.isVisible)
+    const noteGroups = dock.groups.filter(group => !bookGroups.includes(group) && group.api.isVisible && !group.panels.some(panel => panel.id === 'files'))
+    const filesWidth = dock.groups.filter(group => group.api.isVisible && group.panels.some(panel => panel.id === 'files')).reduce((sum, group) => sum + group.width, 0)
     if (bookGroups.length < 2 || (noteGroups.length && besideBook() !== 'right')) return
     const notes = noteGroups.length ? Math.max(340, Math.round(room * 0.26)) : 0
     for (const group of noteGroups) group.api.setSize({ width: notes })
-    for (const group of bookGroups) group.api.setSize({ width: Math.floor((room - notes) / bookGroups.length) })
+    for (const group of bookGroups) group.api.setSize({ width: Math.floor((room - notes - filesWidth) / bookGroups.length) })
   }, delay)
   shareNow.current = shareWidth
 
@@ -723,6 +783,9 @@ export default function App() {
     { group: 'Go to', name: 'Read a web page…', icon: Globe, run: () => setAsking({ address: '', busy: false, problem: '' }) },
     { group: 'Go to', name: 'Open a book beside this one…', icon: Columns2, run: () => { const book = api.current?.panels.find(p => p.id.startsWith('doc:') && p.api.isActive) ?? api.current?.panels.find(p => p.id.startsWith('doc:')); if (book) sides.openBeside(book.group.id); else void browse() } },
     { group: 'Go to', name: 'Read side by side, full screen', icon: BookOpen, run: () => readNow.current() },
+    { group: 'Go to', name: 'Your folders', icon: Folders, run: () => openFiles() },
+    { group: 'Go to', name: 'Next file in the folder', hint: 'Alt+↓', icon: Folders, run: () => { openFiles(); setTimeout(() => window.dispatchEvent(new CustomEvent('sidepage:folder-step', { detail: 1 })), 400) } },
+    { group: 'Go to', name: 'Previous file in the folder', hint: 'Alt+↑', icon: Folders, run: () => { openFiles(); setTimeout(() => window.dispatchEvent(new CustomEvent('sidepage:folder-step', { detail: -1 })), 400) } },
     { group: 'Go to', name: 'Quick notes', icon: NotebookText, run: () => openNote('written', 'Quick notes') },
     { group: 'Write', name: 'Notes for this book', hint: 'Ctrl+1', icon: NotebookPen, run: () => openNote('written', notebook) },
     { group: 'Write', name: 'Canvas: draw and handwrite', hint: 'Ctrl+2', icon: PenLine, run: () => openNote('canvas', notebook) },
@@ -805,6 +868,7 @@ export default function App() {
           <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
           <Tool icon={Highlighter} label="Highlights" hint="Every highlight from every book" onClick={openHighlights} />
           <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, and kindred places in your other books" onClick={openGuide} />
+          <Tool icon={Folders} label="Files" hint="Your folders: open any file, and move to the next or previous one (Alt+↓, Alt+↑)" onClick={() => openFiles()} />
           <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask your own AI (Claude, ChatGPT or Gemini, with your subscription) about the book" onClick={openAsk} />
           <Tool icon={Network} label="Papers" hint="What this paper cites, what cites it, and related work, with free PDFs to open (OpenAlex)" onClick={openPapers} />
           <Tool icon={GraduationCap} label="Review" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
@@ -914,6 +978,7 @@ export default function App() {
           </form>
         </div>
       )}
+      <FolderStepper />
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">
@@ -925,6 +990,7 @@ export default function App() {
             onRemove={name => void unshelve(name).then(shelf).then(setBooks)}
             onQuickNotes={() => openNote('written', 'Quick notes')}
             onWebPage={() => setAsking({ address: '', busy: false, problem: '' })}
+            onFolder={id => openFiles(id)}
           />
         )}
       </main>
