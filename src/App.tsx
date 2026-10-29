@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -16,7 +16,7 @@ import { ACCENTS, applyAccent, usePref, type Accent, setPref } from './lib/prefs
 import { OCR_LANGUAGES } from './lib/ocr'
 import { LANGUAGES, setLanguage, uiLanguage, type Language } from './lib/language'
 import { bibliography, CiteDialog, openCite } from './viewers/Cite'
-import { Tool } from './ui'
+import { Tool, Menu } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
@@ -861,24 +861,32 @@ export default function App() {
           <strong className="brand-name">Sidepage</strong>
         </button>
         <Tool icon={FolderOpen} label="Open" hint="Open a book, document, deck or picture (Ctrl+O)" onClick={() => void browse()} />
-        <div className="segment" role="group" aria-label="Write beside the book">
-          <Tool icon={NotebookPen} label="Notes" hint="Written notes (Ctrl+1)" onClick={() => openNote('written', notebook)} />
-          <Tool icon={PenLine} label="Canvas" hint="Draw and handwrite (Ctrl+2)" onClick={() => openNote('canvas', notebook)} />
-          <Tool icon={Workflow} label="Mind map" hint="Mind map (Ctrl+3)" onClick={() => openNote('mindmap', notebook)} />
-          <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
-          <Tool icon={Highlighter} label="Highlights" hint="Every highlight from every book" onClick={openHighlights} />
-          <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, and kindred places in your other books" onClick={openGuide} />
-          <Tool icon={Folders} label="Files" hint="Your folders: open any file, and move to the next or previous one (Alt+↓, Alt+↑)" onClick={() => openFiles()} />
+        <Tool icon={Folders} label="Files" hint="Your folders: open any file, and move to the next or previous one (Alt+↓, Alt+↑)" onClick={() => openFiles()} />
+        <div className="segment" role="group" aria-label="Beside the book">
+          <span className="split">
+            <Tool icon={NotebookPen} label="Notes" hint="Written notes (Ctrl+1)" onClick={() => openNote('written', notebook)} />
+            <Menu quiet icon={ChevronDown} label="Other ways of writing" hint="Canvas and mind map">
+              <Tool icon={NotebookPen} label="Written notes" hint="Ctrl+1" onClick={() => openNote('written', notebook)} />
+              <Tool icon={PenLine} label="Canvas" hint="Draw and handwrite (Ctrl+2)" onClick={() => openNote('canvas', notebook)} />
+              <Tool icon={Workflow} label="Mind map" hint="Mind map (Ctrl+3)" onClick={() => openNote('mindmap', notebook)} />
+            </Menu>
+          </span>
           <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask your own AI (Claude, ChatGPT or Gemini, with your subscription) about the book" onClick={openAsk} />
-          <Tool icon={Network} label="Papers" hint="What this paper cites, what cites it, and related work, with free PDFs to open (OpenAlex)" onClick={openPapers} />
-          <Tool icon={GraduationCap} label="Review" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
+          <Menu icon={Sparkles} label="Study" hint="Guide, highlights, flashcards, papers and more">
+            <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, a quiz, and kindred places in your other books" onClick={openGuide} />
+            <Tool icon={GraduationCap} label="Review flashcards" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
+            <Tool icon={Highlighter} label="All highlights" hint="Every highlight from every book" onClick={openHighlights} />
+            <Tool icon={Network} label="Papers" hint="What this paper cites, what cites it, and related work, with free PDFs to open (OpenAlex)" onClick={openPapers} />
+            <Tool icon={ArrowLeftRight} label="Compare two books" hint="What changed between two versions, word by word" onClick={openCompare} />
+            <Tool icon={Share2} label="Graph of your notes" hint="How your books' notes link to each other" onClick={openGraph} />
+            <Tool icon={Timer} label="Study timer" hint="Study for a stretch, then take a break" onClick={() => setTimeout(() => window.dispatchEvent(new Event('sidepage:timer')), 0)} />
+          </Menu>
         </div>
         <span className="spacer" />
         <button className="jump" title="Go to anything (Ctrl+K)" onClick={() => setPalette(true)}><CommandIcon size={15} aria-hidden /><span>Go to…</span><kbd>Ctrl K</kbd></button>
         <NotesSearch />
         <StudyTimer onNotice={setNotice} />
         <Tool quiet icon={Maximize2} label="Focus" hint="Hide everything but the page and your notes (Ctrl+.)" disabled={empty} onClick={() => setFocus(true)} />
-        <Tool quiet icon={THEME_ICONS[theme]} label={`Theme: ${THEME_NAMES[theme]}`} hint={`Theme: ${THEME_NAMES[theme]}. Tap to change.`} onClick={() => setTheme(next(CYCLE, theme === 'auto' ? (deviceIsDark() ? 'dark' : 'light') : theme))} />
         <Tool quiet icon={Ellipsis} label="More" on={more} onClick={() => setMore(!more)} />
         {more && <>
           <div className="menu-backdrop" onClick={() => setMore(false)} />

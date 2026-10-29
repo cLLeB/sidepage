@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { uiLocale } from '../lib/language'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
-  List, ListChecks, ListOrdered, ListTree, Minus, PenLine, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
+  List, ListChecks, ListOrdered, Minus, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
   AlignVerticalJustifyCenter, SpellCheck, Footprints, Presentation, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
@@ -515,7 +515,6 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
 
   const crepe = () => editorRef.current
   const has = looksAt(editorRef.current)
-  const AlignIcon = { left: AlignLeft, center: AlignCenter, right: AlignRight, justify: AlignJustify }[has.align ?? 'left'] ?? AlignLeft
   // Plain words, typed where the cursor is.
   const type = (text: string) => editorRef.current?.editor.action(ctx => {
     const view = ctx.get(editorViewCtx)
@@ -610,48 +609,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     >
       {/* A button pressed in the bar must not take the cursor out of the note. */}
       <div className="note-bar" onMouseDown={e => { if (!(e.target as HTMLElement).closest('select, input')) e.preventDefault() }}>
-        <Menu quiet icon={ListTree} label="Outline" hint="Jump to a heading in this note">
-          {() => {
-            const found = headings()
-            return found.length
-              ? <div className="menu-scroll">{found.map((heading, i) => (
-                  <button key={i} className="menu-item" style={{ paddingLeft: 10 + (Number(heading.tagName[1]) - 1) * 14 }} onClick={() => heading.scrollIntoView({ block: 'start', behavior: 'smooth' })}>
-                    {heading.textContent}
-                  </button>
-                ))}</div>
-              : <p className="menu-note">Headings you write in this note are listed here.</p>
-          }}
-        </Menu>
-        <Menu quiet icon={PenLine} label="Writing" hint="The typeface, size and ink of your writing">
-          <label className="menu-row">Typeface
-            <select value={writing.face} onChange={e => setWriting({ face: e.target.value as Writing['face'] })}>
-              {Object.entries(FACES).map(([id, face]) => <option key={id} value={id}>{face.name}</option>)}
-            </select>
-          </label>
-          <label className="menu-row">Size
-            <select value={writing.size} onChange={e => setWriting({ size: Number(e.target.value) })}>
-              {Object.entries(WRITING_SIZES).map(([name, size]) => <option key={name} value={size}>{name}</option>)}
-            </select>
-          </label>
-          <label className="menu-row">Ink
-            <select value={writing.ink} onChange={e => setWriting({ ink: e.target.value as Writing['ink'] })}>
-              {Object.entries(INKS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
-          </label>
-          <label className="menu-row">Lines
-            <select value={writing.gap} onChange={e => setWriting({ gap: Number(e.target.value) })}>
-              {Object.entries(GAPS).map(([name, gap]) => <option key={name} value={gap}>{name}</option>)}
-            </select>
-          </label>
-          <label className="menu-row">Paper
-            <select value={writing.tint} onChange={e => setWriting({ tint: e.target.value as Writing['tint'] })}>
-              {Object.entries(TINTS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
-          </label>
-          <p className="menu-note">The lines of the paper follow the size you choose.</p>
-        </Menu>
         <Tool quiet icon={Undo2} label="Undo" onClick={() => undo(crepe())} />
-        <Tool quiet icon={Redo2} label="Redo" onClick={() => redo(crepe())} />
         <span className="divider" />
         <Menu quiet icon={Pilcrow} label="Kind of line" hint="Make this line a heading, a list or a quote">
           <Tool icon={Pilcrow} label="Plain text" onClick={() => setBlock(crepe(), 'text')} />
@@ -673,7 +631,6 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         <Tool quiet icon={Bold} label="Bold" on={has.strong} onClick={() => toggleLook(crepe(), 'strong')} />
         <Tool quiet icon={Italic} label="Italic" on={has.emphasis} onClick={() => toggleLook(crepe(), 'emphasis')} />
         <Tool quiet icon={Underline} label="Underline" on={has.underline} onClick={() => toggleLook(crepe(), 'underline')} />
-        <Tool quiet icon={Strikethrough} label="Strike through" on={has.strike_through} onClick={() => toggleLook(crepe(), 'strike_through')} />
         <Menu quiet icon={Baseline} label="Text colour" hint="Colour the selected words">
           <span className="swatches">
             {Object.entries(TEXT_COLOURS).map(([name, colour]) => (
@@ -690,7 +647,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           </span>
           <button className="menu-item" onClick={() => setLook(crepe(), 'marker', null)}>No marker</button>
         </Menu>
-        <Menu quiet icon={ALargeSmall} label="Size and typeface" hint="Make the selected words larger or smaller, or set them in another typeface">
+        <Menu quiet icon={ALargeSmall} label="Format" hint="Strike through, raised and lowered, size, typeface and alignment">
+          <div className="menu-line">
+            <Tool icon={Strikethrough} label="Strike through" on={has.strike_through} onClick={() => toggleLook(crepe(), 'strike_through')} />
+          </div>
           <div className="menu-line">
             <Tool icon={Superscript} label="Raised" on={has.sup} onClick={() => toggleLook(crepe(), 'sup')} />
             <Tool icon={Subscript} label="Lowered" on={has.sub} onClick={() => toggleLook(crepe(), 'sub')} />
@@ -705,14 +665,15 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           {Object.entries(TEXT_FACES).map(([name, face]) => (
             <button key={name} className="menu-item" onClick={() => setLook(crepe(), 'face', face)}><span data-face={face}>{name}</span></button>
           ))}
+          <p className="menu-head">Alignment</p>
+          <div className="menu-line">
+            <Tool icon={AlignLeft} label="Left" onClick={() => setAlign(crepe(), 'left')} />
+            <Tool icon={AlignCenter} label="Centre" onClick={() => setAlign(crepe(), 'center')} />
+            <Tool icon={AlignRight} label="Right" onClick={() => setAlign(crepe(), 'right')} />
+            <Tool icon={AlignJustify} label="Fill the line" onClick={() => setAlign(crepe(), 'justify')} />
+          </div>
+          <Tool icon={RemoveFormatting} label="Plain writing" hint="Take the colour, size and other looks off the selected words" onClick={() => clearLooks(crepe())} />
         </Menu>
-        <Menu quiet icon={AlignIcon} label="Alignment" hint="Which side the paragraph leans to">
-          <Tool icon={AlignLeft} label="Left" onClick={() => setAlign(crepe(), 'left')} />
-          <Tool icon={AlignCenter} label="Centre" onClick={() => setAlign(crepe(), 'center')} />
-          <Tool icon={AlignRight} label="Right" onClick={() => setAlign(crepe(), 'right')} />
-          <Tool icon={AlignJustify} label="Fill the line" onClick={() => setAlign(crepe(), 'justify')} />
-        </Menu>
-        <Tool quiet icon={RemoveFormatting} label="Plain writing" hint="Take the colour, size and other looks off the selected words" onClick={() => clearLooks(crepe())} />
         <span className="divider" />
         <Menu quiet icon={Plus} label="Insert" hint="Put a picture, a table, a layout or a link into the note">
           <Tool icon={ImagePlus} label="Picture" onClick={() => picker.current?.click()} />
@@ -741,8 +702,11 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           ref={picker} type="file" accept="image/*" hidden
           onChange={e => { const picture = e.target.files?.[0]; e.target.value = ''; if (picture) void addPicture(picture) }}
         />
-        <Tool quiet icon={Replace} label="Find and replace" on={finding} onClick={() => setFinding(!finding)} />
         <Menu quiet icon={Ellipsis} label="More for this note">
+          <div className="menu-line">
+            <Tool icon={Redo2} label="Redo" onClick={() => redo(crepe())} />
+            <Tool icon={Replace} label="Find and replace" on={finding} onClick={() => setFinding(!finding)} />
+          </div>
           {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read this note aloud'} onClick={readAloud} />}
           <Tool icon={Mic} label={recording ? 'Stop recording sound' : 'Record sound with this note'} hint="Record a lecture or yourself; lines you write meanwhile are stamped with their moment" on={!!recording} onClick={() => void record()} />
           <Tool icon={Presentation} label={byPage ? 'A heading for each page or slide: on' : 'A heading for each page or slide'} hint="Lecture notes: turn to a slide and the note goes to that slide's heading, made when first needed" on={byPage} onClick={() => setByPage(!byPage)} />
@@ -754,6 +718,44 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('docx')} />
           <Tool icon={Globe} label="Save as a web page" onClick={() => void saveAs('html')} />
           {!isMobile && <Tool icon={Printer} label="Print this note" onClick={print} />}
+          <p className="menu-head">Headings in this note</p>
+          {(() => {
+            const found = headings()
+            return found.length
+              ? <div className="menu-scroll">{found.map((heading, i) => (
+                  <button key={i} className="menu-item" style={{ paddingLeft: 10 + (Number(heading.tagName[1]) - 1) * 14 }} onClick={() => heading.scrollIntoView({ block: 'start', behavior: 'smooth' })}>
+                    {heading.textContent}
+                  </button>
+                ))}</div>
+              : <p className="menu-note">Headings you write in this note are listed here.</p>
+          })()}
+          <p className="menu-head">Paper and writing</p>
+          <label className="menu-row">Typeface
+            <select value={writing.face} onChange={e => setWriting({ face: e.target.value as Writing['face'] })}>
+              {Object.entries(FACES).map(([id, face]) => <option key={id} value={id}>{face.name}</option>)}
+            </select>
+          </label>
+          <label className="menu-row">Size
+            <select value={writing.size} onChange={e => setWriting({ size: Number(e.target.value) })}>
+              {Object.entries(WRITING_SIZES).map(([name, size]) => <option key={name} value={size}>{name}</option>)}
+            </select>
+          </label>
+          <label className="menu-row">Ink
+            <select value={writing.ink} onChange={e => setWriting({ ink: e.target.value as Writing['ink'] })}>
+              {Object.entries(INKS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </label>
+          <label className="menu-row">Lines
+            <select value={writing.gap} onChange={e => setWriting({ gap: Number(e.target.value) })}>
+              {Object.entries(GAPS).map(([name, gap]) => <option key={name} value={gap}>{name}</option>)}
+            </select>
+          </label>
+          <label className="menu-row">Paper
+            <select value={writing.tint} onChange={e => setWriting({ tint: e.target.value as Writing['tint'] })}>
+              {Object.entries(TINTS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </label>
+          <p className="menu-note">The lines of the paper follow the size you choose.</p>
         </Menu>
         <span className={saved === 'failed' ? 'viewer-pos save-state failed' : 'viewer-pos save-state'} title="Notes save themselves as you write">{saved === 'saving' ? 'Saving…' : saved === 'saved' ? 'Saved' : 'Not saved: storage refused'}</span>
         {boxes.all > 0 && <span className="viewer-pos" title="Checklist boxes ticked">{boxes.done} of {boxes.all} done</span>}

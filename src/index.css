@@ -1224,3 +1224,28 @@ button.viewer-pos { font-weight: 500; }
 @media (max-width: 700px) { .folder-stepper { bottom: calc(86px + env(safe-area-inset-bottom)); } .folder-stepper button { width: 44px; height: 44px; } }
 .app.focus .folder-stepper { opacity: 0.35; }
 .app.focus .folder-stepper:hover { opacity: 1; }
+
+/* A calmer top bar: the study timer shows only while it runs; Notes carries its other ways of writing. */
+.timer-slot:not(.running) > .menu-anchor > .tool { display: none; }
+.split { display: inline-flex; align-items: center; }
+.split > .menu-anchor > .tool { padding-left: 2px; padding-right: 4px; min-width: 0; }
+.split > .menu-anchor > .tool svg { width: 15px; height: 15px; opacity: 0.7; }
+/* The small arrow beside Notes never shows a name, on the bottom bar of a phone either. */
+.split > .menu-anchor .tool-label { display: none !important; }
+.split > .menu-anchor > .tool { flex-direction: row; }
+/* On a narrow screen the reader's bar keeps to one row: pinching zooms, and the zoom figure still fits the page. */
+@media (max-width: 600px) {
+  .viewer-bar .tool[aria-label='Zoom out'], .viewer-bar .tool[aria-label='Zoom in'] { display: none; }
+}
+
+/* Home: reading figures as one quiet line, the twelve weeks under it on request. */
+.reading-line { grid-column: 1 / -1; align-self: start; }
+.reading-line > summary { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 12px 16px; border-radius: 14px; background: var(--panel); box-shadow: var(--shadow-soft); cursor: pointer; font-size: 13.5px; color: var(--muted); }
+.reading-line > summary::-webkit-details-marker { display: none; }
+.reading-line > summary span { display: inline-flex; align-items: center; gap: 6px; }
+.reading-line > summary::after { content: '›'; margin-left: auto; transition: transform 0.15s; }
+.reading-line[open] > summary::after { transform: rotate(90deg); }
+.reading-line .tile.wide { margin-top: 8px; }
+.home-actions .menu-anchor .tool { height: 100%; }
+/* With the figures folded into one line, the book to continue takes the whole row. */
+.home-row { grid-template-columns: minmax(0, 1fr); gap: 10px; }

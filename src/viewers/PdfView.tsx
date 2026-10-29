@@ -7,9 +7,8 @@ import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
 import {
-  BookA, Languages, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, Eye, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
-  ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut,
-} from 'lucide-react'
+  BookA, Languages, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
+  ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
 import { readableText } from '../lib/insight'
@@ -632,7 +631,6 @@ export default function PdfView({ file }: { file: File }) {
           <Tool quiet icon={ChevronRight} label="Next page" onClick={() => go(1)} />
         </>}
         {mode === 'scroll' && <ContentsMenu items={contents} onGo={() => {}} />}
-        {mode === 'scroll' && <Tool quiet icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />}
         {jumping
           ? <input
               className="page-jump" type="number" autoFocus min={1} max={doc?.numPages} defaultValue={page} aria-label="Go to page"
@@ -653,38 +651,51 @@ export default function PdfView({ file }: { file: File }) {
           <Tool quiet icon={ZoomOut} label="Zoom out" onClick={() => zoomBy(1 / 1.2)} />
           <button className="zoom-level" title="Fit the page to the panel's width" onClick={fitWidth}>{zoom}%</button>
           <Tool quiet icon={ZoomIn} label="Zoom in" onClick={() => zoomBy(1.2)} />
-          <Menu quiet icon={Eye} label="View" hint="How the pages are laid out" on={spread || drift > 0}>
+          {cameFrom > 0 && cameFrom !== page && <button className="viewer-pos" title="Return to the page you were on" onClick={() => go(cameFrom - page)}>↩ p. {cameFrom}</button>}
+          {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
+          {busy && <span className="viewer-pos">{busy}</span>}
+          {/* What is in use shows on the bar, so it can be turned off where it was turned on. */}
+          {clipping && <Tool quiet icon={reading ? ScanText : carding ? SquareDashed : Crop} label="Stop drawing boxes" on onClick={() => setClipping(false)} />}
+          {tool === 'draw' && <Tool quiet icon={Pencil} label="Stop drawing" on onClick={() => setTool('none')} />}
+          {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
+          <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
+          <SearchBox onSearch={find} onClear={clearFind} status={matches} />
+          <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
+          <Tool quiet icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
+        </>}
+        <Menu quiet icon={Ellipsis} label="Tools" hint="Clip, read aloud, look up, translate, draw, page layout and more" on={mode === 'flip'}>
+          {mode === 'scroll' && <>
+            <p className="menu-head">On the page</p>
+            <Tool icon={Crop} label="Clip a picture into my notes" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading && !carding} onClick={() => { setReading(false); setCarding(false); setClipping(!clipping) }} />
+            <Tool icon={ScanText} label="Read the text in a box" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setReading(true); setClipping(!(clipping && reading)) }} />
+            <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setCarding(true); setClipping(!(clipping && carding)) }} />
+            <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
+            <p className="menu-head">Selected words</p>
+            <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
+            <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => translate(window.getSelection()?.toString())} />
+            {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
+            <p className="menu-head">Pages</p>
+            <Tool icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />
             <Tool icon={MoveHorizontal} label="Fit the width" onClick={fitWidth} />
             <Tool icon={Maximize} label="Fit the whole page" onClick={fitPage} />
             <Tool icon={BookCopy} label={spread ? 'One page at a time' : 'Two pages side by side'} on={spread} onClick={toggleSpread} />
             <Tool icon={RotateCw} label="Turn the pages a quarter" onClick={rotate} />
-            <Tool icon={TextQuote} label="Cite this book…" hint="As a reference, in your text with this page, or the selected passage with its source" onClick={() => openCite({ book: file.name, place: `page=${page}`, passage: window.getSelection()?.toString() })} />
-            <Tool icon={ScanText} label="Make the whole book searchable" hint="For a scanned book: read every page's words once" onClick={() => void readScan()} />
-            <Tool icon={ScanText} label="Read the text of this whole page" hint="For a scanned page: put its words into your notes" onClick={readWholePage} />
-            <p className="menu-head">Scroll by itself</p>
             <div className="menu-line">
+              <span className="menu-note">Scroll by itself</span>
               {[['Off', 0], ['Slow', 1], ['Steady', 2], ['Fast', 4]].map(([name, speed]) => (
                 <button key={name} className={drift === speed ? 'menu-item on' : 'menu-item'} onClick={() => setDrift(speed as number)}>{name}</button>
               ))}
             </div>
-          </Menu>
-          {cameFrom > 0 && cameFrom !== page && <button className="viewer-pos" title="Return to the page you were on" onClick={() => go(cameFrom - page)}>↩ p. {cameFrom}</button>}
-          {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
-          <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
-          <SearchBox onSearch={find} onClear={clearFind} status={matches} />
-          <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
-          <Tool icon={Crop} label="Clip" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading && !carding} onClick={() => { setReading(false); setCarding(false); setClipping(!clipping) }} />
-          <Tool icon={ScanText} label="Read text" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setReading(true); setClipping(!(clipping && reading)) }} />
-          <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setCarding(true); setClipping(!(clipping && carding)) }} />
-          {busy && <span className="viewer-pos">{busy}</span>}
-          <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
-          <Tool icon={Download} label="Save copy" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
-          <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
-          <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
-          <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => translate(window.getSelection()?.toString())} />
-          {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
-        </>}
-        <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={mode === 'flip'} onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} />
+          </>}
+          <Tool icon={BookOpen} label={mode === 'flip' ? 'Back to scrolling' : 'Turn pages like paper'} on={mode === 'flip'} onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} />
+          {mode === 'scroll' && <>
+            <p className="menu-head">This book</p>
+            <Tool icon={TextQuote} label="Cite this book…" hint="As a reference, in your text with this page, or the selected passage with its source" onClick={() => openCite({ book: file.name, place: `page=${page}`, passage: window.getSelection()?.toString() })} />
+            <Tool icon={Download} label="Save a copy with my marks" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
+            <Tool icon={ScanText} label="Make the whole book searchable" hint="For a scanned book: read every page's words once" onClick={() => void readScan()} />
+            <Tool icon={ScanText} label="Read the text of this whole page" hint="For a scanned page: put its words into your notes" onClick={readWholePage} />
+          </>}
+        </Menu>
       </div>
       <div className="viewer-body">
         <div

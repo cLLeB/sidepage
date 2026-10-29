@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { uiLocale } from './lib/language'
-import { Folders, Globe, BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, FolderPlus, Library, NotebookText, Pencil, Quote, Star, Target, Trash2, X } from 'lucide-react'
+import { Ellipsis, Folders, Globe, BookOpenText, CalendarCheck, CalendarClock, Clock, Flame, FolderOpen, FolderPlus, Library, NotebookText, Pencil, Quote, Star, Target, Trash2, X } from 'lucide-react'
 import { usePref } from './lib/prefs'
 import { baseName, extensionOf, loadNote, type Shelved } from './lib/platform'
 import { asTime, planToday, progressOf, readingDays, readingStats, setPlan, spentOn, timeLeft, type Plan } from './lib/reading'
 import { folders } from './lib/folders'
+import { Menu, Tool } from './ui'
 
 // What a book is, said plainly, and the shelves it can be filtered into.
 const KINDS: Record<string, string> = {
@@ -117,9 +118,11 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
             <h1>{greeting()}</h1>
           </div>
           <div className="home-actions">
-            <button className="soft" onClick={onWebPage} title="Read an article from the web beside your notes"><Globe size={18} aria-hidden /> Web page</button>
+            <Menu icon={Ellipsis} label="More ways to start" quiet>
+              <Tool icon={Globe} label="Read a web page" hint="Read an article from the web beside your notes" onClick={onWebPage} />
+              <Tool icon={NotebookText} label="Quick notes" hint="Notes that belong to no book" onClick={onQuickNotes} />
+            </Menu>
             <button className="soft" onClick={() => onFolder()} title="Open a folder of files and move through them"><Folders size={18} aria-hidden /> Folder</button>
-            <button className="soft" onClick={onQuickNotes}><NotebookText size={18} aria-hidden /> Quick notes</button>
             <button className="primary" onClick={onBrowse}><FolderOpen size={18} aria-hidden /> Open a book</button>
           </div>
         </header>
@@ -146,23 +149,12 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                 {!planned[last.name] && <span className="hero-plan" role="button" tabIndex={0} onClick={e => { e.stopPropagation(); pickDate(last.name) }}><CalendarClock size={14} aria-hidden /> Set a day to finish it by</span>}
               </span>
             </button>
-            <section className="tiles" aria-label="Your reading">
-              <div className="tile">
-                <span className="tile-icon"><Clock size={17} aria-hidden /></span>
-                <b>{asTime(stats.today)}</b>
-                <span>{goal > 0 ? `of ${asTime(goal)} today` : 'today'}</span>
-                {goal > 0 && <span className="meter"><i style={{ width: `${Math.min(100, Math.round((stats.today / goal) * 100))}%` }} /></span>}
-              </div>
-              <div className="tile">
-                <span className="tile-icon"><Target size={17} aria-hidden /></span>
-                <b>{asTime(stats.week)}</b>
-                <span>this week</span>
-              </div>
-              <div className="tile">
-                <span className="tile-icon"><Flame size={17} aria-hidden /></span>
-                <b>{`${stats.streak} ${stats.streak === 1 ? 'day' : 'days'}`}</b>
-                <span>in a row</span>
-              </div>
+            <details className="reading-line" aria-label="Your reading">
+              <summary>
+                <span><Clock size={15} aria-hidden /> {goal > 0 ? `${asTime(stats.today)} of ${asTime(goal)} today` : `${asTime(stats.today)} today`}</span>
+                <span><Target size={15} aria-hidden /> {`${asTime(stats.week)} this week`}</span>
+                <span><Flame size={15} aria-hidden /> {`${stats.streak} ${stats.streak === 1 ? 'day' : 'days'} in a row`}</span>
+              </summary>
               <div className="tile wide">
                 <span className="eyebrow">Last twelve weeks</span>
                 <div className="heat" role="img" aria-label="Minutes read on each of the last 84 days">
@@ -176,7 +168,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                   ))}
                 </div>
               </div>
-            </section>
+            </details>
           </div>
         )}
 

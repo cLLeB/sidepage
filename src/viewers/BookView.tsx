@@ -3,10 +3,10 @@ import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
 import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
-import { BookA, Languages, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2 } from 'lucide-react'
+import { BookA, Languages, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2, Ellipsis } from 'lucide-react'
 import { lookUp, translate } from '../Extras'
 import { keepFacts } from './Cite'
-import { Tool } from '../ui'
+import { Tool, Menu } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { hasWords, keepWords, type Stretch } from '../lib/library'
@@ -396,12 +396,17 @@ export default function BookView({ file }: { file: File }) {
         />
         {canCurl && <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={cfi => void viewRef.current?.goTo(cfi)} onChange={changeHighlight} onRemove={removeHighlight} />}
         {canCurl && <TextMenu />}
-        {canCurl && canSpeak && !turning && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
-        <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={() => void quote()} />
-        <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => void selectedPassage().then(passage => lookUp(passage?.text))} />
-        <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => void selectedPassage().then(passage => translate(passage?.text))} />
-        {!turning && <Tool icon={ScrollText} label="Scroll" hint="Read as one long scroll" on={scrolled} onClick={() => setScrolled(s => !s)} />}
-        {canCurl && <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={curl} onClick={toggleCurl} />}
+        {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
+        <Tool quiet icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={() => void quote()} />
+        <Menu quiet icon={Ellipsis} label="Tools" hint="Look up, translate, read aloud, and how the pages turn" on={scrolled || curl}>
+          <p className="menu-head">Selected words</p>
+          <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => void selectedPassage().then(passage => lookUp(passage?.text))} />
+          <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => void selectedPassage().then(passage => translate(passage?.text))} />
+          {canCurl && canSpeak && !turning && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
+          <p className="menu-head">Pages</p>
+          {!turning && <Tool icon={ScrollText} label="Read as one long scroll" on={scrolled} onClick={() => setScrolled(s => !s)} />}
+          {canCurl && <Tool icon={BookOpen} label="Turn pages like paper" on={curl} onClick={toggleCurl} />}
+        </Menu>
       </div>
       <div
         className="viewer-body"

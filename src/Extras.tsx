@@ -110,7 +110,8 @@ export function StudyTimer({ onNotice }: { onNotice(message: string): void }) {
   const left = run ? Math.max(0, Math.ceil((run.ends - now) / 1000)) : 0
   const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`
   return (
-    <Menu icon={Timer} quiet={!run} on={!!run || sound !== 'off'} label={run ? `${run.kind === 'rest' ? 'Break' : 'Study'} ${clock}` : 'Study timer'} hint="Study for a stretch, then take a break">
+    <span className={run ? 'timer-slot running' : 'timer-slot'}>
+    <Menu icon={Timer} quiet={!run} on={!!run || sound !== 'off'} opener="sidepage:timer" label={run ? `${run.kind === 'rest' ? 'Break' : 'Study'} ${clock}` : 'Study timer'} hint="Study for a stretch, then take a break">
       {run
         ? <Tool icon={Square} label={`Stop (${clock} left)`} onClick={() => setRun(null)} />
         : <Tool icon={Play} label={`Start ${study} minutes of study`} onClick={() => { setNow(Date.now()); setRun({ kind: 'study', ends: Date.now() + study * 60_000 }) }} />}
@@ -127,6 +128,7 @@ export function StudyTimer({ onNotice }: { onNotice(message: string): void }) {
       </label>
       {sound !== 'off' && <label className="menu-row">Volume<input type="range" min={5} max={100} step={5} value={volume} onChange={e => setVolume(Number(e.target.value))} /></label>}
     </Menu>
+    </span>
   )
 }
 

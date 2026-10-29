@@ -6,7 +6,9 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const [url, file, width = '1280', height = '800', shot] = process.argv.slice(2)
+// An optional second snippet runs after the first has reloaded the page (to seed data, then look at it).
+const [url, first, width = '1280', height = '800', shot, then] = process.argv.slice(2)
+let file = first
 const port = 9334
 quit()
 const edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', [
@@ -49,7 +51,15 @@ ws.send(JSON.stringify({ id: 90, method: 'Page.bringToFront' }))
 ws.send(JSON.stringify({ id: 91, method: 'Emulation.setFocusEmulationEnabled', params: { enabled: true } }))
 await sleep(3000)
 ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression: `(async () => { ${readFileSync(file, 'utf8')} })()`, awaitPromise: true, returnByValue: true } }))
-console.log(JSON.stringify(await reply, null, 1))
+let answer = await reply
+if (then) {
+  await sleep(4000)
+  file = then
+  const again = new Promise(resolve => ws.addEventListener('message', e => { const msg = JSON.parse(e.data); if (msg.id === 3) resolve(msg.result?.exceptionDetails ? { error: msg.result.exceptionDetails.exception?.description } : msg.result?.result?.value) }))
+  ws.send(JSON.stringify({ id: 3, method: 'Runtime.evaluate', params: { expression: `(async () => { ${readFileSync(file, 'utf8')} })()`, awaitPromise: true, returnByValue: true } }))
+  answer = await again
+}
+console.log(JSON.stringify(answer, null, 1))
 if (shot) {
   ws.send(JSON.stringify({ id: 2, method: 'Page.captureScreenshot', params: { format: 'png' } }))
   writeFileSync(shot, Buffer.from(await picture, 'base64'))
