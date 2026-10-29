@@ -22,6 +22,11 @@ export default defineConfig({
         globIgnores: ['**/ort-wasm*', 'docs/**'],
         // The documentation under docs/ is its own site: the app must not answer for its pages.
         navigateFallbackDenylist: [/\/docs\//],
+        // A new version takes over as soon as it is fetched, in every open page, and reloads documentation pages
+        // an older version had answered with the app (see public/sw-docs.js).
+        skipWaiting: true,
+        clientsClaim: true,
+        importScripts: ['sw-docs.js'],
       },
       manifest: {
         name: 'Sidepage',

@@ -53,7 +53,7 @@ await sleep(3000)
 ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression: `(async () => { ${readFileSync(file, 'utf8')} })()`, awaitPromise: true, returnByValue: true } }))
 let answer = await reply
 if (then) {
-  await sleep(4000)
+  await sleep(Number(process.env.THEN_DELAY ?? 4000))
   file = then
   const again = new Promise(resolve => ws.addEventListener('message', e => { const msg = JSON.parse(e.data); if (msg.id === 3) resolve(msg.result?.exceptionDetails ? { error: msg.result.exceptionDetails.exception?.description } : msg.result?.result?.value) }))
   ws.send(JSON.stringify({ id: 3, method: 'Runtime.evaluate', params: { expression: `(async () => { ${readFileSync(file, 'utf8')} })()`, awaitPromise: true, returnByValue: true } }))
