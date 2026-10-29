@@ -4,12 +4,13 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  RefreshCw, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
 import { coverOf } from './lib/reading'
 import Home from './Home'
+import { canUpdateInPlace, findUpdate, restart, updatesByThemselves, type Update } from './lib/update'
 import { Comfort, FocusClock, LookUp, Palette, SittingCard, Soundscape, StudyTimer, Translator, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { beginSitting, endSitting, type Sitting } from './lib/session'
 import { ACCENTS, applyAccent, usePref, type Accent, setPref } from './lib/prefs'
@@ -205,6 +206,52 @@ function FolderStepper() {
   )
 }
 
+// A new version of Sidepage: looked for a minute after starting (and when asked), fetched in the background on a
+// computer when updates may come by themselves, then offered as a small card. Nothing interrupts the reading.
+function UpdateCard() {
+  const [update, setUpdate] = useState<Update | null>(null)
+  const [state, setState] = useState<'offered' | 'fetching' | 'ready' | 'failed' | 'hidden'>('hidden')
+  const [share, setShare] = useState(0)
+  const look = useCallback(async (asked: boolean) => {
+    try {
+      const found = await findUpdate()
+      if (!found) { if (asked) window.dispatchEvent(new CustomEvent('sidepage:notice', { detail: 'Sidepage is up to date.' })); return }
+      setUpdate(found)
+      if (canUpdateInPlace && updatesByThemselves() && !asked) {
+        setState('fetching')
+        await found.install(setShare)
+        setState('ready')
+      } else setState('offered')
+    } catch {
+      if (asked) window.dispatchEvent(new CustomEvent('sidepage:notice', { detail: 'Sidepage could not look for updates. It needs the internet.' }))
+    }
+  }, [])
+  useEffect(() => {
+    const timer = setTimeout(() => void look(false), 60_000)
+    const ask = () => void look(true)
+    window.addEventListener('sidepage:check-updates', ask)
+    return () => { clearTimeout(timer); window.removeEventListener('sidepage:check-updates', ask) }
+  }, [look])
+  if (!update || state === 'hidden') return null
+  const fetchNow = async () => {
+    if (!canUpdateInPlace) return void update.install(() => {}).then(() => setState('hidden'))
+    setState('fetching')
+    try { await update.install(setShare); setState('ready') } catch { setState('failed') }
+  }
+  return (
+    <div className="update-card" role="status">
+      <Sparkles size={18} aria-hidden />
+      <div className="update-text">
+        <b>{state === 'ready' ? `Sidepage ${update.version} is ready` : `Sidepage ${update.version} is out`}</b>
+        <span>{state === 'fetching' ? `Fetching it… ${Math.round(share * 100)}%` : state === 'ready' ? 'Start again to use it. Your notes are saved.' : state === 'failed' ? 'The download broke off. Try again later.' : canUpdateInPlace ? 'Fetch it now; it is used when Sidepage starts again.' : 'Download it; it installs over this one and keeps your notes.'}</span>
+      </div>
+      {state === 'ready' && <button className="primary" onClick={() => { void finishSaving().then(() => restart()) }}>Restart now</button>}
+      {state === 'offered' && <button className="primary" onClick={() => void fetchNow()}>{canUpdateInPlace ? 'Update' : 'Download'}</button>}
+      {state !== 'fetching' && <button className="soft" onClick={() => setState('hidden')}>Not now</button>}
+    </div>
+  )
+}
+
 const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel, files: FilesPanel }
 
 export default function App() {
@@ -296,6 +343,7 @@ export default function App() {
   const [focus, setFocus] = useState(false)
   // Reading two books side by side, full screen (see readSideBySide).
   const [reading, setReading] = useState(false)
+  const [autoUpdate, setAutoUpdate] = usePref('auto-update', true)
   useEffect(() => { if (!focus) setReading(false) }, [focus])
   // The books refit themselves once the room has settled, on the way in and on the way out.
   useEffect(() => {
@@ -891,6 +939,10 @@ export default function App() {
         {more && <>
           <div className="menu-backdrop" onClick={() => setMore(false)} />
           <div className="menu settings" onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) setMore(false) }}>
+            {isTauriApp && <Tool icon={RefreshCw} label="Check for updates" hint="See whether a newer Sidepage is out" onClick={() => window.dispatchEvent(new Event('sidepage:check-updates'))} />}
+            {canUpdateInPlace && <label className="menu-row stay">Update by itself
+              <input type="checkbox" checked={autoUpdate} onChange={e => setAutoUpdate(e.target.checked)} />
+            </label>}
             <Tool icon={Package} label="Save as one file" hint="Save the book and all its notes together as one .sidepage file" disabled={empty} onClick={() => void saveWhole()} />
             <Tool
               icon={Archive}
@@ -987,6 +1039,7 @@ export default function App() {
         </div>
       )}
       <FolderStepper />
+      <UpdateCard />
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       <main className="workspace">

@@ -1249,3 +1249,10 @@ button.viewer-pos { font-weight: 500; }
 .home-actions .menu-anchor .tool { height: 100%; }
 /* With the figures folded into one line, the book to continue takes the whole row. */
 .home-row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+
+/* A new version, offered quietly in a corner. */
+.update-card { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 70; display: flex; align-items: center; gap: 12px; max-width: min(460px, calc(100vw - 36px)); padding: 12px 14px; border-radius: 16px; background: var(--panel); box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent), var(--shadow-soft); font-size: 13.5px; }
+.update-card > svg { color: var(--accent); flex-shrink: 0; }
+.update-text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.update-text span { color: var(--muted); font-size: 12.5px; }
+@media (max-width: 700px) { .update-card { left: 12px; right: 12px; bottom: calc(86px + env(safe-area-inset-bottom)); max-width: none; } }

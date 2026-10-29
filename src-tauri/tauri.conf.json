@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Sidepage",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "identifier": "io.github.clleb.sidepage",
   "build": {
     "frontendDist": "../dist",
@@ -370,6 +370,18 @@
       }
     },
     "category": "Education",
-    "shortDescription": "Read PDFs, books and documents with your notes beside them"
+    "shortDescription": "Read PDFs, books and documents with your notes beside them",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJGQ0I0ODAxMTc4RTQ5ODEKUldTQlNZNFhBVWpMTDJQdzZ0enA1ZjRXdnUrMHhwWFovYXZ4ZUZRRUNoY0ZIMVRtb2F4Z09DVGUK",
+      "endpoints": [
+        "https://github.com/cLLeB/sidepage/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
