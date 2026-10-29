@@ -178,6 +178,12 @@ export default function App() {
   const theme = useThemeChoice()
   // A short message after something has been done out of sight (a backup made, notes restored).
   const [notice, setNotice] = useState('')
+  // Messages from out of the way (a voice being fetched): the latest one shown, an empty one clears it.
+  useEffect(() => {
+    const show = (e: Event) => setNotice((e as CustomEvent<string>).detail)
+    window.addEventListener('sidepage:notice', show)
+    return () => window.removeEventListener('sidepage:notice', show)
+  }, [])
   useEffect(() => {
     if (!notice) return
     const timer = setTimeout(() => setNotice(''), 6000)

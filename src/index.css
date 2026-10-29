@@ -1108,3 +1108,9 @@ button.viewer-pos { font-weight: 500; }
 .app.reading .page-map { width: 3px; right: 1px; top: 12px; bottom: 12px; background: color-mix(in srgb, var(--muted) 18%, transparent); box-shadow: none; opacity: 0.5; }
 .app.reading .page-map i:not(.map-here) { display: none; }
 .app.reading .page-map:hover { width: 8px; opacity: 0.9; }
+
+/* Two choices side by side in a menu (the kind of voice). */
+.menu-segment { display: flex; gap: 2px; margin: 4px 10px 8px; padding: 3px; border-radius: 10px; background: var(--hover); }
+.menu-segment button { flex: 1; padding: 7px 10px; border: 0; border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.menu-segment button.on { background: var(--panel); color: inherit; box-shadow: 0 1px 3px rgb(0 0 0 / 0.14); font-weight: 600; }
+.menu-segment button:disabled { opacity: 0.45; cursor: default; }

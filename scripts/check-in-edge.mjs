@@ -13,7 +13,7 @@ const edge = spawn('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedg
   '--headless=new', `--remote-debugging-port=${port}`,
   // A headless page counts as hidden, which would slow its timers and stop its animations; the app is tested as it runs in front of someone.
   '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-features=CalculateNativeWinOcclusion', `--window-size=${width},${height}`,
-  `--user-data-dir=${mkdtempSync(join(tmpdir(), 'sidepage-edge-'))}`, '--no-first-run', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', url,
+  `--user-data-dir=${mkdtempSync(join(tmpdir(), 'sidepage-edge-'))}`, '--no-first-run', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', url,
 ], { stdio: 'ignore' })
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 // Edge hands its work to other processes, so the one started here is not the one to stop: every Edge that

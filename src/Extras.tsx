@@ -1,3 +1,4 @@
+import { NATURAL_VOICES } from './lib/natural'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { uiLocale } from './lib/language'
 import { BookA, Play, Search, Square, Timer, X, type LucideIcon } from 'lucide-react'
@@ -251,6 +252,11 @@ export function VoiceSettings() {
   const [sleep, setSleep] = usePref('voice-sleep', 0)
   const [pitch, setPitch] = usePref('voice-pitch', 1)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [engine, setEngine] = usePref<string>('voice-engine', 'device')
+  const [naturalEn, setNaturalEn] = usePref('natural-voice-en', '')
+  const [naturalFr, setNaturalFr] = usePref('natural-voice-fr', '')
+  const [kept, setKept] = useState<string[]>([])
+  useEffect(() => { void import('./lib/natural').then(found => found.storedVoices()).then(setKept) }, [engine])
   useEffect(() => {
     if (!('speechSynthesis' in window)) return
     const list = () => setVoices(speechSynthesis.getVoices())
@@ -258,10 +264,27 @@ export function VoiceSettings() {
     speechSynthesis.addEventListener('voiceschanged', list)
     return () => speechSynthesis.removeEventListener('voiceschanged', list)
   }, [])
-  if (!('speechSynthesis' in window)) return null
+  const deviceVoices = voices.length > 0
+  const natural = engine === 'natural' || !deviceVoices
+  const pick = (language: 'en' | 'fr', value: string, set: (id: string) => void) => (
+    <label className="menu-row">{language === 'en' ? 'English' : 'French'}
+      <select value={value || NATURAL_VOICES[language][0].id} onChange={e => set(e.target.value)}>
+        {NATURAL_VOICES[language].map(found => <option key={found.id} value={found.id}>{found.name}{kept.includes(found.id) ? ' ✓' : ''}</option>)}
+      </select>
+    </label>
+  )
   return <>
     <p className="menu-head">Reading aloud</p>
-    {voices.length > 0 && (
+    <div className="menu-segment" role="group" aria-label="Kind of voice">
+      <button className={natural ? '' : 'on'} disabled={!deviceVoices} onClick={() => setEngine('device')} title="The voices that come with this device">Device voice</button>
+      <button className={natural ? 'on' : ''} onClick={() => setEngine('natural')} title="Lifelike voices made on this device (Piper). Each is fetched once, about 60 MB, then works offline.">Natural voice</button>
+    </div>
+    {natural && <>
+      {pick('en', naturalEn, setNaturalEn)}
+      {pick('fr', naturalFr, setNaturalFr)}
+      <p className="menu-note">Lifelike voices made on this device. Each voice is fetched once (about 60 MB, marked ✓ when kept), then reads with no internet.</p>
+    </>}
+    {!natural && voices.length > 0 && (
       <label className="menu-row">Voice
         <select value={voice} onChange={e => setVoice(e.target.value)}>
           <option value="">Chosen for each page's language</option>
@@ -281,7 +304,7 @@ export function VoiceSettings() {
         {[['Deep', 0.7], ['Lower', 0.85], ['Normal', 1], ['Higher', 1.2], ['High', 1.45]].map(([name, value]) => <option key={name} value={value}>{name}</option>)}
       </select>
     </label>
-    <p className="menu-note">A page in French is read with a French voice, an English page with an English one, when the device has them. A chosen voice is used for pages in its own language.</p>
+    {!natural && <p className="menu-note">A page in French is read with a French voice, an English page with an English one, when the device has them. A chosen voice is used for pages in its own language.</p>}
     <label className="menu-row">Stop after
       <select value={sleep} onChange={e => setSleep(Number(e.target.value))}>
         <option value={0}>Never</option>
