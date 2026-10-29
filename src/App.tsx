@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  RefreshCw, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  CircleHelp, RefreshCw, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -22,7 +22,7 @@ import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
   baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
-  onNotesFolderChange, onOpenedFiles, onOpenFileNow, pickFile, placeNow, tellPlace, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  onNotesFolderChange, openOutside, onOpenedFiles, onOpenFileNow, pickFile, placeNow, tellPlace, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
@@ -834,6 +834,7 @@ export default function App() {
     { group: 'Go to', name: 'Your folders', icon: Folders, run: () => openFiles() },
     { group: 'Go to', name: 'Next file in the folder', hint: 'Alt+↓', icon: Folders, run: () => { openFiles(); setTimeout(() => window.dispatchEvent(new CustomEvent('sidepage:folder-step', { detail: 1 })), 400) } },
     { group: 'Go to', name: 'Previous file in the folder', hint: 'Alt+↑', icon: Folders, run: () => { openFiles(); setTimeout(() => window.dispatchEvent(new CustomEvent('sidepage:folder-step', { detail: -1 })), 400) } },
+    { group: 'Go to', name: 'Help: how to do anything in Sidepage', icon: CircleHelp, run: () => void openOutside('https://clleb.github.io/sidepage/docs/') },
     { group: 'Go to', name: 'Quick notes', icon: NotebookText, run: () => openNote('written', 'Quick notes') },
     { group: 'Write', name: 'Notes for this book', hint: 'Ctrl+1', icon: NotebookPen, run: () => openNote('written', notebook) },
     { group: 'Write', name: 'Canvas: draw and handwrite', hint: 'Ctrl+2', icon: PenLine, run: () => openNote('canvas', notebook) },
@@ -1013,6 +1014,10 @@ export default function App() {
                 {THEME_CHOICES.map(t => <option key={t} value={t}>{t === 'auto' ? `Follow the device (${deviceIsDark() ? 'dark' : 'light'} now)` : THEME_NAMES[t]}</option>)}
               </select>
             </label>
+            <div className="menu-foot">
+              <span>Sidepage {__APP_VERSION__}</span>
+              <button className="menu-link" onClick={() => void openOutside('https://clleb.github.io/sidepage/docs/')}><CircleHelp size={15} aria-hidden /> Help and how to</button>
+            </div>
           </div>
         </>}
       </header>

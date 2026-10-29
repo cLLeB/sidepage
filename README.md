@@ -3,6 +3,8 @@
 Read on one side, think on the other. Sidepage opens a book, a document or a slide deck and puts your
 notes, drawings and mind maps right beside it.
 
+**[Documentation: how to do anything in Sidepage, step by step](https://clleb.github.io/sidepage/docs/)** · [Download](https://github.com/cLLeB/sidepage/releases/latest) · [Open the web app](https://clleb.github.io/sidepage/)
+
 Sidepage builds almost nothing itself. It is a thin shell that joins existing open-source projects:
 
 | Part | Project | Licence |
@@ -210,15 +212,18 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 
 ## Where it runs
 
+**How to use it, step by step: [the Sidepage documentation](https://clleb.github.io/sidepage/docs/).**
+
 Every release at https://github.com/cLLeB/sidepage/releases carries a build for each platform, made by
-`.github/workflows/release.yml` when a version tag is pushed:
+`.github/workflows/release.yml` when a version tag is pushed. The installed apps update themselves: desktop updates are
+signed and checked before they are installed.
 
 | Platform | File | Notes |
 | --- | --- | --- |
 | Windows | `Sidepage_x.y.z_x64-setup.exe` | Not code-signed: Windows asks you to confirm. |
 | macOS (Apple silicon and Intel) | `Sidepage_x.y.z_universal.dmg` | Not notarised: right-click the app and choose Open the first time. |
 | Linux | `.AppImage` and `.deb` | |
-| Android phones, tablets, Chromebooks | `Sidepage_x.y.z_android-test.apk` | A test build signed with a throwaway key; allow installing from your browser or file manager. |
+| Android phones and tablets | `Sidepage_x.y.z_android.apk` | Signed with Sidepage's own key, so each new version installs over the last one; allow installing from your browser or file manager. |
 | iPhone, iPad, and any browser | https://clleb.github.io/sidepage/ | Open it and choose Install or Add to Home Screen. Works offline afterwards. An installable iOS app file needs an Apple developer account to sign it, so iOS uses the web app. |
 
 On desktop, notes are saved under `Documents/Sidepage`. In the web app they are kept by the browser, or in a

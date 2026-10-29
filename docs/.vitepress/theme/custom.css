@@ -1,0 +1,23 @@
+/* Sidepage's own colours: graphite, as in the app, with its blue for links. */
+:root {
+  --vp-c-brand-1: #2f6fed;
+  --vp-c-brand-2: #2a62d1;
+  --vp-c-brand-3: #4e5058;
+  --vp-c-brand-soft: rgba(47, 111, 237, 0.12);
+  --vp-home-hero-name-color: #2b2d31;
+  --vp-button-brand-bg: #4e5058;
+  --vp-button-brand-hover-bg: #3d3f45;
+  --vp-button-brand-active-bg: #33353a;
+}
+.dark {
+  --vp-c-brand-1: #8cb2ff;
+  --vp-c-brand-2: #a7c3ff;
+  --vp-c-brand-3: #c4c9d0;
+  --vp-c-brand-soft: rgba(140, 178, 255, 0.14);
+  --vp-home-hero-name-color: #e8e9eb;
+  --vp-button-brand-bg: #c4c9d0;
+  --vp-button-brand-text: #1e1f22;
+  --vp-button-brand-hover-bg: #d6dadf;
+  --vp-button-brand-hover-text: #1e1f22;
+}
+kbd { font-size: 0.85em; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--vp-c-divider); background: var(--vp-c-bg-soft); box-shadow: 0 1px 0 var(--vp-c-divider); }

@@ -77,6 +77,8 @@ export default function PdfView({ file }: { file: File }) {
   const [mode, setMode] = useState<'scroll' | 'flip'>(() => (prefersFlip() ? 'flip' : 'scroll'))
   const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
   const [error, setError] = useState('')
+  // A PDF locked with a password: PDF.js asks, the reader types it (again if it was wrong).
+  const [locked, setLocked] = useState<{ wrong: boolean; give(password: string): void } | null>(null)
   const [tool, setTool] = useState<'none' | 'highlight' | 'draw'>('none')
   const bookmarks = useBookmarks(file.name)
 
@@ -411,6 +413,9 @@ export default function PdfView({ file }: { file: File }) {
     withDrawings.then(kept => (kept ?? file).arrayBuffer()).then(data => {
       if (cancelled) return
       task = pdfjs.getDocument({ data })
+      task.onPassword = (give: (password: string) => void, reason: number) => {
+        if (!cancelled) setLocked({ wrong: reason === pdfjs.PasswordResponses.INCORRECT_PASSWORD, give: password => { setLocked(null); give(password) } })
+      }
       return task.promise.then(pdf => {
         if (cancelled) return
         const keep = debounce(async () => {
@@ -698,6 +703,16 @@ export default function PdfView({ file }: { file: File }) {
         </Menu>
       </div>
       <div className="viewer-body">
+        {locked && (
+          <div className="pdf-locked">
+            <form className="pdf-password" onSubmit={e => { e.preventDefault(); locked.give(new FormData(e.currentTarget).get('password') as string) }}>
+              <b>This PDF is locked</b>
+              <span>{locked.wrong ? 'That password is not right. Try again.' : 'Type its password to open it.'}</span>
+              <input name="password" type="password" autoFocus autoComplete="off" aria-label="Password" />
+              <button className="primary">Open</button>
+            </form>
+          </div>
+        )}
         <div
           ref={container}
           className="pdf-container"

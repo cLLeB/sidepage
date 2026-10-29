@@ -6,6 +6,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   // Relative paths, so the same build runs in Tauri, at a site root, or under a sub-path such as GitHub Pages.
   base: './',
+  // The version, shown in the More menu (asked for when something goes wrong).
+  define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '') },
   plugins: [
     react(),
     // Installable web app for phones, tablets, iPads and Chromebooks; works offline once opened.
@@ -17,7 +19,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2,wasm}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // The speech and meaning engine (ONNX Runtime, 27 MB) is fetched only when those are first used.
-        globIgnores: ['**/ort-wasm*'],
+        globIgnores: ['**/ort-wasm*', 'docs/**'],
+        // The documentation under docs/ is its own site: the app must not answer for its pages.
+        navigateFallbackDenylist: [/\/docs\//],
       },
       manifest: {
         name: 'Sidepage',

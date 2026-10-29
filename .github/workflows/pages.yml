@@ -1,4 +1,5 @@
-# Publishes the web app to GitHub Pages, where phones, tablets, iPads and Chromebooks can install it.
+# Publishes the web app to GitHub Pages, where phones, tablets, iPads and Chromebooks can install it, and the
+# documentation beside it, under /docs/.
 name: Deploy web app
 
 on:
@@ -29,6 +30,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # The documentation is built after the app, into dist/docs (the app's build empties dist first).
+      - run: npm run docs:build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
