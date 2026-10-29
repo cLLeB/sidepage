@@ -1,6 +1,6 @@
 [package]
 name = "sidepage"
-version = "0.31.0"
+version = "0.31.1"
 description = "Read books, documents and slides with your notes alongside"
 authors = ["cLLeB"]
 license = "GPL-3.0-or-later"
@@ -22,6 +22,10 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-http = "2"
 tauri-plugin-opener = "2"
+
+# On a computer, a second Sidepage (a file opened from Explorer) hands the file to the one already open.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
 
 # Keep the installed app small.
 [profile.release]

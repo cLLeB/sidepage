@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Sidepage",
-  "version": "0.31.0",
+  "version": "0.31.1",
   "identifier": "io.github.clleb.sidepage",
   "build": {
     "frontendDist": "../dist",
@@ -26,10 +26,73 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "fileAssociations": [
-      { "ext": ["epub", "mobi", "azw", "azw3", "fb2", "djvu", "cbz", "cbr", "cb7", "cbt"], "name": "Book", "role": "Viewer" },
-      { "ext": ["sidepage"], "name": "Sidepage book with notes", "role": "Editor" }
+      {
+        "ext": [
+          "pdf",
+          "docx",
+          "doc",
+          "rtf",
+          "odt",
+          "pptx",
+          "ppt",
+          "pps",
+          "txt",
+          "md",
+          "markdown",
+          "html",
+          "htm"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "epub",
+          "mobi",
+          "azw",
+          "azw3",
+          "kf8",
+          "fb2",
+          "fbz",
+          "cbz",
+          "cbr",
+          "cb7",
+          "cbt",
+          "djvu",
+          "djv"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "jpg",
+          "jpeg",
+          "png",
+          "gif",
+          "webp",
+          "bmp",
+          "svg",
+          "avif"
+        ],
+        "name": "Sidepage.Picture",
+        "description": "Picture",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "sidepage"
+        ],
+        "name": "Sidepage.Bundle",
+        "description": "Sidepage book with notes",
+        "role": "Editor"
+      }
     ],
     "icon": [
       "icons/32x32.png",
@@ -40,6 +103,11 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
     }
   }
 }

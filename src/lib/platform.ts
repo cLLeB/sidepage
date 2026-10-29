@@ -58,6 +58,16 @@ export async function launchFile(): Promise<File | null> {
   return name ? new File([await invoke<ArrayBuffer>('read_launch_file')], name.replace(/^.*[\\/]/, '')) : null
 }
 
+// Files opened from Explorer while Sidepage is already open (the second copy hands them over and closes).
+export async function onOpenedPath(handler: (file: File) => void): Promise<() => void> {
+  if (!isTauri) return () => {}
+  const [{ listen }, { invoke }] = await Promise.all([import('@tauri-apps/api/event'), import('@tauri-apps/api/core')])
+  return listen<string>('open-path', async event => {
+    const bytes = await invoke<ArrayBuffer>('read_path', { path: event.payload })
+    handler(new File([bytes], event.payload.replace(/^.*[\\/]/, '')))
+  })
+}
+
 // Hand the reader a file to keep, e.g. a PDF with their highlights.
 export async function saveFileAs(name: string, bytes: Uint8Array) {
   if (isTauri) {

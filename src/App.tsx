@@ -21,7 +21,7 @@ import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
   baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, launchFile, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
-  onNotesFolderChange, onOpenFileNow, pickFile, placeNow, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  onNotesFolderChange, onOpenedPath, onOpenFileNow, pickFile, placeNow, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
@@ -697,6 +697,11 @@ export default function App() {
 
   const goHome = () => { for (const panel of [...(api.current?.panels ?? [])]) panel.api.close() }
   useEffect(() => onOpenFileNow(file => void openFile(file)), [openFile])
+  useEffect(() => {
+    let stop = () => {}
+    void onOpenedPath(file => void openFile(file)).then(off => { stop = off })
+    return () => stop()
+  }, [openFile])
   const openFromShelf = (name: string) => void fromShelf(name).then(file => { if (file) void openFile(file) })
 
   // Everything the palette can do. Built when it opens, so the list of books is the current one.
