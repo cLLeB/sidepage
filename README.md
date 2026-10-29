@@ -33,6 +33,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
 - Shelves of your own: put books on shelves you name ("Semester 1 — Biology"); a book can stand on several.
+- Papers: what a paper cites, what cites it and related work, as a list or a citation map, from
+  [OpenAlex](https://openalex.org) (CC0, about 250 million works); free PDFs open straight into Sidepage. Map drawn by force-graph,
+  links opened in the device browser by the [Tauri opener plugin](https://github.com/tauri-apps/plugins-workspace) (MIT/Apache-2.0).
 - Natural voices for reading aloud: lifelike [Piper](https://github.com/rhasspy/piper) voices (MIT) made on the device by
   [piper-tts-web](https://github.com/Mintplex-Labs/piper-tts-web) (MIT) and ONNX Runtime, in English, French and more. Each voice is
   fetched once and then reads offline; they also work where the device has no voices of its own.

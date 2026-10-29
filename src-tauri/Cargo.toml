@@ -1,6 +1,6 @@
 [package]
 name = "sidepage"
-version = "0.30.0"
+version = "0.31.0"
 description = "Read books, documents and slides with your notes alongside"
 authors = ["cLLeB"]
 license = "GPL-3.0-or-later"
@@ -21,6 +21,7 @@ tauri = { version = "2.12.1", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-http = "2"
+tauri-plugin-opener = "2"
 
 # Keep the installed app small.
 [profile.release]

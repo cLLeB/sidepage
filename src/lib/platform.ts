@@ -1,6 +1,15 @@
 // Thin layer over the two places Sidepage runs: the Tauri desktop shell and a plain browser tab.
 
 export const isTauri = '__TAURI_INTERNALS__' in window
+
+// A web address opened in the device's own browser (the installed app has no tabs of its own).
+export async function openOutside(url: string) {
+  if (isTauri) {
+    const { openUrl } = await import('@tauri-apps/plugin-opener')
+    return openUrl(url)
+  }
+  window.open(url, '_blank', 'noopener')
+}
 export const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 // Desktop apps keep notes as files in the Documents folder. A phone or tablet gives an app no such folder to
 // write in freely, so there notes are kept in the app's own private storage.
@@ -316,6 +325,8 @@ export const noteLink = (book: string) => `${NOTE_LINK}?book=${escapeForLink(boo
 export const parseNoteLink = (href: string) =>
   href.startsWith(NOTE_LINK) ? new URLSearchParams(href.slice(NOTE_LINK.length + 1)).get('book') : null
 export const [openBookByName, onOpenBookByName] = channel<string>('sidepage:open')
+// A file fetched from elsewhere (a free paper), to be opened like any book.
+export const [openFileNow, onOpenFileNow] = channel<File>('sidepage:open-file')
 
 // Every link between notebooks, as book file names: what the graph draws and what "Linked from" lists.
 export async function noteLinks(): Promise<{ from: string; to: string }[]> {
