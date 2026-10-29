@@ -1,4 +1,4 @@
-import { canRunTools, isTauri, notebookFolder, saveNote } from './platform'
+import { canRunTools, extensionOf, fromShelf, isTauri, notebookFolder, saveNote, saveNoteFile } from './platform'
 import { stretchesOf } from './insight'
 import { placeName } from './library'
 
@@ -63,9 +63,44 @@ export async function prepareBook(book: string, notebook: string): Promise<strin
     await saveNote(notebook, 'book.md', text)
     written.set(book, text.length)
   }
+  // The file itself, where the AI can read it as it is (a scanned PDF's pages, a photo, a text file).
+  const ext = extensionOf(book)
+  if (READABLE.includes(ext) && !copied.has(book)) {
+    const original = await fromShelf(book)
+    if (original) { await saveNoteFile(notebook, `book.${ext}`, original); copied.add(book) }
+  }
   return folder
 }
 const written = new Map<string, number>()
+const copied = new Set<string>()
+// What the AI can read straight from the file: PDFs and pictures (it sees them), and text.
+const READABLE = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'md', 'markdown', 'html', 'htm']
+
+// The page the reader is looking at, as a picture, for the AI to see: what has no text (a scan, a comic, a DjVu
+// page, a photo, a diagram) is read from it. The largest picture drawn in the open reader is taken.
+export async function snapPage(notebook: string): Promise<boolean> {
+  const panel = [...document.querySelectorAll<HTMLElement>('.viewer')].find(viewer => viewer.offsetWidth > 0)
+  if (!panel) return false
+  const seen = (element: HTMLElement) => { const box = element.getBoundingClientRect(); return box.width * box.height > 40000 && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth }
+  const candidates = [...panel.querySelectorAll<HTMLCanvasElement | HTMLImageElement>('canvas, img')].filter(seen)
+  const best = candidates.sort((a, b) => {
+    const area = (element: HTMLElement) => { const box = element.getBoundingClientRect(); return Math.max(0, Math.min(box.bottom, innerHeight) - Math.max(box.top, 0)) * box.width }
+    return area(b) - area(a)
+  })[0]
+  if (!best) return false
+  try {
+    const canvas = document.createElement('canvas')
+    const width = best instanceof HTMLCanvasElement ? best.width : best.naturalWidth
+    const height = best instanceof HTMLCanvasElement ? best.height : best.naturalHeight
+    const scale = Math.min(1, 1600 / Math.max(width, height))
+    canvas.width = Math.round(width * scale); canvas.height = Math.round(height * scale)
+    canvas.getContext('2d')!.drawImage(best, 0, 0, canvas.width, canvas.height)
+    const picture = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
+    if (!picture) return false
+    await saveNoteFile(notebook, 'this-page.png', picture)
+    return true
+  } catch { return false }
+}
 // A page's words in short lines, broken after sentences: the AI's file reader cuts very long lines short.
 function lines(text: string, most = 300): string {
   const out: string[] = []
@@ -84,5 +119,6 @@ export const systemPrompt = (book: string) => [
   `You are the reading companion inside Sidepage, a reader's app. The reader has "${book}" open beside you.`,
   'Its full text is in book.md in the current folder, with a heading for each page (p. 12) or part. Their own notes are in notes.md.',
   'Answer from the book first and say which pages you used, like (p. 12). For a long book, search it with Grep before reading.',
+  'When book.md has little or no text (a scan, pictures, a comic), read the file itself if it is here (book.pdf, book.png and so on), and this-page.png, a picture of the page the reader is looking at now.',
   'Be clear and concise. Answer in the language the reader writes in. Use Markdown for lists, tables and formulas.',
 ].join(' ')

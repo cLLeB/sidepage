@@ -4,7 +4,7 @@ import { ArrowUp, Check, Copy, NotebookPen, RotateCcw, Square } from 'lucide-rea
 import { baseName, onPlace, openOutside, placeNow, sendQuote } from '../lib/platform'
 import { placeName } from '../lib/library'
 import { usePref } from '../lib/prefs'
-import { aiPossible, installedTools, prepareBook, runTool, signedIn, signIn, systemPrompt, TOOL_HOMES, TOOL_NAMES, type Tool } from '../lib/ai'
+import { aiPossible, installedTools, prepareBook, runTool, signedIn, signIn, snapPage, systemPrompt, TOOL_HOMES, TOOL_NAMES, type Tool } from '../lib/ai'
 
 type Message = { from: 'reader' | 'ai'; text: string; status?: string; error?: boolean; done?: boolean }
 type Chat = { messages: Message[]; session: string }
@@ -85,7 +85,8 @@ export default function AskView() {
     show()
     try {
       const folder = await prepareBook(book, baseName(book))
-      const where = here?.place ? `I am on ${placeName(here.place) || here.place} of the book.` : ''
+      const pictured = await snapPage(baseName(book))
+      const where = [here?.place ? `I am on ${placeName(here.place) || here.place} of the book.` : '', pictured ? 'this-page.png shows the page I am looking at.' : ''].filter(Boolean).join(' ')
       let streamed = ''
       const { code, errors } = await runTool(tool, 'ask', `${where}\n\n${text}`, { cwd: folder ?? '', system: systemPrompt(baseName(book)), resume: session }, line => {
         if (tool !== 'claude') { streamed += `${line}\n`; change({ text: streamed, status: '' }); return }

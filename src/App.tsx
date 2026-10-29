@@ -21,7 +21,7 @@ import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
   baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
-  onNotesFolderChange, onOpenedFiles, onOpenFileNow, pickFile, placeNow, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  onNotesFolderChange, onOpenedFiles, onOpenFileNow, pickFile, placeNow, tellPlace, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
@@ -768,6 +768,9 @@ export default function App() {
       // A reader brought to the front tells the guide and the notes where it is.
       event.api.activePanel?.view.content.element.querySelector('.viewer')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
       const book = (event.api.activePanel?.params as { notebook?: string; file?: File } | undefined)
+      // Readers without pages (a picture, a text file) still say which book is in front.
+      const front = event.api.activePanel?.id.startsWith('doc:') ? event.api.activePanel.id.slice(4) : ''
+      if (front && placeNow()?.book !== front) tellPlace({ book: front, place: '' })
       if (book?.notebook) setNotebook(book.notebook)
       else if (book?.file) setNotebook(baseName(book.file.name))
     })

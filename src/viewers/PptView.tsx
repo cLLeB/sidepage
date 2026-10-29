@@ -34,7 +34,7 @@ export default function PptView({ file }: { file: File }) {
     if (!count) return
     const timer = setTimeout(() => {
       const slides = [...document.querySelectorAll<HTMLElement>('.ppt-host .rpv-normalized-slide')]
-      if (slides.length) void keepWords(file.name, slides.map((slide, i) => ({ place: `slide=${i + 1}`, text: slide.textContent?.replace(/s+/g, ' ') ?? '' })))
+      if (slides.length) void keepWords(file.name, slides.map((slide, i) => ({ place: `slide=${i + 1}`, text: slide.textContent?.replace(/\s+/g, ' ') ?? '' })))
     }, 1500)
     return () => clearTimeout(timer)
   }, [count, file])
