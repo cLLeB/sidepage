@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Sidepage",
-  "version": "0.31.1",
+  "version": "0.32.0",
   "identifier": "io.github.clleb.sidepage",
   "build": {
     "frontendDist": "../dist",
@@ -32,58 +32,309 @@
     "fileAssociations": [
       {
         "ext": [
-          "pdf",
-          "docx",
-          "doc",
-          "rtf",
-          "odt",
-          "pptx",
-          "ppt",
-          "pps",
-          "txt",
-          "md",
-          "markdown",
-          "html",
+          "pdf"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "application/pdf"
+      },
+      {
+        "ext": [
+          "docx"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      },
+      {
+        "ext": [
+          "doc"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "application/msword"
+      },
+      {
+        "ext": [
+          "rtf"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "application/rtf"
+      },
+      {
+        "ext": [
+          "odt"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "application/vnd.oasis.opendocument.text"
+      },
+      {
+        "ext": [
+          "pptx"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+      },
+      {
+        "ext": [
+          "ppt"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "application/vnd.ms-powerpoint"
+      },
+      {
+        "ext": [
+          "pps"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "application/vnd.ms-powerpoint"
+      },
+      {
+        "ext": [
+          "txt"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "text/plain"
+      },
+      {
+        "ext": [
+          "md"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "text/markdown"
+      },
+      {
+        "ext": [
+          "markdown"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "text/markdown"
+      },
+      {
+        "ext": [
+          "html"
+        ],
+        "name": "Sidepage.Document",
+        "description": "Document",
+        "role": "Viewer",
+        "mimeType": "text/html"
+      },
+      {
+        "ext": [
           "htm"
         ],
         "name": "Sidepage.Document",
         "description": "Document",
-        "role": "Viewer"
+        "role": "Viewer",
+        "mimeType": "text/html"
       },
       {
         "ext": [
-          "epub",
-          "mobi",
-          "azw",
-          "azw3",
-          "kf8",
-          "fb2",
-          "fbz",
-          "cbz",
-          "cbr",
-          "cb7",
-          "cbt",
-          "djvu",
+          "epub"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/epub+zip"
+      },
+      {
+        "ext": [
+          "mobi"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/x-mobipocket-ebook"
+      },
+      {
+        "ext": [
+          "azw"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/vnd.amazon.ebook"
+      },
+      {
+        "ext": [
+          "azw3"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/vnd.amazon.mobi8-ebook"
+      },
+      {
+        "ext": [
+          "kf8"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/vnd.amazon.mobi8-ebook"
+      },
+      {
+        "ext": [
+          "fb2"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/x-fictionbook+xml"
+      },
+      {
+        "ext": [
+          "fbz"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/x-zip-compressed-fb2"
+      },
+      {
+        "ext": [
+          "cbz"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/vnd.comicbook+zip"
+      },
+      {
+        "ext": [
+          "cbr"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/vnd.comicbook-rar"
+      },
+      {
+        "ext": [
+          "cb7"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/x-cb7"
+      },
+      {
+        "ext": [
+          "cbt"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "application/x-cbt"
+      },
+      {
+        "ext": [
+          "djvu"
+        ],
+        "name": "Sidepage.Book",
+        "description": "Book",
+        "role": "Viewer",
+        "mimeType": "image/vnd.djvu"
+      },
+      {
+        "ext": [
           "djv"
         ],
         "name": "Sidepage.Book",
         "description": "Book",
-        "role": "Viewer"
+        "role": "Viewer",
+        "mimeType": "image/vnd.djvu"
       },
       {
         "ext": [
-          "jpg",
-          "jpeg",
-          "png",
-          "gif",
-          "webp",
-          "bmp",
-          "svg",
+          "jpg"
+        ],
+        "name": "Sidepage.Picture",
+        "description": "Picture",
+        "role": "Viewer",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "ext": [
+          "jpeg"
+        ],
+        "name": "Sidepage.Picture",
+        "description": "Picture",
+        "role": "Viewer",
+        "mimeType": "image/jpeg"
+      },
+      {
+        "ext": [
+          "png"
+        ],
+        "name": "Sidepage.Picture",
+        "description": "Picture",
+        "role": "Viewer",
+        "mimeType": "image/png"
+      },
+      {
+        "ext": [
+          "gif"
+        ],
+        "name": "Sidepage.Picture",
+        "description": "Picture",
+        "role": "Viewer",
+        "mimeType": "image/gif"
+      },
+      {
+        "ext": [
+          "webp"
+        ],
+        "name": "Sidepage.Picture",
+        "description": "Picture",
+        "role": "Viewer",
+        "mimeType": "image/webp"
+      },
+      {
+        "ext": [
+          "bmp"
+        ],
+        "name": "Sidepage.Picture",
+        "description": "Picture",
+        "role": "Viewer",
+        "mimeType": "image/bmp"
+      },
+      {
+        "ext": [
+          "svg"
+        ],
+        "name": "Sidepage.Picture",
+        "description": "Picture",
+        "role": "Viewer",
+        "mimeType": "image/svg+xml"
+      },
+      {
+        "ext": [
           "avif"
         ],
         "name": "Sidepage.Picture",
         "description": "Picture",
-        "role": "Viewer"
+        "role": "Viewer",
+        "mimeType": "image/avif"
       },
       {
         "ext": [
@@ -91,7 +342,8 @@
         ],
         "name": "Sidepage.Bundle",
         "description": "Sidepage book with notes",
-        "role": "Editor"
+        "role": "Editor",
+        "mimeType": "application/x-sidepage"
       }
     ],
     "icon": [
@@ -108,6 +360,16 @@
       "nsis": {
         "installerHooks": "./windows/hooks.nsh"
       }
-    }
+    },
+    "linux": {
+      "deb": {
+        "desktopTemplate": "./linux/sidepage.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "./linux/sidepage.desktop"
+      }
+    },
+    "category": "Education",
+    "shortDescription": "Read PDFs, books and documents with your notes beside them"
   }
 }

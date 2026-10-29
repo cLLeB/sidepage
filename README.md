@@ -33,8 +33,14 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
   and pictures (JPG, PNG, GIF, WebP). A file with no ending in its name, as phones hand them over, is recognised
   by its contents.
 - Shelves of your own: put books on shelves you name ("Semester 1 — Biology"); a book can stand on several.
-- On Windows, Sidepage is offered in Open with and in Settings, Default apps, for every kind of file it reads (35 in all),
-  without taking any away from the app already chosen; a file opened while Sidepage is open goes to that window
+- Ask AI with your own subscription: a chat beside the book that runs the AI's own tool for computers, signed in with the
+  plan you already have ([Claude Code](https://github.com/anthropics/claude-code) for Claude Pro or Max,
+  [Codex](https://github.com/openai/codex) for ChatGPT, [Gemini CLI](https://github.com/google-gemini/gemini-cli) for a Google account).
+  The book's text is put beside its notes and the AI may only read and search it; answers cite the pages, formulas are drawn
+  by KaTeX, and an answer goes into the notes in one tap. No API key.
+- Sidepage is offered for every kind of file it reads (35 in all) in Windows' Open with and Default apps, in the macOS
+  document types, in the Linux desktop entry and in Android's Open with and Share, without taking any away from the app
+  already chosen; a file opened while Sidepage is open goes to that window
   ([single instance plugin](https://github.com/tauri-apps/plugins-workspace), MIT/Apache-2.0).
 - Papers: what a paper cites, what cites it and related work, as a list or a citation map, from
   [OpenAlex](https://openalex.org) (CC0, about 250 million works); free PDFs open straight into Sidepage. Map drawn by force-graph,

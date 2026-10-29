@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -20,8 +20,8 @@ import { Tool } from './ui'
 import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
-  baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, launchFile, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
-  onNotesFolderChange, onOpenedPath, onOpenFileNow, pickFile, placeNow, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
+  onNotesFolderChange, onOpenedFiles, onOpenFileNow, pickFile, placeNow, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
@@ -121,6 +121,8 @@ const GraphPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fal
 const HighlightsView = lazy(() => import('./notes/HighlightsView'))
 const CompareView = lazy(() => import('./notes/CompareView'))
 const PapersView = lazy(() => import('./notes/PapersView'))
+const AskView = lazy(() => import('./notes/AskView'))
+const AskPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><AskView /></Suspense></ErrorBoundary>
 const PapersPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><PapersView /></Suspense></ErrorBoundary>
 const ComparePanel = ({ params }: IDockviewPanelProps<{ older?: string; newer?: string }>) => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><CompareView older={params.older} newer={params.newer} /></Suspense></ErrorBoundary>
 const HighlightsPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><HighlightsView /></Suspense></ErrorBoundary>
@@ -170,7 +172,7 @@ function SideActions({ group, containerApi }: IDockviewHeaderActionsProps) {
   )
 }
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel }
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -498,6 +500,16 @@ export default function App() {
     const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
     dock.addPanel({ id: 'compare', component: 'compare', title: 'Compare', params: { older, newer }, position: sibling ? { referencePanel: sibling.id, direction: 'within' } : undefined })
   }, [])
+  // Ask AI: the reader's own AI subscription, beside the book, in place of the notes.
+  const openAsk = useCallback(() => {
+    const dock = api.current
+    if (!dock) return
+    const existing = dock.getPanel('ai')
+    if (existing) return existing.api.setActive()
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:'))
+    const book = dock.panels.find(p => p.id.startsWith('doc:'))
+    dock.addPanel({ id: 'ai', component: 'ai', title: 'Ask AI', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : book ? { referencePanel: book.id, direction: besideBook() } : undefined })
+  }, [])
   // The paper explorer (OpenAlex), beside the notes.
   const openPapers = useCallback(() => {
     const dock = api.current
@@ -699,7 +711,7 @@ export default function App() {
   useEffect(() => onOpenFileNow(file => void openFile(file)), [openFile])
   useEffect(() => {
     let stop = () => {}
-    void onOpenedPath(file => void openFile(file)).then(off => { stop = off })
+    void onOpenedFiles(file => void openFile(file)).then(off => { stop = off })
     return () => stop()
   }, [openFile])
   const openFromShelf = (name: string) => void fromShelf(name).then(file => { if (file) void openFile(file) })
@@ -718,6 +730,7 @@ export default function App() {
     { group: 'Study', name: 'Study guide for this page', icon: Sparkles, run: openGuide },
     { group: 'Study', name: 'Ask your books a question', icon: Sparkles, run: () => { openGuide(); setTimeout(() => document.querySelector<HTMLInputElement>('.ask input')?.focus(), 600) } },
     { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
+    { group: 'Study', name: 'Ask AI about this book', icon: MessageCircleQuestion, run: openAsk },
     { group: 'Study', name: 'Explore papers: what it cites, what cites it', icon: Network, run: openPapers },
     { group: 'Study', name: 'Compare two books, word by word', icon: ArrowLeftRight, run: openCompare },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
@@ -739,7 +752,6 @@ export default function App() {
 
   const onReady = (event: DockviewReadyEvent) => {
     api.current = event.api
-    void launchFile().then(file => { if (file) void openFile(file) })
     const sync = () => setEmpty(event.api.panels.length === 0)
     event.api.onDidAddPanel(panel => {
       sync()
@@ -790,6 +802,7 @@ export default function App() {
           <Tool icon={Share2} label="Graph" hint="How your books' notes link to each other" onClick={openGraph} />
           <Tool icon={Highlighter} label="Highlights" hint="Every highlight from every book" onClick={openHighlights} />
           <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, and kindred places in your other books" onClick={openGuide} />
+          <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask your own AI (Claude, ChatGPT or Gemini, with your subscription) about the book" onClick={openAsk} />
           <Tool icon={Network} label="Papers" hint="What this paper cites, what cites it, and related work, with free PDFs to open (OpenAlex)" onClick={openPapers} />
           <Tool icon={GraduationCap} label="Review" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
         </div>

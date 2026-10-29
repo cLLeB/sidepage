@@ -50,22 +50,32 @@ export async function pickFile(): Promise<File | null> {
   })
 }
 
-// The book the desktop app was started with ("Open with", or a double-click on a book file).
-export async function launchFile(): Promise<File | null> {
-  if (!isTauri) return null
+// Books opened with Sidepage from outside: a double-click, "Open with", a file dropped on the Dock icon, or
+// shared from another app on Android. They wait in a queue (src-tauri/src/lib.rs, or MainActivity.kt on Android)
+// until taken here: at start, and each time the app is told there are more.
+type AndroidFiles = { takeOpened?(): string }
+const android = () => (window as unknown as { SidepageAndroid?: AndroidFiles }).SidepageAndroid
+
+async function takeOpened(): Promise<File[]> {
+  if (!isTauri) return []
   const { invoke } = await import('@tauri-apps/api/core')
-  const name = await invoke<string | null>('launch_file_name')
-  return name ? new File([await invoke<ArrayBuffer>('read_launch_file')], name.replace(/^.*[\\/]/, '')) : null
+  // Android copies each shared file into the app's own space first, as it may not be read where it is.
+  const paths: string[] = android()?.takeOpened ? JSON.parse(android()!.takeOpened!() || '[]') : await invoke<string[]>('take_opened')
+  const files: File[] = []
+  for (const path of paths) {
+    try { files.push(new File([await invoke<ArrayBuffer>('read_path', { path })], path.replace(/^.*[\\/]/, ''))) } catch { /* gone since */ }
+  }
+  return files
 }
 
-// Files opened from Explorer while Sidepage is already open (the second copy hands them over and closes).
-export async function onOpenedPath(handler: (file: File) => void): Promise<() => void> {
+export async function onOpenedFiles(handler: (file: File) => void): Promise<() => void> {
   if (!isTauri) return () => {}
-  const [{ listen }, { invoke }] = await Promise.all([import('@tauri-apps/api/event'), import('@tauri-apps/api/core')])
-  return listen<string>('open-path', async event => {
-    const bytes = await invoke<ArrayBuffer>('read_path', { path: event.payload })
-    handler(new File([bytes], event.payload.replace(/^.*[\\/]/, '')))
-  })
+  const take = () => void takeOpened().then(files => files.forEach(handler))
+  const { listen } = await import('@tauri-apps/api/event')
+  const stop = await listen('open-pending', take)
+  window.addEventListener('sidepage:android-open', take)
+  take()
+  return () => { stop(); window.removeEventListener('sidepage:android-open', take) }
 }
 
 // Hand the reader a file to keep, e.g. a PDF with their highlights.
@@ -86,6 +96,13 @@ export async function saveFileAs(name: string, bytes: Uint8Array) {
 // pick a folder for them (File System Access API); until then they stay in the browser's own storage.
 const ROOT = 'Sidepage'
 const safe = (part: string) => part.replace(/[<>:"/\\|?*]/g, '_').trim() || 'untitled'
+// The folder of a book's notes on a computer (Documents/Sidepage/<book>), or null where notes are not plain files.
+export async function notebookFolder(notebook: string): Promise<string | null> {
+  if (!usesComputerFiles) return null
+  const { documentDir, join } = await import('@tauri-apps/api/path')
+  return join(await documentDir(), ROOT, safe(notebook))
+}
+export const canRunTools = usesComputerFiles
 const localKey = (notebook: string, file: string) => `sidepage:${notebook}/${file}`
 
 type Permission = 'granted' | 'denied' | 'prompt'
