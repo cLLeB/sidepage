@@ -254,6 +254,11 @@ export default function App() {
   // Reading two books side by side, full screen (see readSideBySide).
   const [reading, setReading] = useState(false)
   useEffect(() => { if (!focus) setReading(false) }, [focus])
+  // The books refit themselves once the room has settled, on the way in and on the way out.
+  useEffect(() => {
+    const timers = [150, 600, 1300].map(delay => setTimeout(() => window.dispatchEvent(new Event('sidepage:reading')), delay))
+    return () => timers.forEach(clearTimeout)
+  }, [reading])
   useScreenOn(awake && !empty)
   // Notes save themselves a moment after you stop writing. Closing the app, or putting it in the background, saves
   // at once whatever is still waiting, so nothing typed is lost and there is nothing to be asked about.

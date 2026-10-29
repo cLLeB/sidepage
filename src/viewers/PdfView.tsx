@@ -357,10 +357,26 @@ export default function PdfView({ file }: { file: File }) {
     // When the panel changes size (the screen turned, Focus, the divider dragged), the page is fitted to the new
     // width if it was fitted before, or if it no longer fits at all and would be cut off at the edge.
     let lastWidth = 0
+    // Reading side by side, the page fills its column edge to edge (PDF.js's own fit keeps room for a scrollbar).
+    const reading = () => !!container.current?.closest('.app.reading')
+    const fillColumn = () => {
+      const width = container.current?.clientWidth ?? 0
+      const view = viewer.pdfDocument && viewer.getPageView(Math.max(0, viewer.currentPageNumber - 1))
+      if (!view || !width) return
+      const widthAtOne = view.viewport.width / viewer.currentScale
+      if (widthAtOne) viewer.currentScale = width / widthAtOne
+    }
+    const onReading = () => {
+      if (!viewer.pdfDocument) return
+      if (reading()) fillColumn()
+      else if (fitted.current) viewer.currentScaleValue = 'page-width'
+    }
+    window.addEventListener('sidepage:reading', onReading)
     const resize = new ResizeObserver(() => {
       const width = container.current?.clientWidth ?? 0
       if (!viewer.pdfDocument || !width || Math.abs(width - lastWidth) < 2) return
       lastWidth = width
+      if (reading()) return fillColumn()
       const page = container.current?.querySelector<HTMLElement>('.page')
       if (fitted.current || (page && page.offsetWidth > width - 8)) {
         fitted.current = true
@@ -368,6 +384,7 @@ export default function PdfView({ file }: { file: File }) {
       }
     })
     resize.observe(container.current!)
+    const stopReading = () => window.removeEventListener('sidepage:reading', onReading)
 
     // Two fingers spread or pinched on the page zoom it.
     const surface = container.current!
@@ -453,6 +470,7 @@ export default function PdfView({ file }: { file: File }) {
     return () => {
       cancelled = true
       resize.disconnect()
+      stopReading()
       surface.removeEventListener('touchstart', onTouchStart)
       surface.removeEventListener('touchmove', onTouchMove)
       surface.removeEventListener('touchend', onTouchEnd)
