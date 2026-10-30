@@ -15,8 +15,9 @@ const newer = (a: string, b: string) => {
   return false
 }
 
-// Google Play updates the copies it installed, and its rules forbid an app updating itself: a Play build never looks.
-export const updatesHere = isTauri && !(isMobile && __STORE__ === 'play')
+// Google Play and the Microsoft Store update the copies they installed, and their rules forbid an app updating
+// itself: a build made for a store never looks.
+export const updatesHere = isTauri && !__STORE__
 
 export async function findUpdate(): Promise<Update | null> {
   if (!updatesHere) return null
@@ -52,4 +53,4 @@ export async function restart() {
 }
 
 export const updatesByThemselves = () => getPref('auto-update', true)
-export const canUpdateInPlace = isTauri && !isMobile
+export const canUpdateInPlace = isTauri && !isMobile && !__STORE__

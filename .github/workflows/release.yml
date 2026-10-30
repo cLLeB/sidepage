@@ -71,6 +71,18 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
           includeUpdaterJson: true
+      # The Microsoft Store package: the same app built to leave updates to the Store, packed as an MSIX with the
+      # identity Partner Center gave Sidepage. The Store signs it when it is submitted.
+      - if: startsWith(matrix.os, 'windows')
+        name: Pack for the Microsoft Store
+        shell: bash
+        env:
+          SIDEPAGE_STORE: msstore
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx tauri build --no-bundle
+          node scripts/msix.mjs src-tauri/target/release/sidepage.exe "Sidepage_${TAG#v}_x64.msix"
+          gh release upload "$TAG" "Sidepage_${TAG#v}_x64.msix" --clobber
 
   android:
     runs-on: ubuntu-22.04

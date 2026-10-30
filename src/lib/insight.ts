@@ -11,6 +11,9 @@ const STOP = new Set(('a about above after again against all also am an and any 
   'such than that the their theirs them themselves then there these they this those through thus to too two under until up upon us very was we were what when where ' +
   'which while who whom why will with within without would you your yours yourself yourselves been being get got like many much new see use used using well ' +
   'page chapter figure table fig also et al ie eg vs per ' +
+  // Everyday words that are common in any text and say nothing about its subject.
+  'every called part parts kind kinds way ways thing things make makes made take takes come comes give gives need needs keep keeps ' +
+  'often around across among large small long short little great good best high low first last next number numbers lot lots ' +
   // The small change of reference lists, which would otherwise pass for a book's favourite words.
   'vol doi art pp no ed eds rev nat adv mater eng med sci proc ieee int conf trans http https www org com pdf isbn issn press univ journal accessed retrieved available online jan feb mar apr jun jul aug sep sept oct nov dec').split(' '))
 
@@ -22,13 +25,33 @@ export const wordsOf = (text: string) => plainWords(text).map(stem)
 // An entry in a list of references reads like a sentence but says nothing about the subject.
 const isReference = (sentence: string) =>
   /[“"][^”"]{6,}[”"]\s*,|,[”"]\s|\bet al\b|\b(Annu|Proc|Trans|Lett|Rev|Sci|Nat|Adv|Biomed|Eng)\.(\s|$)|\b(doi|arXiv|ISBN)\b|\[\d+\]\s*[A-Z]\.\s?[A-Z]/.test(sentence)
+// The text of a PDF runs a heading straight into the sentence after it ("Chapter 1 In one sentence: …",
+// "The cell membrane Every cell is wrapped …"): such a heading is taken off the front of the sentence.
+const HEADING_LEAD = /^(?:(?:chapter|section|part|unit|lecture|slide)\s+\d+\w*[.:]?\s+|\d+(?:\.\d+)*[.)]?\s+)/i
+const SENTENCE_OPENERS = /^(?:A|An|The|This|These|That|Those|In|On|At|By|For|To|From|With|Every|Each|Some|Most|All|It|Its|We|You|They|There|Here|When|While|If|As|Our|Your|One)$/
+const FUNCTION_END = /\b(?:the|a|an|of|in|on|at|to|for|by|with|from|and|or|as|is|are|was|were|that|which|its|their)$/i
+function withoutHeading(sentence: string): string {
+  let rest = sentence.replace(HEADING_LEAD, '')
+  // A few words with no punctuation, then a capital starting an ordinary sentence: the few words were a heading.
+  const run = rest.match(/^([^.,;:!?]{3,60}?[a-z0-9])\s([A-Z][a-z]*(?:\s[a-z][\w'-]*){3,})/)
+  // A capital inside those few words is a name ("In 1665 Robert Hooke…"), and a word like "of" at their end leads
+  // on into the sentence: either way they are left alone. Unless what follows is an ordinary opening word of a
+  // sentence ("The Living Cell A short guide…", "What a cell is A cell is…"): that marks a heading.
+  const opens = !!run && SENTENCE_OPENERS.test(run[2].split(' ')[0])
+  if (run && run[1].split(' ').length <= 6 && (opens || (!FUNCTION_END.test(run[1]) && !/\s[A-Z]/.test(run[1])))) rest = rest.slice(run[1].length + 1)
+  return rest
+}
+
 export const sentencesOf = (text: string) => {
   const clean = text.replace(/\s+/g, ' ').trim()
   const parts = 'Segmenter' in Intl
     ? [...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(clean)].map(part => part.segment.trim())
     : clean.match(/[^.!?]+[.!?]+/g) ?? [clean]
-  return parts.filter(sentence => sentence.length > 30 && sentence.split(' ').length >= 6 && !isReference(sentence))
+  return parts.map(withoutHeading).filter(sentence => sentence.length > 30 && sentence.split(' ').length >= 6 && !isReference(sentence))
 }
+// A sentence a question can be made from: a whole one, ending as sentences do, with ordinary words in it (not a
+// title in capitals).
+const isProperSentence = (sentence: string) => /[.!?]["')\]]?$/.test(sentence) && (sentence.match(/\b[a-z][a-z'-]+\b/g) ?? []).length >= 5
 
 const cache = new Map<string, Stretch[]>()
 
@@ -212,11 +235,15 @@ export async function quizOf(book: string, place: string, terms: Term[], most = 
   const questions: Question[] = []
   for (const sentence of sentences) {
     if (questions.length >= most) break
+    if (!isProperSentence(sentence)) continue
     const lower = sentence.toLowerCase()
     // The weightiest term the sentence holds, as a whole word.
-    const answer = names.find(name => new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}]|$)`, 'u').test(lower))
+    const whole = (name: string) => new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[^\\p{L}]|$)`, 'u').exec(lower)
+    const answer = names.find(name => whole(name))
     if (!answer || questions.some(question => question.answer === answer)) continue
-    const at = lower.indexOf(answer)
+    // Where it stands as a whole word: "cell" is taken out of "a cell", never out of "cells".
+    const found = whole(answer)!
+    const at = found.index + found[1].length
     const others = [...new Set(names.map(name => name.toLowerCase()))].filter(name => name !== answer && !answer.includes(name) && !name.includes(answer)).sort(() => Math.random() - 0.5).slice(0, 3)
     if (others.length < 2) continue
     questions.push({ before: sentence.slice(0, at), after: sentence.slice(at + answer.length), answer: sentence.slice(at, at + answer.length), choices: [...others, sentence.slice(at, at + answer.length)].sort(() => Math.random() - 0.5) })
