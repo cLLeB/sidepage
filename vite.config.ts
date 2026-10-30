@@ -6,8 +6,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   // Relative paths, so the same build runs in Tauri, at a site root, or under a sub-path such as GitHub Pages.
   base: './',
-  // The version, shown in the More menu (asked for when something goes wrong).
-  define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '') },
+  // The version, shown in the More menu (asked for when something goes wrong), and the store a build is made
+  // for: 'play' for Google Play, which updates the app itself (so the app must not).
+  define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? ''), __STORE__: JSON.stringify(process.env.SIDEPAGE_STORE ?? '') },
   plugins: [
     react(),
     // Installable web app for phones, tablets, iPads and Chromebooks; works offline once opened.

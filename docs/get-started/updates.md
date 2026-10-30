@@ -30,7 +30,9 @@ Sidepage then tells you when a new version is out, and downloads it only when yo
 
 ## On Android
 
-About a minute after Sidepage starts, it checks for a newer version. If there is one:
+**Installed from Google Play:** Google Play updates Sidepage like any other app. There is nothing to do.
+
+**Installed from the GitHub download:** about a minute after Sidepage starts, it checks for a newer version. If there is one:
 
 1. A card appears: **Sidepage 0.36.0 is out**.
 2. Tap **Download**. The new version downloads in your browser.

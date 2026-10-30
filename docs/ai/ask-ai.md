@@ -8,7 +8,7 @@ Ask questions about the book you are reading in a chat beside it. The AI reads t
 | ChatGPT Plus, Pro or Team | Codex |
 | A Google account | Gemini CLI |
 
-Ask AI works in the Sidepage app on **Windows, Mac and Linux**. It does not work on phones, tablets or in the browser version, because it runs the AI's own app on your computer.
+Ask AI works in the Sidepage app on **Windows, Mac and Linux**. It is not offered on phones, tablets or in the browser version, because it runs the AI's own app on your computer.
 
 ## Set up (once)
 
@@ -76,4 +76,4 @@ The AI reads PDFs, e-books, Word documents, slides, text and web pages from thei
 | An error about login or credentials | Sign in again: in a terminal run `claude auth login` (or `codex login`, or `gemini`) |
 | A limit or usage message | Your plan's usage limit is reached. It resets after a while; see your AI provider's site |
 | No answer, or very slow | Long books take longer the first time. Check your internet connection |
-| The panel says it works only on computers | You are on a phone, tablet or the browser version. Use the app on a computer |
+| There is no Ask AI button | You are on a phone, a tablet or the browser version. Use the Sidepage app on a computer |

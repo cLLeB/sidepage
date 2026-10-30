@@ -1267,3 +1267,8 @@ button.viewer-pos { font-weight: 500; }
 .menu-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 10px 10px 4px; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); font-size: 12.5px; color: var(--muted); }
 .menu-link { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
 .menu-link:hover { background: var(--hover); }
+/* A phone's reading bar stays one row: pinching zooms, so the zoom figure gives way, and the buttons sit closer. */
+@media (max-width: 520px) {
+  .viewer-bar .zoom-level { display: none; }
+  .viewer-bar { gap: 0; }
+}

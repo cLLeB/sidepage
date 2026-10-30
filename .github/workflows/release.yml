@@ -101,6 +101,10 @@ jobs:
       # Leave to use the microphone, for recording sound beside a note.
       - run: node scripts/android-manifest.mjs
       - run: npx tauri android build --apk --target aarch64 --target armv7
+      # The same app for Google Play, as an App Bundle: Play updates it, so it never looks for updates itself.
+      - run: npx tauri android build --aab --target aarch64 --target armv7
+        env:
+          SIDEPAGE_STORE: play
       # Android only installs signed apps, and installs a new version over the old one only when both carry the
       # same key: every build is signed with Sidepage's own key, kept as a repository secret.
       - name: Sign the APK and attach it to the release
@@ -116,6 +120,10 @@ jobs:
           "$tools/zipalign" -f 4 "$apk" aligned.apk
           "$tools/apksigner" sign --ks sidepage.jks --ks-key-alias sidepage --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
             --out "Sidepage_${TAG#v}_android.apk" aligned.apk
+          # The Play bundle is signed with the same key (Play's upload key; see store/README.md).
+          aab=$(find src-tauri/gen/android -name '*release*.aab' | head -1)
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore sidepage.jks -storepass:env KEYSTORE_PASSWORD -keypass:env KEYSTORE_PASSWORD \
+            -signedjar "Sidepage_${TAG#v}_play.aab" "$aab" sidepage
           rm sidepage.jks
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Sidepage $TAG" --notes ""
-          gh release upload "$TAG" "Sidepage_${TAG#v}_android.apk" --clobber
+          gh release upload "$TAG" "Sidepage_${TAG#v}_android.apk" "Sidepage_${TAG#v}_play.aab" --clobber

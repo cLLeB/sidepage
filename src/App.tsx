@@ -10,7 +10,7 @@ import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
 import { coverOf } from './lib/reading'
 import Home from './Home'
-import { canUpdateInPlace, findUpdate, restart, updatesByThemselves, type Update } from './lib/update'
+import { canUpdateInPlace, findUpdate, restart, updatesByThemselves, updatesHere, type Update } from './lib/update'
 import { Comfort, FocusClock, LookUp, Palette, SittingCard, Soundscape, StudyTimer, Translator, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { beginSitting, endSitting, type Sitting } from './lib/session'
 import { ACCENTS, applyAccent, usePref, type Accent, setPref } from './lib/prefs'
@@ -22,7 +22,7 @@ import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
   baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
-  onNotesFolderChange, openOutside, onOpenedFiles, onOpenFileNow, pickFile, placeNow, tellPlace, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  onNotesFolderChange, canRunTools, openOutside, onOpenedFiles, onOpenFileNow, pickFile, placeNow, tellPlace, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
@@ -842,7 +842,7 @@ export default function App() {
     { group: 'Study', name: 'Study guide for this page', icon: Sparkles, run: openGuide },
     { group: 'Study', name: 'Ask your books a question', icon: Sparkles, run: () => { openGuide(); setTimeout(() => document.querySelector<HTMLInputElement>('.ask input')?.focus(), 600) } },
     { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
-    { group: 'Study', name: 'Ask AI about this book', icon: MessageCircleQuestion, run: openAsk },
+    ...(canRunTools ? [{ group: 'Study', name: 'Ask AI about this book', icon: MessageCircleQuestion, run: openAsk }] : []),
     { group: 'Study', name: 'Explore papers: what it cites, what cites it', icon: Network, run: openPapers },
     { group: 'Study', name: 'Compare two books, word by word', icon: ArrowLeftRight, run: openCompare },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
@@ -920,7 +920,8 @@ export default function App() {
               <Tool icon={Workflow} label="Mind map" hint="Mind map (Ctrl+3)" onClick={() => openNote('mindmap', notebook)} />
             </Menu>
           </span>
-          <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask your own AI (Claude, ChatGPT or Gemini, with your subscription) about the book" onClick={openAsk} />
+          {/* Ask AI runs the AI's own app for computers: where it cannot (phones, tablets, the browser), it is not offered. */}
+          {canRunTools && <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask your own AI (Claude, ChatGPT or Gemini, with your subscription) about the book" onClick={openAsk} />}
           <Menu icon={Sparkles} label="Study" hint="Guide, highlights, flashcards, papers and more">
             <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, a quiz, and kindred places in your other books" onClick={openGuide} />
             <Tool icon={GraduationCap} label="Review flashcards" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
@@ -940,7 +941,7 @@ export default function App() {
         {more && <>
           <div className="menu-backdrop" onClick={() => setMore(false)} />
           <div className="menu settings" onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) setMore(false) }}>
-            {isTauriApp && <Tool icon={RefreshCw} label="Check for updates" hint="See whether a newer Sidepage is out" onClick={() => window.dispatchEvent(new Event('sidepage:check-updates'))} />}
+            {updatesHere && <Tool icon={RefreshCw} label="Check for updates" hint="See whether a newer Sidepage is out" onClick={() => window.dispatchEvent(new Event('sidepage:check-updates'))} />}
             {canUpdateInPlace && <label className="menu-row stay">Update by itself
               <input type="checkbox" checked={autoUpdate} onChange={e => setAutoUpdate(e.target.checked)} />
             </label>}

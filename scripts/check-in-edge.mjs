@@ -48,6 +48,9 @@ const reply = new Promise(resolve => ws.addEventListener('message', e => {
 }))
 // Treated as the window in front: a page that thinks it is hidden draws no frames, and half the app waits on frames.
 ws.send(JSON.stringify({ id: 90, method: 'Page.bringToFront' }))
+// DPR=2.6 (for example) shows the page as a phone or tablet would, at its real pixel density: for store screenshots.
+if (process.env.DPR) ws.send(JSON.stringify({ id: 92, method: 'Emulation.setDeviceMetricsOverride', params: { width: Number(width), height: Number(height), deviceScaleFactor: Number(process.env.DPR), mobile: !!process.env.MOBILE } }))
+if (process.env.MOBILE) ws.send(JSON.stringify({ id: 93, method: 'Emulation.setTouchEmulationEnabled', params: { enabled: true, maxTouchPoints: 5 } }))
 ws.send(JSON.stringify({ id: 91, method: 'Emulation.setFocusEmulationEnabled', params: { enabled: true } }))
 await sleep(3000)
 ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression: `(async () => { ${readFileSync(file, 'utf8')} })()`, awaitPromise: true, returnByValue: true } }))

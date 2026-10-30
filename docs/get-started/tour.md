@@ -63,7 +63,7 @@ Above the written note:
 The same controls, arranged for one hand:
 
 - The **top bar** keeps the icons only: Home, Open, Files, Go to, Search, Focus and More.
-- **Notes, Ask AI and Study** move to a **bottom bar**, under your thumb.
+- **Notes and Study** move to a **bottom bar**, under your thumb. (Ask AI is in the app for computers only.)
 - The book and its notes become **tabs**: tap the book's name or **Notes** at the top to switch between them.
 - Pinch to zoom the page.
 

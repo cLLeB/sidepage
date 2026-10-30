@@ -83,6 +83,7 @@ export default defineConfig({
         { text: 'Every command', link: '/reference/commands' },
         { text: 'Every setting', link: '/reference/settings' },
         { text: 'What goes online', link: '/reference/privacy' },
+        { text: 'Privacy policy', link: '/privacy-policy' },
         { text: 'Open source parts', link: '/reference/credits' },
       ] },
       { text: 'Help', items: [

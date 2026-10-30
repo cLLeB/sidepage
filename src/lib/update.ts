@@ -15,8 +15,11 @@ const newer = (a: string, b: string) => {
   return false
 }
 
+// Google Play updates the copies it installed, and its rules forbid an app updating itself: a Play build never looks.
+export const updatesHere = isTauri && !(isMobile && __STORE__ === 'play')
+
 export async function findUpdate(): Promise<Update | null> {
-  if (!isTauri) return null
+  if (!updatesHere) return null
   if (!isMobile) {
     const { check } = await import('@tauri-apps/plugin-updater')
     const found = await check()
