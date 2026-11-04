@@ -35,6 +35,17 @@ Choose **Anthropic Claude** or **OpenAI ChatGPT**, tap **Get a key from …**, c
 
 An AI running on your own computer needs no key and sends nothing over the internet. To use it from a phone or tablet on the same Wi-Fi, use the computer's address instead of `localhost` (for example `http://192.168.1.20:11434/v1`) and let Ollama accept connections from the network (set `OLLAMA_HOST=0.0.0.0`).
 
+### Use your Claude Pro, ChatGPT Plus or Gemini plan on a phone
+
+A subscription such as Claude Pro works in the AI's own apps; another app cannot ask through it, even with the same account signed in on the phone. To use your plan from Sidepage on a phone or tablet:
+
+1. Go to the page you are asking about and tap **Ask AI**.
+2. At the bottom of **Connect an AI**, tap **Ask in Claude** (or **Ask in ChatGPT**, **Ask in Gemini**).
+3. Sidepage copies the page's text and opens the app (or its website).
+4. Paste in the app's message box, write your question after **My question:**, and send.
+
+On a computer, the [AI's app](#with-the-ai-s-app-on-a-computer) does this by itself, inside Sidepage.
+
 ### Change or forget the key
 
 At the top of the Ask AI panel, tap **Change**. There you can choose another service, or tap **Forget the key** to remove it from this device.

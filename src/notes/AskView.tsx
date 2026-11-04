@@ -6,7 +6,7 @@ import { baseName, onPlace, openOutside, placeNow, sendQuote } from '../lib/plat
 import { placeName } from '../lib/library'
 import { usePref } from '../lib/prefs'
 import { aiPossible, installedTools, prepareBook, runTool, signedIn, signIn, snapPage, systemPrompt, TOOL_HOMES, TOOL_NAMES, type Tool } from '../lib/ai'
-import { askDirect, connect, connected, connection, plainError, SERVICES, type Connection, type Service } from '../lib/directai'
+import { askDirect, connect, connected, connection, OWN_APPS, pageToPaste, plainError, SERVICES, type Connection, type Service } from '../lib/directai'
 
 type Message = { from: 'reader' | 'ai'; text: string; status?: string; error?: boolean; done?: boolean }
 // `session` carries on a conversation with an AI app; `history` one with an AI reached with a key.
@@ -49,7 +49,7 @@ const doing = (call: { name?: string; input?: { pattern?: string; file_path?: st
   call.name === 'Grep' ? `Searching the book for “${call.input?.pattern ?? ''}”…` : call.name === 'Read' ? (call.input?.file_path?.endsWith('notes.md') ? 'Reading your notes…' : 'Reading the book…') : 'Looking through the book…'
 
 // Connecting an AI with a key: the service, the key (kept on this device), and for some, the model and address.
-function Connect({ onDone, onCancel, onApp }: { onDone: (value: Connection | null) => void; onCancel?: () => void; onApp?: () => void }) {
+function Connect({ onDone, onCancel, onApp, book, place }: { onDone: (value: Connection | null) => void; onCancel?: () => void; onApp?: () => void; book: string; place: string }) {
   const was = connection()
   const [service, setService] = useState<Service>(was?.service ?? 'google')
   const [key, setKey] = useState(was?.service === service ? was.key : '')
@@ -93,6 +93,18 @@ function Connect({ onDone, onCancel, onApp }: { onDone: (value: Connection | nul
           {was && <button type="button" className="soft" onClick={() => { connect(null); setKey(''); onDone(null) }}>Forget the key</button>}
         </div>
         {onApp && <button type="button" className="ai-link" onClick={onApp}>Use the AI app on this computer instead</button>}
+        {book && (
+          <div className="ai-elsewhere">
+            <p>Already pay for Claude Pro, ChatGPT Plus or Gemini? Ask in their app with your plan: Sidepage copies this page, opens the app, and you paste it there.</p>
+            <div className="ai-connect-actions">
+              {OWN_APPS.map(app => (
+                <button type="button" key={app.name} className="soft" onClick={() => void pageToPaste(book, place).then(text => navigator.clipboard.writeText(text)).finally(() => void openOutside(app.home))}>
+                  <ExternalLink size={14} aria-hidden /> Ask in {app.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </form>
     </div>
   )
@@ -189,7 +201,7 @@ export default function AskView() {
   const fresh = () => setChat({ messages: [], session: '', history: [] })
   const useApp = aiPossible ? () => { setVia('app'); setChanging(false); fresh() } : undefined
   if (withKey && (changing || !connected(linked))) {
-    return <Connect onDone={value => { setLinked(value); setChanging(false); fresh() }} onCancel={changing && connected(linked) ? () => setChanging(false) : undefined} onApp={useApp} />
+    return <Connect book={book} place={here?.place ?? ''} onDone={value => { setLinked(value); setChanging(false); fresh() }} onCancel={changing && connected(linked) ? () => setChanging(false) : undefined} onApp={useApp} />
   }
   if (!withKey && tools && !tools.length) {
     return (

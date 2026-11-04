@@ -134,6 +134,26 @@ export async function askDirect(book: string, place: string, question: string, h
   return [...history, asked, ...(await result.responseMessages)]
 }
 
+// Asking in the AI's own app instead, with the subscription the reader has there (Claude Pro, ChatGPT Plus, Gemini):
+// another app cannot ask through it, so the page is copied for the reader to paste, and the app is opened.
+export const OWN_APPS = [
+  { name: 'Claude', home: 'https://claude.ai/new' },
+  { name: 'ChatGPT', home: 'https://chatgpt.com/' },
+  { name: 'Gemini', home: 'https://gemini.google.com/app' },
+]
+export async function pageToPaste(book: string, place: string): Promise<string> {
+  const stretches = await stretchesOf(book)
+  const here = stretches.find(stretch => stretch.place === place)
+  const name = placeName(place)
+  return [
+    `I am reading "${baseName(book)}"${name ? `, on ${name}` : ''}. Help me understand it. Here is the text of the page:`,
+    '',
+    here ? clip(here.text.replace(/\s+/g, ' ').trim(), 8000) : '(This page has no text: it may be a scan or a picture.)',
+    '',
+    'My question: ',
+  ].join('\n')
+}
+
 // What went wrong, said so the reader can act on it.
 export function plainError(error: unknown): string {
   const raw = error as { statusCode?: number; message?: string; responseBody?: string }

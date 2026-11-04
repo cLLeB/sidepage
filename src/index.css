@@ -1181,6 +1181,9 @@ button.viewer-pos { font-weight: 500; }
 .ai-field input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 0; }
 .ai-fine { font-size: 12.5px; margin: 0; }
 .ai-connect-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-elsewhere { display: grid; gap: 8px; margin-top: 6px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.ai-elsewhere p { margin: 0; font-size: 13px; }
+.ai-elsewhere button { display: inline-flex; align-items: center; gap: 6px; }
 .ai-link { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 2px 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .review-empty:not(.ai-connect) > .ai-link { align-self: center; }
 @media (max-width: 380px) { .ai-services { grid-template-columns: 1fr; } }
