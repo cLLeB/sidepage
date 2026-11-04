@@ -304,12 +304,13 @@ const ASKING = new Set(['question', 'lecture', 'paper', 'according', 'mention', 
   'least', 'list', 'state', 'discuss', 'complete', 'sentence', 'answer', 'idea', 'justify', 'justified', 'scientifically', 'link', 'role', 'difference', 'synthesis', 'define', 'definition'].map(word => stem(word)))
 const squashed = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
 
-export async function askBooks(question: string, most = 8): Promise<Answer[]> {
+// `within` keeps the search to one book.
+export async function askBooks(question: string, most = 8, within?: string): Promise<Answer[]> {
   const meant = [...new Set(wordsOf(question))].filter(word => !ASKING.has(word))
   const asked = meant.length ? meant : [...new Set(wordsOf(question))]
   if (!asked.length) return []
   const passages: { book: string; stretch: Stretch; words: string[] }[] = []
-  for (const book of await shelf()) for (const stretch of await stretchesOf(book.name)) passages.push({ book: book.name, stretch, words: wordsOf(stretch.text) })
+  for (const name of within ? [within] : (await shelf()).map(book => book.name)) for (const stretch of await stretchesOf(name)) passages.push({ book: name, stretch, words: wordsOf(stretch.text) })
   if (!passages.length) return []
   const average = passages.reduce((sum, passage) => sum + passage.words.length, 0) / passages.length
   const holding = new Map(asked.map(word => [word, passages.filter(passage => passage.words.includes(word)).length]))

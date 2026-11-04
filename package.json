@@ -1,7 +1,7 @@
 {
   "name": "sidepage",
   "private": true,
-  "version": "0.35.3",
+  "version": "0.36.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,10 @@
     "docs:build": "vitepress build docs"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.96",
+    "@ai-sdk/google": "^4.0.111",
+    "@ai-sdk/openai": "^4.0.108",
+    "@ai-sdk/openai-compatible": "^3.0.84",
     "@excalidraw/excalidraw": "^0.18.1",
     "@extend-ai/react-pptx": "^0.2.2",
     "@file-viewer/doc": "^3.1.2",
@@ -28,6 +32,7 @@
     "@tauri-apps/plugin-opener": "^2.7.2",
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-updater": "^2.14.1",
+    "ai": "^7.0.162",
     "anki-apkg-export": "^5.0.0",
     "diff": "^8.0.2",
     "djvujs-dist": "^0.5.4",

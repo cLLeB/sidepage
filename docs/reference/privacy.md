@@ -12,7 +12,7 @@ A few features need the internet. They contact the services below **only when yo
 | **Papers** | OpenAlex (openalex.org) | The paper's title or DOI, or what you searched |
 | **Free PDF** from Papers | The publisher's site | A request for that PDF |
 | **Read a web page** | The website you named | A request for that page |
-| **Ask AI** | Anthropic, OpenAI or Google, through their own app, under your account | Your question, and the parts of the book and notes the AI reads |
+| **Ask AI** | The AI service you connect (Google, Anthropic, OpenAI or another), with your key or through its app | Your question, the page you are on, and the parts of the book and notes the AI reads |
 | **Natural voices** (first time only) | Hugging Face and jsDelivr | Nothing about you: the voice is downloaded |
 | **Write it out** and **By meaning** (first time only) | Hugging Face | Nothing about you: the model is downloaded |
 | **Read the text** in scans (first time only) | jsDelivr | Nothing about you: the reading engine is downloaded |

@@ -22,7 +22,7 @@ import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
   baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
-  onNotesFolderChange, canRunTools, openOutside, onOpenedFiles, onOpenFileNow, pickFile, placeNow, tellPlace, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  onNotesFolderChange, openOutside, onOpenedFiles, onOpenFileNow, pickFile, placeNow, tellPlace, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
@@ -842,7 +842,7 @@ export default function App() {
     { group: 'Study', name: 'Study guide for this page', icon: Sparkles, run: openGuide },
     { group: 'Study', name: 'Ask your books a question', icon: Sparkles, run: () => { openGuide(); setTimeout(() => document.querySelector<HTMLInputElement>('.ask input')?.focus(), 600) } },
     { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
-    ...(canRunTools ? [{ group: 'Study', name: 'Ask AI about this book', icon: MessageCircleQuestion, run: openAsk }] : []),
+    { group: 'Study', name: 'Ask AI about this book', icon: MessageCircleQuestion, run: openAsk },
     { group: 'Study', name: 'Explore papers: what it cites, what cites it', icon: Network, run: openPapers },
     { group: 'Study', name: 'Compare two books, word by word', icon: ArrowLeftRight, run: openCompare },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
@@ -921,7 +921,7 @@ export default function App() {
             </Menu>
           </span>
           {/* Ask AI runs the AI's own app for computers: where it cannot (phones, tablets, the browser), it is not offered. */}
-          {canRunTools && <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask your own AI (Claude, ChatGPT or Gemini, with your subscription) about the book" onClick={openAsk} />}
+          <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask an AI (Gemini, Claude, ChatGPT or your own) about the book" onClick={openAsk} />
           <Menu icon={Sparkles} label="Study" hint="Guide, highlights, flashcards, papers and more">
             <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, a quiz, and kindred places in your other books" onClick={openGuide} />
             <Tool icon={GraduationCap} label="Review flashcards" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />

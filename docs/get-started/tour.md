@@ -13,7 +13,7 @@ From left to right:
 | **Files** | Your [folders](/reading/folders): open any file in them and move to the next one |
 | **Notes** | Your written notes for the book in front of you (<kbd>Ctrl</kbd> <kbd>1</kbd>) |
 | **⌄** beside Notes | The other ways of writing: **Canvas** (draw and handwrite) and **Mind map** |
-| **Ask AI** | Ask your own AI about the book. See [Ask AI](/ai/ask-ai) |
+| **Ask AI** | Ask an AI about the book. See [Ask AI](/ai/ask-ai) |
 | **Study** | The study tools: Guide, Review flashcards, All highlights, Papers, Compare two books, Graph of your notes, Study timer |
 | **Go to…** | Search for any command, book or setting by name (<kbd>Ctrl</kbd> <kbd>K</kbd>) |
 | **🔍** | Search your notes and books |
@@ -63,7 +63,7 @@ Above the written note:
 The same controls, arranged for one hand:
 
 - The **top bar** keeps the icons only: Home, Open, Files, Go to, Search, Focus and More.
-- **Notes and Study** move to a **bottom bar**, under your thumb. (Ask AI is in the app for computers only.)
+- **Notes, Ask AI and Study** move to a **bottom bar**, under your thumb.
 - The book and its notes become **tabs**: tap the book's name or **Notes** at the top to switch between them.
 - Pinch to zoom the page.
 

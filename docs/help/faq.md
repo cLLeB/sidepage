@@ -12,7 +12,7 @@ No. Reading, notes, flashcards, the study guide and everything else work offline
 
 ### Do I need an account?
 
-No. There is nothing to sign up for. Only [Ask AI](/ai/ask-ai) uses an account: your own AI subscription.
+No. There is nothing to sign up for. Only [Ask AI](/ai/ask-ai) uses an account: a free Google key, or your own AI subscription.
 
 ### Which devices does it run on?
 
@@ -66,11 +66,11 @@ The [Guide](/study/guide) works on every device, offline, instantly and free, fr
 
 ### Can I use Ask AI without a subscription?
 
-Gemini CLI can be used with a free Google account, within Google's free limits. Claude and ChatGPT need their paid plans.
+Yes: [connect a free Gemini key](/ai/ask-ai#get-a-free-gemini-key-the-easiest) from Google, on any device. It takes a minute and needs only a Google account. An AI running on your own computer (Ollama, LM Studio) is free too.
 
-### Can I use Ask AI on my phone?
+### Can I use Ask AI on my phone or tablet?
 
-No. Ask AI runs the AI's own app, which exists only for computers. On a phone, use the [Guide](/study/guide) and [Ask your books](/study/ask-your-books).
+Yes. Tap **Ask AI** in the bottom bar and [connect an AI with a key](/ai/ask-ai#with-a-key): a free Gemini key from Google is the easiest. The same works in the browser version.
 
 ### Can I move my flashcards to Anki?
 

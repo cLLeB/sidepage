@@ -38,6 +38,7 @@ DES NOTES À CÔTÉ DU LIVRE
 • Examens blancs chronométrés à partir de vos cartes
 • Plans de lecture : finir un livre pour une date, avec la part du jour
 • Interrogez vos livres, par les mots ou par le sens
+• Interrogez une IA sur votre livre, gratuitement avec une clé Gemini de Google
 • Comparez un brouillon et sa version finale, mot à mot
 • Voyez ce qu'un article cite et qui le cite, et ouvrez les articles gratuits
 • Exportez vos cartes vers Anki, vos notes en Word et vos plans dans votre agenda

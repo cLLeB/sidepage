@@ -33,7 +33,7 @@ When you use one of the features below, Sidepage sends the information listed to
 | Check spelling and grammar | LanguageTool (LanguageTooler GmbH) | The text of the note you check |
 | Papers | OpenAlex (OurResearch) | The title, DOI or words you search for |
 | Free PDF, Read a web page | The website or publisher concerned | A request for the page or file you asked for |
-| Ask AI (computers only, not Android) | Anthropic, OpenAI or Google, through their own apps, under your own account with them | Your question and the parts of the book and notes the AI reads to answer |
+| Ask AI | The AI service you connect (Google, Anthropic, OpenAI or another you choose), with your own key or through their own apps under your account | Your question, the page you are on, and the parts of the book and notes the AI reads to answer; a picture of the page when it has no text |
 
 In every case, standard technical information that any internet request carries (such as your IP address) reaches the service.
 

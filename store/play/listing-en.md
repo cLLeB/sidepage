@@ -38,6 +38,7 @@ STUDY SMARTER
 • Timed mock exams from your cards
 • Reading plans: finish a book by a date, with today's share
 • Ask your books a question, by words or by meaning
+• Ask an AI about your book, free with a Gemini key from Google
 • Compare a draft with its final version, word by word
 • Find what a paper cites and what cites it, and open free papers
 • Save your cards for Anki, your notes as Word, and your plans in your calendar

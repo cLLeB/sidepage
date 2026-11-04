@@ -86,7 +86,7 @@ Sidepage works in the browser at **[clleb.github.io/sidepage](https://clleb.gith
 1. Open [clleb.github.io/sidepage](https://clleb.github.io/sidepage/).
 2. Click the **Install** icon at the right end of the address bar (a screen with a down arrow), then **Install**.
 
-The web app can do almost everything the installed app can. What only the installed app on a computer can do: [Ask AI](/ai/ask-ai), opening any web page as an article, and keeping notes as plain files in your Documents folder. See [Where your notes are kept](/data/where-notes-live).
+The web app can do almost everything the installed app can. What only the installed app on a computer can do: [Ask AI through the AI's own app](/ai/ask-ai#with-the-ai-s-app-on-a-computer) (Ask AI with a key works in the browser too), opening any web page as an article, and keeping notes as plain files in your Documents folder. See [Where your notes are kept](/data/where-notes-live).
 
 ## Next
 

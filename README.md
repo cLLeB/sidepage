@@ -38,8 +38,9 @@ Sidepage builds almost nothing itself. It is a thin shell that joins existing op
 - Folders: open a folder once (or, on phones and tablets, choose files to keep together) and go back to it any time: its
   files as a tree with search ([react-arborist](https://github.com/brimdata/react-arborist), MIT), opened with a tap, and stepped through
   with Previous and Next (Alt+Up, Alt+Down, or the small stepper over the book on a phone).
-- Ask AI with your own subscription: a chat beside the book that runs the AI's own tool for computers, signed in with the
-  plan you already have ([Claude Code](https://github.com/anthropics/claude-code) for Claude Pro or Max,
+- Ask AI: a chat beside the book, on every device. Connect it with a key (a free Gemini key from Google, Claude, ChatGPT,
+  or any OpenAI style service such as OpenRouter or Ollama), through the [AI SDK](https://github.com/vercel/ai); or, on a
+  computer, with the AI's own tool signed in with the plan you already have ([Claude Code](https://github.com/anthropics/claude-code) for Claude Pro or Max,
   [Codex](https://github.com/openai/codex) for ChatGPT, [Gemini CLI](https://github.com/google-gemini/gemini-cli) for a Google account).
   The book's text is put beside its notes and the AI may only read and search it; answers cite the pages, formulas are drawn
   by KaTeX, and an answer goes into the notes in one tap. No API key.
