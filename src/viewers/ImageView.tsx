@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { usePinchZoom } from '../lib/pinch'
 import { ImagePlus, RotateCw, ScanText, SquareDashed, ZoomIn, ZoomOut } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { readText } from '../lib/ocr'
@@ -8,6 +9,8 @@ import { baseName, sendClip, sendQuote } from '../lib/platform'
 // A single picture (JPG, PNG, GIF, WebP, …), shown to fit the panel. Tap it to see it at full size and scroll.
 export default function ImageView({ file }: { file: File }) {
   const [url, setUrl] = useState('')
+  const zoomBody = useRef<HTMLDivElement>(null)
+  usePinchZoom(zoomBody, url)
   const [full, setFull] = useState(false)
   const [turn, setTurn] = useState(0)
   const [busy, setBusy] = useState('')
@@ -58,7 +61,7 @@ export default function ImageView({ file }: { file: File }) {
         <Tool icon={ScanText} label="Read text" hint="Put the words in this picture into your notes" onClick={() => void words()} />
         <Tool icon={ImagePlus} label="Put in my notes" hint="Add this picture to the notes beside it" onClick={() => void intoNotes()} />
       </div>
-      <div className={full ? 'viewer-body image-host full' : 'viewer-body image-host'}>
+      <div ref={zoomBody} className={full ? 'viewer-body image-host full' : 'viewer-body image-host'}>
         {carding && url && (
           <PictureCardMaker
             image={url}

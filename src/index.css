@@ -532,6 +532,8 @@ button.primary:hover:not(:disabled) { background: var(--accent); filter: brightn
 .stepper button { min-width: 38px; background: var(--bg); }
 .zoom-level { min-width: 52px; padding: 6px 4px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pdf-container { touch-action: pan-x pan-y; }
+/* Two fingers on a page zoom the page (see lib/pinch.ts), never the whole app. */
+.viewer-body { touch-action: pan-x pan-y; }
 
 /* Search across notes */
 .menu-input { font: inherit; color: inherit; width: 100%; min-width: 260px; padding: 9px 10px; margin-bottom: 4px; background: var(--bg); border: 1px solid transparent; border-radius: var(--radius); }
@@ -971,15 +973,17 @@ button.viewer-pos { font-weight: 500; }
 .exam-miss .right { color: #2f9e44; font-weight: 600; }
 
 /* The map of the book down the side of a PDF */
-.page-map { position: absolute; top: 8px; bottom: 8px; right: 3px; width: 12px; z-index: 6; border-radius: 6px; background: color-mix(in srgb, var(--panel) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent); cursor: pointer; touch-action: none; opacity: 0.75; transition: opacity 0.15s, width 0.15s; }
-.page-map:hover { opacity: 1; width: 16px; }
-.page-map i { position: absolute; left: 2px; right: 2px; height: 3px; margin-top: -1.5px; border-radius: 2px; pointer-events: none; }
+.page-map { position: absolute; top: 8px; bottom: 8px; right: 2px; width: 5px; z-index: 6; border-radius: 3px; background: color-mix(in srgb, var(--panel) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent); cursor: pointer; touch-action: none; opacity: 0.75; transition: opacity 0.15s, width 0.15s; }
+.page-map:hover { opacity: 1; width: 12px; }
+/* Slim to look at, easy to take hold of: the bar answers a little beyond its own edges. */
+.page-map::before { content: ''; position: absolute; top: 0; bottom: 0; left: -10px; right: -3px; }
+.page-map i { position: absolute; left: 0; right: 0; height: 3px; margin-top: -1.5px; border-radius: 2px; pointer-events: none; }
 .page-map .map-highlight { height: 4px; }
 .page-map .map-note { left: 50%; right: 1px; background: var(--accent); }
 .page-map .map-bookmark { left: 0; right: 50%; background: #e5484d; }
 .page-map .map-goal { left: -2px; right: -2px; height: 2px; background: #2f9e44; }
-.page-map .map-here { left: -3px; right: -3px; height: 6px; margin-top: -3px; border-radius: 3px; background: transparent; box-shadow: inset 0 0 0 2px var(--text); }
-@media (pointer: coarse) { .page-map { width: 16px; opacity: 0.9; } }
+.page-map .map-here { left: -2px; right: -2px; height: 14px; margin-top: -7px; border-radius: 5px; background: color-mix(in srgb, var(--text) 55%, transparent); }
+@media (pointer: coarse) { .page-map { width: 8px; opacity: 0.9; } }
 
 /* Read along: the sentence being spoken, lit on the page */
 .pdfViewer .textLayer span.speaking { background: color-mix(in srgb, #ffd84d 55%, transparent); border-radius: 2px; color: transparent; }

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { usePinchZoom } from '../lib/pinch'
 import { ReactPptxViewer, setWasmSource, type PptxViewerController } from '@extend-ai/react-pptx'
 import wasmUrl from '@extend-ai/react-pptx/pptx_wasm_bg.wasm?url'
 import '@extend-ai/react-pptx/styles.css'
@@ -14,10 +15,12 @@ setWasmSource(new URL(wasmUrl, document.baseURI).href)
 // "Flip" leafs through the same slides as pages (SlidesView).
 export default function PptView({ file }: { file: File }) {
   const [slide, setSlide] = useState(0)
+  const zoomBody = useRef<HTMLDivElement>(null)
   const [count, setCount] = useState(0)
   const [error, setError] = useState('')
   const [controller, setController] = useState<PptxViewerController | null>(null)
   const [flip, setFlip] = useState(prefersFlip)
+  usePinchZoom(zoomBody, `${!!controller}${flip}`)
   const turning = flip && !!controller && count > 0
 
   // The notes and the guide follow the slide in front; a link in a note brings its slide back.
@@ -61,7 +64,7 @@ export default function PptView({ file }: { file: File }) {
         <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
         <Tool icon={BookOpen} label="Flip" hint="Turn slides like pages" on={flip} onClick={toggleFlip} />
       </div>
-      <div className="viewer-body">
+      <div ref={zoomBody} className="viewer-body">
         {/* The scrolling view stays in place underneath: the page-turn view draws its slides through it. */}
         <div className="ppt-host" style={{ visibility: turning ? 'hidden' : undefined }}>
           <ReactPptxViewer

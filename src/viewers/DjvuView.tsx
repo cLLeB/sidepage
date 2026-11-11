@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { usePinchZoom } from '../lib/pinch'
 import FlipBook from './FlipBook'
 import { BookOpen, Moon } from 'lucide-react'
 import { Tool } from '../ui'
@@ -42,6 +43,8 @@ export default function DjvuView({ file }: { file: File }) {
   const list = useRef<HTMLDivElement>(null)
   const worker = useRef<DjvuWorker | null>(null)
   const [sizes, setSizes] = useState<Size[] | null>(null)
+  const zoomBody = useRef<HTMLDivElement>(null)
+  usePinchZoom(zoomBody, !!sizes)
   const [page, setPage] = useState(() => Number(localStorage.getItem(`sidepage:place:${file.name}`)) || 1)
   const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
   const [flipping, setFlipping] = useState(prefersFlip)
@@ -132,7 +135,7 @@ export default function DjvuView({ file }: { file: File }) {
         {theme === 'dark' && <Tool icon={Moon} label="Dark pages" hint="Show scanned pages light-on-dark. Photographs in them are inverted too." on={inverted} onClick={toggleInverted} />}
         <Tool icon={BookOpen} label="Flip" hint="Turn pages like paper" on={flipping} onClick={() => { rememberFlip(!flipping); setFlipping(!flipping) }} />
       </div>
-      <div className="viewer-body">
+      <div ref={zoomBody} className="viewer-body">
         {flipping
           ? flip
             ? <FlipBook tinted pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {

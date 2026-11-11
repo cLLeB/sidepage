@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { onPinch, usePinchZoom } from '../lib/pinch'
 import { TextQuote } from 'lucide-react'
 import { HighlightsMenu } from './ReaderMenus'
 import { useTextHighlights } from './TextHighlights'
@@ -17,6 +18,14 @@ export default function TextView({ file }: { file: File }) {
   const [ready, setReady] = useState(false)
   const pre = useRef<HTMLPreElement>(null)
   const marks = useTextHighlights(isMarkdown ? host : pre, file, ready)
+  usePinchZoom(isMarkdown ? host : pre, ready, 'text')
+  // A web page is shown in a frame of its own (where nothing of it can run): pinching is listened for inside it.
+  const framed = (frame: HTMLIFrameElement) => {
+    const page = frame.contentDocument
+    if (!page) return
+    let zoom = 1
+    onPinch(page, factor => { zoom = Math.max(0.4, Math.min(5, zoom * factor)); page.documentElement.style.zoom = String(zoom) })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -58,7 +67,7 @@ export default function TextView({ file }: { file: File }) {
         {!isHtml && <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />}
       </div>
       {isHtml
-        ? <iframe className="viewer-body html-frame" sandbox="" srcDoc={text ?? ''} title={file.name} />
+        ? <iframe className="viewer-body html-frame" sandbox="allow-same-origin" srcDoc={text ?? ''} title={file.name} onLoad={e => framed(e.currentTarget)} />
         : isMarkdown
           ? <div ref={host} className="viewer-body text-host" />
           : <pre ref={pre} className="viewer-body text-host plain-text">{text}</pre>}

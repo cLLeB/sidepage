@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { usePinchZoom } from '../lib/pinch'
 import { BookA, Languages, TextQuote } from 'lucide-react'
 import { HighlightsMenu } from './ReaderMenus'
 import { useTextHighlights } from './TextHighlights'
@@ -71,6 +72,7 @@ export default function OfficeView({ file }: { file: File }) {
 
   // Which page is in view, told to the notes and the study guide; a link in a note brings its page back.
   const [page, setPage] = useState(1)
+  usePinchZoom(host, ready)
   useEffect(() => {
     const el = host.current
     if (!el || !ready) return

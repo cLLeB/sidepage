@@ -1,3 +1,4 @@
+import { onPinch } from '../lib/pinch'
 import { useEffect, useRef, useState } from 'react'
 import * as pdfjs from 'pdfjs-dist'
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
@@ -387,22 +388,16 @@ export default function PdfView({ file }: { file: File }) {
     resize.observe(container.current!)
     const stopReading = () => window.removeEventListener('sidepage:reading', onReading)
 
-    // Two fingers spread or pinched on the page zoom it.
+    // Pinching the page zooms it: two fingers on the screen or the touchpad, or Ctrl and the wheel. The page is
+    // drawn again only once the zoom has changed enough to see, so a pinch stays smooth.
     const surface = container.current!
-    let pinch: { distance: number; scale: number } | null = null
-    const spread = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
-    const onTouchStart = (e: TouchEvent) => { if (e.touches.length === 2) pinch = { distance: spread(e), scale: viewer.currentScale } }
-    const onTouchMove = (e: TouchEvent) => {
-      if (!pinch || e.touches.length !== 2) return
-      e.preventDefault()
+    let wanted = 0
+    const stopPinch = onPinch(surface, factor => {
+      if (!viewer.pdfDocument) return
       fitted.current = false
-      const scale = Math.max(0.3, Math.min(5, pinch.scale * (spread(e) / pinch.distance)))
-      if (Math.abs(scale - viewer.currentScale) / viewer.currentScale > 0.04) viewer.currentScale = scale
-    }
-    const onTouchEnd = () => { pinch = null }
-    surface.addEventListener('touchstart', onTouchStart, { passive: true })
-    surface.addEventListener('touchmove', onTouchMove, { passive: false })
-    surface.addEventListener('touchend', onTouchEnd)
+      wanted = Math.max(0.3, Math.min(5, (wanted || viewer.currentScale) * factor))
+      if (Math.abs(wanted - viewer.currentScale) / viewer.currentScale > 0.04) { viewer.currentScale = wanted; wanted = 0 }
+    })
 
     let task: pdfjs.PDFDocumentLoadingTask | undefined
     // Drawings made on the pages are kept as a copy of the PDF with them in it (drawings.pdf, beside the
@@ -475,9 +470,7 @@ export default function PdfView({ file }: { file: File }) {
       cancelled = true
       resize.disconnect()
       stopReading()
-      surface.removeEventListener('touchstart', onTouchStart)
-      surface.removeEventListener('touchmove', onTouchMove)
-      surface.removeEventListener('touchend', onTouchEnd)
+      stopPinch()
       task?.destroy()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

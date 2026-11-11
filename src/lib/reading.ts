@@ -71,6 +71,7 @@ export function setTextStyle(change: Partial<TextStyle>) {
   localStorage.setItem('sidepage:text', JSON.stringify(textStyle))
   listeners.forEach(listener => listener())
 }
+export const textStyleNow = () => textStyle
 export const useTextStyle = () => useSyncExternalStore(
   listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
   () => textStyle,

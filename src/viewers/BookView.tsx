@@ -10,7 +10,8 @@ import { Tool, Menu } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { hasWords, keepWords, type Stretch } from '../lib/library'
-import { FONTS, loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
+import { FONTS, loadHighlights, saveCover, saveHighlights, setProgress, setTextStyle, textStyleNow, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
+import { onPinch } from '../lib/pinch'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
   baseName, extensionOf, findInNotes, onGoToPlace, prefersFlip, rememberFlip, sendQuote, tellPlace,
@@ -58,6 +59,7 @@ export default function BookView({ file }: { file: File }) {
   const [toc, setToc] = useState<(TocItem & { depth: number })[]>([])
   const [where, setWhere] = useState({ fraction: 0, label: '', cfi: '' })
   const text = useTextStyle()
+  const body = useRef<HTMLDivElement>(null)
   const textAtStart = useRef(text)
   textAtStart.current = text
   const bookmarks = useBookmarks(file.name)
@@ -100,7 +102,16 @@ export default function BookView({ file }: { file: File }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     view.addEventListener('load', (e: any) => {
       e.detail.doc.addEventListener('keydown', onKey)
+      onPinch(e.detail.doc, pinchText)
     })
+    // Pinching a book makes its words larger or smaller (the pages are set again), as e-readers do.
+    let wanted = 0
+    const pinchText = (factor: number) => {
+      const size = textStyleNow().size
+      wanted = (wanted || size) * factor
+      if (Math.abs(wanted - size) >= 5) { setTextStyle({ size: Math.round(wanted) }); wanted = 0 }
+    }
+    const stopPinch = body.current ? onPinch(body.current, pinchText) : () => {}
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') view.goLeft()
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') view.goRight()
@@ -167,6 +178,7 @@ export default function BookView({ file }: { file: File }) {
     return () => {
       closed = true
       stopGoTo()
+      stopPinch()
       view.close?.()
       view.remove()
     }
@@ -409,6 +421,7 @@ export default function BookView({ file }: { file: File }) {
         </Menu>
       </div>
       <div
+        ref={body}
         className="viewer-body"
         // The paper pages take their text size, spacing and typeface from here (see index.css).
         style={{ '--book-scale': text.size / 100, '--book-spacing': text.spacing, ...(FONTS[text.font].css ? { '--book-font': FONTS[text.font].css } : {}) } as React.CSSProperties}
