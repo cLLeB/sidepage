@@ -487,7 +487,10 @@ button.primary:hover:not(:disabled) { background: var(--accent); filter: brightn
 
 /* The divider between the book and the notes: a handle to take hold of. */
 .dv-sash { position: relative; z-index: 5; }
-.dv-sash::before { content: ''; position: absolute; inset: -7px; }
+/* The divider's grab area reaches a little into the panels, but not over the page bar beside a PDF (see .page-map);
+   on a touch screen, where fingers are wide, it reaches further. */
+.dv-sash::before { content: ''; position: absolute; inset: -3px; }
+@media (pointer: coarse) { .dv-sash::before { inset: -7px; } }
 .dv-sash::after {
   content: ''; position: absolute; inset: 0; margin: auto;
   width: 4px; height: 44px; border-radius: 4px; background: var(--border);
@@ -982,10 +985,10 @@ button.viewer-pos { font-weight: 500; }
 .exam-miss .right { color: #2f9e44; font-weight: 600; }
 
 /* The map of the book down the side of a PDF */
-.page-map { position: absolute; top: 8px; bottom: 8px; right: 2px; width: 5px; z-index: 6; border-radius: 3px; background: color-mix(in srgb, var(--panel) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent); cursor: pointer; touch-action: none; opacity: 0.75; transition: opacity 0.15s, width 0.15s; }
+.page-map { position: absolute; top: 8px; bottom: 8px; right: 7px; width: 5px; z-index: 6; border-radius: 3px; background: color-mix(in srgb, var(--panel) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent); cursor: pointer; touch-action: none; opacity: 0.75; transition: opacity 0.15s, width 0.15s; }
 .page-map:hover { opacity: 1; width: 12px; }
 /* Slim to look at, easy to take hold of: the bar answers a little beyond its own edges. */
-.page-map::before { content: ''; position: absolute; top: 0; bottom: 0; left: -10px; right: -3px; }
+.page-map::before { content: ''; position: absolute; top: 0; bottom: 0; left: -10px; right: -2px; }
 .page-map i { position: absolute; left: 0; right: 0; height: 3px; margin-top: -1.5px; border-radius: 2px; pointer-events: none; }
 .page-map .map-highlight { height: 4px; }
 .page-map .map-note { left: 50%; right: 1px; background: var(--accent); }

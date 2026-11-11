@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { baseName, loadNote, onQuote } from '../lib/platform'
 
 // A map of the whole book down the edge of the page: a mark for each page you highlighted (in its colour), wrote
-// about in your notes, or bookmarked; where you are; and the page to reach today. Tap anywhere on it to go there.
+// about in your notes, or bookmarked; where you are; and the page to reach today. Tap anywhere on it to go there,
+// or drag along it.
 export type PageMarks = { colours: string[]; noted: number; bookmarked: boolean }
 
 export default function PageMap({ file, pages, current, goal, highlights, bookmarks, onGo }: {
@@ -33,6 +34,19 @@ export default function PageMap({ file, pages, current, goal, highlights, bookma
     return () => { stop(); clearInterval(every) }
   }, [file])
 
+  // The page under the pointer, followed while the bar is held (at most once a frame, and only when it changes).
+  const dragging = useRef(false)
+  const shown = useRef(0)
+  const frame = useRef(0)
+  const follow = (e: React.PointerEvent<HTMLDivElement>) => {
+    const box = e.currentTarget.getBoundingClientRect()
+    const page = Math.min(pages, Math.max(1, Math.ceil(((e.clientY - box.top) / box.height) * pages)))
+    if (page === shown.current) return
+    shown.current = page
+    cancelAnimationFrame(frame.current)
+    frame.current = requestAnimationFrame(() => onGo(page))
+  }
+
   if (pages < 2) return null
   const at = (page: number) => `${((page - 0.5) / pages) * 100}%`
   const byPage = new Map<number, string[]>()
@@ -42,10 +56,16 @@ export default function PageMap({ file, pages, current, goal, highlights, bookma
       className="page-map"
       role="navigation"
       aria-label="Map of the book: highlights, notes and bookmarks by page"
+      // Tap to go to a page; hold and drag to move through the book, like a scroll bar.
       onPointerDown={e => {
-        const box = e.currentTarget.getBoundingClientRect()
-        onGo(Math.min(pages, Math.max(1, Math.ceil(((e.clientY - box.top) / box.height) * pages))))
+        e.preventDefault()
+        try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* the pointer is gone already */ }
+        dragging.current = true
+        follow(e)
       }}
+      onPointerMove={e => { if (dragging.current) follow(e) }}
+      onPointerUp={() => { dragging.current = false }}
+      onPointerCancel={() => { dragging.current = false }}
     >
       {[...byPage].map(([page, colours]) => <i key={`h${page}`} className="map-highlight" style={{ top: at(page), background: colours[0] }} title={`Page ${page}: ${colours.length} highlight${colours.length === 1 ? '' : 's'}`} />)}
       {[...noted].map(([page, count]) => <i key={`n${page}`} className="map-note" style={{ top: at(page) }} title={`Page ${page}: in your notes ${count} time${count === 1 ? '' : 's'}`} />)}
