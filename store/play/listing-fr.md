@@ -20,6 +20,9 @@ LISEZ PRESQUE TOUT
 • Photos du tableau et captures de diapositives
 • Deux documents côte à côte, ou en plein écran sans rien autour
 • Lecture à voix haute avec des voix naturelles, en français, en anglais et plus
+• Lecture rapide, un mot à la fois, au rythme choisi
+• Polices pour la dyslexie et la basse vision, et début des mots en gras pour guider l’œil
+• Zoom à deux doigts sur toute page
 • Définitions et traductions sans quitter la page
 • PDF scannés rendus consultables
 
@@ -38,7 +41,8 @@ DES NOTES À CÔTÉ DU LIVRE
 • Examens blancs chronométrés à partir de vos cartes
 • Plans de lecture : finir un livre pour une date, avec la part du jour
 • Interrogez vos livres, par les mots ou par le sens
-• Interrogez une IA sur votre livre, gratuitement avec une clé Gemini de Google
+• Interrogez une IA sur votre livre, gratuitement avec une clé Gemini de Google, ou avec votre abonnement Claude ou ChatGPT via votre ordinateur
+• Des mots croisés des termes clés de chaque livre, et le niveau de lecture de chaque page
 • Comparez un brouillon et sa version finale, mot à mot
 • Voyez ce qu'un article cite et qui le cite, et ouvrez les articles gratuits
 • Exportez vos cartes vers Anki, vos notes en Word et vos plans dans votre agenda

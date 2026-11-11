@@ -20,6 +20,9 @@ READ ALMOST ANYTHING
 • Photos of the board and screenshots of slides
 • Two documents side by side, or full screen with nothing in the way
 • Read aloud with lifelike natural voices, in English, French and more
+• Speed reading, one word at a time, at the pace you choose
+• Typefaces for dyslexia and low vision, and bold word starts that guide the eye
+• Pinch to zoom any page
 • Look up words and translate passages without leaving the page
 • Make scanned PDFs searchable
 
@@ -38,7 +41,8 @@ STUDY SMARTER
 • Timed mock exams from your cards
 • Reading plans: finish a book by a date, with today's share
 • Ask your books a question, by words or by meaning
-• Ask an AI about your book, free with a Gemini key from Google
+• Ask an AI about your book, free with a Gemini key from Google, or with your Claude or ChatGPT plan through your computer
+• A crossword of each book's key terms, and the reading level of every page
 • Compare a draft with its final version, word by word
 • Find what a paper cites and what cites it, and open free papers
 • Save your cards for Anki, your notes as Word, and your plans in your calendar
