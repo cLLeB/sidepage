@@ -170,7 +170,6 @@ async function workOutTerms(book: string, howMany: number): Promise<Term[]> {
   await loadEveryday()
   const all = await stretchesOf(book)
   if (!all.length) return []
-  const tokens = all.map(stretch => wordsOf(stretch.text))
   // Each folded word is shown as the form of it the book uses most ("stretchable", not "stretchabl").
   const forms = new Map<string, Map<string, number>>()
   for (const stretch of all) for (const word of plainWords(stretch.text)) {
@@ -179,12 +178,24 @@ async function workOutTerms(book: string, howMany: number): Promise<Term[]> {
   }
   const shown = (term: string) => term.split(' ').map(part => [...(forms.get(part) ?? [[part, 1]])].sort((a, b) => b[1] - a[1])[0][0]).join(' ')
   // A term is a word or a pair of words that keep company ("kinetic energy").
-  const perPlace = tokens.map(words => {
+  // Two words make a pair only when they run on in one phrase: a comma, a full stop, a bracket, a bullet or the
+  // end of a line between them ("laminar, turbulent") parts them.
+  const perPlace = all.map(stretch => {
     const counts = new Map<string, number>()
-    words.forEach((word, i) => {
-      counts.set(word, (counts.get(word) ?? 0) + 1)
-      if (i + 1 < words.length) counts.set(`${word} ${words[i + 1]}`, (counts.get(`${word} ${words[i + 1]}`) ?? 0) + 1)
-    })
+    // A small word between two ("balanced by viscous") parts them too.
+    const phrases = stretch.text.split(/[.,;:!?()[\]{}•·|"“”=≈<>\n\r]+|\s[-–—]\s/)
+      .flatMap(phrase => phrase.split(/\s+/).reduce<string[][]>((runs, word) => {
+        if (STOP.has(word.toLowerCase()) || !/\p{L}{3}/u.test(word)) runs.push([])
+        else runs[runs.length - 1].push(word)
+        return runs
+      }, [[]]).map(run => run.join(' ')))
+    for (const phrase of phrases) {
+      const words = wordsOf(phrase)
+      words.forEach((word, i) => {
+        counts.set(word, (counts.get(word) ?? 0) + 1)
+        if (i + 1 < words.length) counts.set(`${word} ${words[i + 1]}`, (counts.get(`${word} ${words[i + 1]}`) ?? 0) + 1)
+      })
+    }
     return counts
   })
   const total = new Map<string, number>(), spread = new Map<string, number>()
