@@ -1294,3 +1294,14 @@ button.viewer-pos { font-weight: 500; }
   .viewer-bar .zoom-level { display: none; }
   .viewer-bar { gap: 0; }
 }
+
+/* Link devices: one shows a code, the other types it. */
+.link-devices { display: flex; height: 100%; padding: 0; overflow: auto; }
+.link-devices .review-empty { margin: auto; padding: 20px 16px; }
+.link-devices .ai-connect > p { text-align: center; }
+.link-code { font: 600 30px/1.2 ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: 0.08em; color: var(--text); user-select: all; margin: 4px 0; }
+.link-status { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: var(--text); font-weight: 600; }
+.link-status.on .ai-dot { animation: none; background: #2e8a52; }
+.link-join { display: flex; align-items: flex-end; gap: 8px; }
+.link-join .ai-field { flex: 1; }
+.link-devices button.primary, .link-devices button.soft { align-self: center; display: inline-flex; align-items: center; gap: 7px; }

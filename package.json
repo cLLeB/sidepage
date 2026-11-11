@@ -38,7 +38,6 @@
     "@tauri-apps/plugin-updater": "^2.14.1",
     "ai": "^7.0.162",
     "anki-apkg-export": "^5.0.0",
-    "compromise": "^14.20.0",
     "crossword-layout-generator": "^0.1.1",
     "diff": "^8.0.2",
     "djvujs-dist": "^0.5.4",

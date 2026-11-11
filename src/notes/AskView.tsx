@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import 'katex/dist/katex.min.css'
-import { ArrowUp, Check, Copy, ExternalLink, KeyRound, NotebookPen, RotateCcw, Square } from 'lucide-react'
+import { ArrowUp, Check, Copy, ExternalLink, KeyRound, Laptop, NotebookPen, RotateCcw, Square } from 'lucide-react'
 import type { ModelMessage } from 'ai'
 import { baseName, onPlace, openOutside, placeNow, sendQuote } from '../lib/platform'
 import { placeName } from '../lib/library'
 import { usePref } from '../lib/prefs'
-import { aiPossible, installedTools, prepareBook, runTool, signedIn, signIn, snapPage, systemPrompt, TOOL_HOMES, TOOL_NAMES, type Tool } from '../lib/ai'
+import { useLink } from '../lib/link'
+import { aiPossible as appOnThisDevice, bookText, installedTools, prepareBook, runTool, signedIn, signIn, snapPage, systemPrompt, TOOL_HOMES, TOOL_NAMES, type Tool } from '../lib/ai'
 import { askDirect, connect, connected, connection, OWN_APPS, pageToPaste, plainError, SERVICES, type Connection, type Service } from '../lib/directai'
 
 type Message = { from: 'reader' | 'ai'; text: string; status?: string; error?: boolean; done?: boolean }
@@ -93,6 +94,14 @@ function Connect({ onDone, onCancel, onApp, book, place }: { onDone: (value: Con
           {was && <button type="button" className="soft" onClick={() => { connect(null); setKey(''); onDone(null) }}>Forget the key</button>}
         </div>
         {onApp && <button type="button" className="ai-link" onClick={onApp}>Use the AI app on this computer instead</button>}
+        {!appOnThisDevice && (
+          <div className="ai-elsewhere">
+            <p>Have Claude Pro, ChatGPT Plus or Gemini on your computer? Link this device to it and ask here with your plan, with no key.</p>
+            <div className="ai-connect-actions">
+              <button type="button" className="soft" onClick={() => window.dispatchEvent(new Event('sidepage:link'))}><Laptop size={14} aria-hidden /> Link to my computer</button>
+            </div>
+          </div>
+        )}
         {book && (
           <div className="ai-elsewhere">
             <p>Already pay for Claude Pro, ChatGPT Plus or Gemini? Ask in their app with your plan: Sidepage copies this page, opens the app, and you paste it there.</p>
@@ -118,6 +127,10 @@ export default function AskView() {
   const [chat, setChat] = useState<Chat>({ messages: [], session: '', history: [] })
   // With the AI's app on this computer, or with a key (the only way on phones, tablets and the web).
   const [via, setVia] = usePref<'app' | 'key'>('ai-via', 'app')
+  // The AI's app: on this computer, or on the reader's computer linked to this phone or tablet.
+  const link = useLink()
+  const viaComputer = !appOnThisDevice && link.status === 'linked' && !!link.other?.computer
+  const aiPossible = appOnThisDevice || viaComputer
   const withKey = !aiPossible || via === 'key'
   const [linked, setLinked] = useState(connection)
   const [changing, setChanging] = useState(false)
@@ -140,7 +153,7 @@ export default function AskView() {
     if (use && use !== tool) setTool(use)
     setReady(use ? await signedIn(use) : null)
   }
-  useEffect(() => { if (aiPossible && !withKey) void look() }, [withKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (aiPossible && !withKey) void look() }, [withKey, aiPossible]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ask = async (text: string) => {
     if (!text.trim() || busy || !book) return
@@ -170,10 +183,10 @@ export default function AskView() {
     }
     try {
       const folder = await prepareBook(book, baseName(book))
-      const pictured = await snapPage(baseName(book))
+      const pictured = await snapPage(baseName(book), book)
       const where = [here?.place ? `I am on ${placeName(here.place) || here.place} of the book.` : '', pictured ? 'this-page.png shows the page I am looking at.' : ''].filter(Boolean).join(' ')
       let streamed = ''
-      const { code, errors } = await runTool(tool, 'ask', `${where}\n\n${text}`, { cwd: folder ?? '', system: systemPrompt(baseName(book)), resume: session }, line => {
+      const { code, errors } = await runTool(tool, 'ask', `${where}\n\n${text}`, { cwd: folder ?? '', system: systemPrompt(baseName(book), viaComputer), resume: session, ...(viaComputer ? { book, text: await bookText(book) } : {}) }, line => {
         if (tool !== 'claude') { streamed += `${line}\n`; change({ text: streamed, status: '' }); return }
         let event: { type: string; subtype?: string; session_id?: string; event?: { type: string; delta?: { type: string; text?: string } }; message?: { content?: { type: string; name?: string; input?: object }[] }; result?: string; is_error?: boolean }
         try { event = JSON.parse(line) } catch { return }
@@ -235,7 +248,9 @@ export default function AskView() {
               {tools.map(name => <option key={name} value={name}>{TOOL_NAMES[name]}</option>)}
             </select>
           : <b>{TOOL_NAMES[tool]}</b>}
-        {ready === false && <button className="primary" onClick={() => void signIn(tool).then(() => signedIn(tool)).then(setReady)}>Sign in with your {TOOL_NAMES[tool]} account</button>}
+        {viaComputer && <span className="ai-ready">on your computer</span>}
+        {ready === false && !viaComputer && <button className="primary" onClick={() => void signIn(tool).then(() => signedIn(tool)).then(setReady)}>Sign in with your {TOOL_NAMES[tool]} account</button>}
+        {ready === false && viaComputer && <span className="ai-fine">Sign in to {TOOL_NAMES[tool]} on the computer first.</span>}
         {ready && <span className="ai-ready"><Check size={14} aria-hidden /> Signed in</span>}
         {aiPossible && <button className="soft" disabled={busy} onClick={() => { setVia('key'); fresh() }}>Use a key</button>}
         </>}

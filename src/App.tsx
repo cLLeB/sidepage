@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  CircleHelp, RefreshCw, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  CircleHelp, RefreshCw, MonitorSmartphone, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -13,7 +13,7 @@ import Home from './Home'
 import { canUpdateInPlace, findUpdate, restart, updatesByThemselves, updatesHere, type Update } from './lib/update'
 import { Comfort, FocusClock, LookUp, Palette, SittingCard, Soundscape, StudyTimer, Translator, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { beginSitting, endSitting, type Sitting } from './lib/session'
-import { ACCENTS, applyAccent, usePref, type Accent, setPref } from './lib/prefs'
+import { ACCENTS, applyAccent, usePref, type Accent, getPref, setPref } from './lib/prefs'
 import { OCR_LANGUAGES } from './lib/ocr'
 import { LANGUAGES, setLanguage, uiLanguage, type Language } from './lib/language'
 import { bibliography, CiteDialog, openCite } from './viewers/Cite'
@@ -123,6 +123,8 @@ const HighlightsView = lazy(() => import('./notes/HighlightsView'))
 const CompareView = lazy(() => import('./notes/CompareView'))
 const PapersView = lazy(() => import('./notes/PapersView'))
 const AskView = lazy(() => import('./notes/AskView'))
+const LinkView = lazy(() => import('./notes/LinkView'))
+const LinkPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><LinkView /></Suspense></ErrorBoundary>
 const FilesView = lazy(() => import('./notes/FilesView'))
 const FilesPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><FilesView /></Suspense></ErrorBoundary>
 const AskPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><AskView /></Suspense></ErrorBoundary>
@@ -252,7 +254,7 @@ function UpdateCard() {
   )
 }
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel, files: FilesPanel }
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel, files: FilesPanel, link: LinkPanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -617,6 +619,23 @@ export default function App() {
     const book = dock.panels.find(p => p.id.startsWith('doc:'))
     dock.addPanel({ id: 'ai', component: 'ai', title: 'Ask AI', position: sibling ? { referencePanel: sibling.id, direction: 'within' } : book ? { referencePanel: book.id, direction: besideBook() } : undefined })
   }, [])
+  // A panel beside the book, among the notes: opened once, brought to the front after that.
+  const openSide = useCallback((id: string, title: string) => {
+    const dock = api.current
+    if (!dock) return
+    const existing = dock.getPanel(id)
+    if (existing) return existing.api.setActive()
+    const sibling = dock.panels.find(p => !p.id.startsWith('doc:') && p.id !== 'files')
+    const book = dock.panels.find(p => p.id.startsWith('doc:'))
+    dock.addPanel({ id, component: id, title, position: sibling ? { referencePanel: sibling.id, direction: 'within' } : book ? { referencePanel: book.id, direction: besideBook() } : undefined })
+  }, [])
+  // Linking this device with the reader's other one (see lib/link.ts): a link made earlier is joined again.
+  const openLink = useCallback(() => openSide('link', 'Link devices'), [openSide])
+  useEffect(() => {
+    window.addEventListener('sidepage:link', openLink)
+    if (getPref('link-code', '')) void import('./lib/link').then(link => link.resumeLink())
+    return () => window.removeEventListener('sidepage:link', openLink)
+  }, [openLink])
   // The paper explorer (OpenAlex), beside the notes.
   const openPapers = useCallback(() => {
     const dock = api.current
@@ -844,6 +863,7 @@ export default function App() {
     { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
     { group: 'Study', name: 'Ask AI about this book', icon: MessageCircleQuestion, run: openAsk },
     { group: 'Study', name: 'Explore papers: what it cites, what cites it', icon: Network, run: openPapers },
+    { group: 'Keep', name: 'Link devices: phone or tablet with computer', icon: MonitorSmartphone, run: openLink },
     { group: 'Study', name: 'Compare two books, word by word', icon: ArrowLeftRight, run: openCompare },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
     { group: 'Study', name: 'Graph of linked notes', icon: Share2, run: openGraph },
@@ -955,6 +975,7 @@ export default function App() {
                 setNotice(`Backed up the notes of ${notebooks} book${notebooks === 1 ? '' : 's'}.`)
               })}
             />
+            <Tool icon={MonitorSmartphone} label="Link devices" hint="Link your phone or tablet with your computer: ask the computer's AI from the phone, send books and notes across" onClick={openLink} />
             <Tool icon={ArchiveRestore} label="Restore a backup" hint="Put back notes from a backup file. Nothing already here is overwritten." onClick={() => void browse()} />
             <Tool icon={BookMarked} label="Make a study pack" hint="Notes, highlights, glossary and questions for this book, as one document to print" disabled={empty} onClick={() => void makeStudyPack()} />
             <Tool icon={FileDown} label="Export notes" hint="Save this book's notes, highlights and bookmarks as one Markdown file" disabled={empty} onClick={() => void exportNotes()} />

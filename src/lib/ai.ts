@@ -14,7 +14,12 @@ export const TOOL_HOMES: Record<Tool, string> = {
 }
 export const aiPossible = canRunTools
 
+// Where the AI app is not on this device (a phone, a tablet), it may be on the reader's linked computer: see link.ts.
+const computer = async () => { const link = await import('./link'); return link.computerLinked() ? link : null }
+
 export async function installedTools(): Promise<Tool[]> {
+  const linked = await computer()
+  if (linked) return linked.linkNow().other?.tools ?? []
   if (!isTauri || !canRunTools) return []
   const { invoke } = await import('@tauri-apps/api/core')
   return invoke<Tool[]>('ai_tools')
@@ -22,8 +27,10 @@ export async function installedTools(): Promise<Tool[]> {
 
 let counter = 0
 // One run of a tool; each line it writes comes to `onLine`. Resolves when it is done.
-export async function runTool(tool: Tool, mode: 'ask' | 'status' | 'login', input: string, options: { cwd?: string; system?: string; resume?: string },
+export async function runTool(tool: Tool, mode: 'ask' | 'status' | 'login', input: string, options: { cwd?: string; system?: string; resume?: string; book?: string; text?: string },
   onLine: (line: string) => void, onStart?: (stop: () => void) => void): Promise<{ code: number | null; errors: string }> {
+  const linked = await computer()
+  if (linked) return linked.runOnComputer(tool, mode, input, options, onLine, onStart)
   const [{ invoke }, { listen }] = await Promise.all([import('@tauri-apps/api/core'), import('@tauri-apps/api/event')])
   const id = `ai-${Date.now()}-${++counter}`
   const lines = await listen<{ id: string; line: string }>('ai-line', event => { if (event.payload.id === id) onLine(event.payload.line) })
@@ -48,17 +55,20 @@ export async function signedIn(tool: Tool): Promise<boolean> {
 export const signIn = (tool: Tool) => runTool(tool, 'login', '', {}, () => {})
 
 // The book's words, page by page, written beside its notes for the AI to read. Rewritten only when they change.
-export async function prepareBook(book: string, notebook: string): Promise<string | null> {
-  const folder = await notebookFolder(notebook)
-  if (!folder) return null
+export const bookText = async (book: string) => {
   const stretches = await stretchesOf(book)
-  const text = [
+  return [
     `# ${book}`,
     '',
     stretches.length ? 'The full text of the book the reader has open, part by part. Their own notes are in notes.md.' : 'The text of this book could not be read (it may be a scan). Their own notes are in notes.md.',
     '',
     ...stretches.map(stretch => `## ${placeName(stretch.place) || stretch.place}\n\n${lines(stretch.text)}\n`),
   ].join('\n')
+}
+export async function prepareBook(book: string, notebook: string): Promise<string | null> {
+  const folder = await notebookFolder(notebook)
+  if (!folder) return null
+  const text = await bookText(book)
   if (sessionKeyOf(book) !== text.length) {
     await saveNote(notebook, 'book.md', text)
     written.set(book, text.length)
@@ -78,7 +88,13 @@ const READABLE = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'md', 'mark
 
 // The page the reader is looking at, as a picture, for the AI to see: what has no text (a scan, a comic, a DjVu
 // page, a photo, a diagram) is read from it. The largest picture drawn in the open reader is taken.
-export async function snapPage(notebook: string): Promise<boolean> {
+export async function snapPage(notebook: string, book = ''): Promise<boolean> {
+  const linked = await computer()
+  if (linked) {
+    const picture = await (await import('./directai')).pagePicture()
+    if (picture) await linked.sendPicture(book, picture)
+    return !!picture
+  }
   const panel = [...document.querySelectorAll<HTMLElement>('.viewer')].find(viewer => viewer.offsetWidth > 0)
   if (!panel) return false
   const seen = (element: HTMLElement) => { const box = element.getBoundingClientRect(); return box.width * box.height > 40000 && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth }
@@ -115,7 +131,8 @@ function lines(text: string, most = 300): string {
 }
 const sessionKeyOf = (book: string) => written.get(book)
 
-export const systemPrompt = (book: string) => [
+export const systemPrompt = (book: string, fromOtherDevice = false) => [
+  ...(fromOtherDevice ? ['The reader is asking from their phone or tablet; the notes they wrote there are in notes-other-device.md.'] : []),
   `You are the reading companion inside Sidepage, a reader's app. The reader has "${book}" open beside you.`,
   'Its full text is in book.md in the current folder, with a heading for each page (p. 12) or part. Their own notes are in notes.md.',
   'Answer from the book first and say which pages you used, like (p. 12). For a long book, search it with Grep before reading.',
