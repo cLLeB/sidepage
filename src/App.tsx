@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
-  CircleHelp, RefreshCw, MonitorSmartphone, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
+  CircleHelp, RefreshCw, MonitorSmartphone, Gauge, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -124,6 +124,7 @@ const CompareView = lazy(() => import('./notes/CompareView'))
 const PapersView = lazy(() => import('./notes/PapersView'))
 const AskView = lazy(() => import('./notes/AskView'))
 const LinkView = lazy(() => import('./notes/LinkView'))
+const SpeedRead = lazy(() => import('./notes/SpeedRead'))
 const LinkPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><LinkView /></Suspense></ErrorBoundary>
 const FilesView = lazy(() => import('./notes/FilesView'))
 const FilesPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><FilesView /></Suspense></ErrorBoundary>
@@ -264,6 +265,9 @@ export default function App() {
   const theme = useThemeChoice()
   // A short message after something has been done out of sight (a backup made, notes restored).
   const [notice, setNotice] = useState('')
+  // Speed reading, over everything (see notes/SpeedRead.tsx).
+  const [speeding, setSpeeding] = useState(false)
+  useEffect(() => { const open = () => setSpeeding(true); window.addEventListener('sidepage:speed', open); return () => window.removeEventListener('sidepage:speed', open) }, [])
   // Messages from out of the way (a voice being fetched): the latest one shown, an empty one clears it.
   useEffect(() => {
     const show = (e: Event) => setNotice((e as CustomEvent<string>).detail)
@@ -863,6 +867,7 @@ export default function App() {
     { group: 'Study', name: 'Review flashcards', icon: GraduationCap, run: openReview },
     { group: 'Study', name: 'Ask AI about this book', icon: MessageCircleQuestion, run: openAsk },
     { group: 'Study', name: 'Explore papers: what it cites, what cites it', icon: Network, run: openPapers },
+    { group: 'Study', name: 'Speed read from this page', icon: Gauge, run: () => setSpeeding(true) },
     { group: 'Keep', name: 'Link devices: phone or tablet with computer', icon: MonitorSmartphone, run: openLink },
     { group: 'Study', name: 'Compare two books, word by word', icon: ArrowLeftRight, run: openCompare },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
@@ -940,7 +945,6 @@ export default function App() {
               <Tool icon={Workflow} label="Mind map" hint="Mind map (Ctrl+3)" onClick={() => openNote('mindmap', notebook)} />
             </Menu>
           </span>
-          {/* Ask AI runs the AI's own app for computers: where it cannot (phones, tablets, the browser), it is not offered. */}
           <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask an AI (Gemini, Claude, ChatGPT or your own) about the book" onClick={openAsk} />
           <Menu icon={Sparkles} label="Study" hint="Guide, highlights, flashcards, papers and more">
             <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, a quiz, and kindred places in your other books" onClick={openGuide} />
@@ -949,6 +953,7 @@ export default function App() {
             <Tool icon={Network} label="Papers" hint="What this paper cites, what cites it, and related work, with free PDFs to open (OpenAlex)" onClick={openPapers} />
             <Tool icon={ArrowLeftRight} label="Compare two books" hint="What changed between two versions, word by word" onClick={openCompare} />
             <Tool icon={Share2} label="Graph of your notes" hint="How your books' notes link to each other" onClick={openGraph} />
+            <Tool icon={Gauge} label="Speed reading" hint="Read the book from this page one word at a time, at the pace you set" disabled={empty} onClick={() => setSpeeding(true)} />
             <Tool icon={Timer} label="Study timer" hint="Study for a stretch, then take a break" onClick={() => setTimeout(() => window.dispatchEvent(new Event('sidepage:timer')), 0)} />
           </Menu>
         </div>
@@ -1048,6 +1053,7 @@ export default function App() {
       <Comfort />
       <Soundscape />
       {sitting && <SittingCard sitting={sitting} onClose={() => setSitting(null)} />}
+      {speeding && <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={null}><SpeedRead onClose={() => setSpeeding(false)} /></Suspense></ErrorBoundary>}
       <LookUp />
       <Translator />
       <CiteDialog />

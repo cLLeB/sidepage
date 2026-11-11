@@ -54,12 +54,12 @@ export default function LinkView() {
           ? <p className="link-status on"><span className="ai-dot" /> Linked with your {other}</p>
           : <p className="link-status"><span className="ai-dot" /> Waiting for your other device…</p>}
         {link.status !== 'linked' && <>
-          <p>On your other device, open Sidepage, then <b>More</b>, <b>Link devices</b>, and type this code:</p>
+          <p>On your other device, open Sidepage, then More, Link devices, and type this code:</p>
           <p className="link-code">{link.code}</p>
           <p className="ai-fine">Both devices need the internet to find each other. The code is asked for only once.</p>
         </>}
         {link.status === 'linked' && <>
-          {!canRunTools && link.other?.computer && <p>Ask AI now uses the AI app on your computer{link.other.tools.length ? '' : ' (none is installed there yet)'}. Keep Sidepage open on the computer.</p>}
+          {!canRunTools && link.other?.computer && <p>{link.other.tools.length ? 'Ask AI now uses the AI app on your computer. Keep Sidepage open on the computer.' : 'No AI app is installed on your computer yet: install Claude Code, Codex or Gemini CLI there.'}</p>}
           {canRunTools && <p>Your {other} can now ask the AI app on this computer. Keep Sidepage open here.</p>}
           <button className="primary" disabled={!book || !!sending} onClick={() => void send()}><Send size={16} aria-hidden /> {book ? `Send ${baseName(book)} and its notes to your ${other}` : 'Open a book to send it'}</button>
           {sending && <p className="ai-fine">{sending}</p>}

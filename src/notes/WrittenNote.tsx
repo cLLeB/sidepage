@@ -3,7 +3,7 @@ import { uiLocale } from '../lib/language'
 import {
   ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
   List, ListChecks, ListOrdered, Minus, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
-  AlignVerticalJustifyCenter, SpellCheck, Footprints, Presentation, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
+  AlignVerticalJustifyCenter, SpellCheck, Footprints, Presentation, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, BookDown, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
 } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
@@ -52,6 +52,13 @@ const DIAGRAMS = {
   'Mind map': 'mindmap\n  root((Topic))\n    Idea one\n      Detail\n    Idea two\n    Idea three',
   'Sequence of steps': 'sequenceDiagram\n  Sample->>Sensor: interaction\n  Sensor->>Transducer: signal\n  Transducer->>Reader: information',
   'Pie chart': 'pie title Share of time\n  "Reading" : 50\n  "Notes" : 30\n  "Review" : 20',
+}
+
+// Drawn by other open source projects (see writing.ts): a graph of formulas, a molecule, sums worked out.
+const DRAWINGS: Record<string, [string, string]> = {
+  'Graph of a formula': ['plot', 'y = sin(x)\ny = x^2 / 4'],
+  'Molecule (SMILES)': ['smiles', 'CC(=O)Oc1ccccc1C(=O)O'],
+  'Sums and units': ['calc', '# each line is worked out\n2.5 kg * 9.81 m/s^2\n5 cm to inch\nsqrt(2) * 3'],
 }
 
 // Ready-made layouts for a note. "Question and answer" lines become flashcards (see lib/review.ts).
@@ -537,7 +544,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     void voice.start(async () => (told ? null : (told = true, host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')))
   }
   // The note as a document other programs open: a Word file, or a web page. Pictures go inside it.
-  const saveAs = async (kind: 'docx' | 'html') => {
+  const saveAs = async (kind: 'docx' | 'html' | 'epub') => {
     const live = host.current?.querySelector<HTMLElement>('.ProseMirror')
     if (live && kind === 'docx') {
       // A real Word document, pictures and all.
@@ -553,6 +560,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
         const blob = await (await fetch(picture.src)).blob()
         picture.src = await new Promise<string>(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(blob) })
       } catch { /* a picture that cannot be read stays as its link */ }
+    }
+    if (kind === 'epub') {
+      const { notesAsEbook } = await import('../lib/ebook')
+      return saveFileAs(`${notebook} notes.epub`, await notesAsEbook(notebook, page))
     }
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${notebook}</title><style>
       body { font: 12pt/1.6 ${FACES[writing.face].css}; color: #111; max-width: 46em; margin: 2em auto; padding: 0 1.2em; }
@@ -687,6 +698,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           {Object.entries(DIAGRAMS).map(([name, text]) => (
             <button key={name} className="menu-item" onClick={() => put(`\n\`\`\`mermaid\n${text}\n\`\`\`\n`)}>{name}</button>
           ))}
+          <p className="menu-head">Graphs, molecules and sums</p>
+          {Object.entries(DRAWINGS).map(([name, [kind, text]]) => (
+            <button key={name} className="menu-item" onClick={() => put('\n```' + kind + '\n' + text + '\n```\n')}>{name}</button>
+          ))}
           <p className="menu-head">Layouts</p>
           {Object.keys(TEMPLATES).map(name => (
             <button key={name} className="menu-item" onClick={() => put(TEMPLATES[name as keyof typeof TEMPLATES])}>{name}</button>
@@ -717,6 +732,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           <Tool icon={ClipboardCopy} label="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
           <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('docx')} />
           <Tool icon={Globe} label="Save as a web page" onClick={() => void saveAs('html')} />
+          <Tool icon={BookDown} label="Save as an e-book" hint="Your notes and highlights as an EPUB, to read on a Kindle, Kobo or any e-reader" onClick={() => void saveAs('epub')} />
           {!isMobile && <Tool icon={Printer} label="Print this note" onClick={print} />}
           <p className="menu-head">Headings in this note</p>
           {(() => {

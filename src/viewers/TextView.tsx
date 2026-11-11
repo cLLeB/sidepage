@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { onPinch, usePinchZoom } from '../lib/pinch'
+import { FONTS, useTextStyle } from '../lib/reading'
+import { addReadingFonts } from '../lib/fonts'
+import { fixate, unfixate } from '../lib/fixation'
 import { TextQuote } from 'lucide-react'
 import { HighlightsMenu } from './ReaderMenus'
 import { useTextHighlights } from './TextHighlights'
@@ -19,6 +22,15 @@ export default function TextView({ file }: { file: File }) {
   const pre = useRef<HTMLPreElement>(null)
   const marks = useTextHighlights(isMarkdown ? host : pre, file, ready)
   usePinchZoom(isMarkdown ? host : pre, ready, 'text')
+  // The reader's typeface and fixation reading, as for books.
+  const style = useTextStyle()
+  useEffect(addReadingFonts, [])
+  useEffect(() => {
+    const el = (isMarkdown ? host : pre).current
+    if (!el || !ready) return
+    el.style.fontFamily = FONTS[style.font].css
+    void (style.fixation ? fixate(el) : unfixate(el))
+  }, [style.font, style.fixation, ready, isMarkdown])
   // A web page is shown in a frame of its own (where nothing of it can run): pinching is listened for inside it.
   const framed = (frame: HTMLIFrameElement) => {
     const page = frame.contentDocument

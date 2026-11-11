@@ -12,6 +12,8 @@ import { canSpeak, useReadAloud } from '../lib/speech'
 import { hasWords, keepWords, type Stretch } from '../lib/library'
 import { FONTS, loadHighlights, saveCover, saveHighlights, setProgress, setTextStyle, textStyleNow, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
 import { onPinch } from '../lib/pinch'
+import { addReadingFonts, fontFaces } from '../lib/fonts'
+import { fixate, fixationCSS, unfixate } from '../lib/fixation'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
   baseName, extensionOf, findInNotes, onGoToPlace, prefersFlip, rememberFlip, sendQuote, tellPlace,
@@ -23,6 +25,7 @@ const bookColours = { light: '#1c1d21', sepia: '#40372b', dark: '#d7dade' } as c
 
 const bookCSS = (theme: Theme, text: TextStyle) => `
   @namespace epub "http://www.idpf.org/2007/ops";
+  ${['dyslexic', 'hyperlegible', 'lexend'].includes(text.font) ? fontFaces() : ''}
   /* The page itself stays see-through, so the panel's themed background shows behind the text. */
   html { color: ${bookColours[theme]}; }
   a:any-link { color: ${theme === 'dark' ? '#8ab4f8' : '#1a56c4'}; }
@@ -31,6 +34,7 @@ const bookCSS = (theme: Theme, text: TextStyle) => `
   p, li, blockquote, dd { line-height: ${text.spacing} !important; text-align: start; hyphens: auto; }
   ${FONTS[text.font].css ? `body, p, li, blockquote, dd, div, span, td { font-family: ${FONTS[text.font].css} !important; }` : ''}
   pre { white-space: pre-wrap !important; }
+  ${fixationCSS}
 `
 
 // CBR, CB7 and CBT comics: libarchive.js unpacks the pages, foliate-js shows them like a CBZ.
@@ -60,6 +64,7 @@ export default function BookView({ file }: { file: File }) {
   const [where, setWhere] = useState({ fraction: 0, label: '', cfi: '' })
   const text = useTextStyle()
   const body = useRef<HTMLDivElement>(null)
+  useEffect(addReadingFonts, [])
   const textAtStart = useRef(text)
   textAtStart.current = text
   const bookmarks = useBookmarks(file.name)
@@ -103,6 +108,7 @@ export default function BookView({ file }: { file: File }) {
     view.addEventListener('load', (e: any) => {
       e.detail.doc.addEventListener('keydown', onKey)
       onPinch(e.detail.doc, pinchText)
+      if (textStyleNow().fixation) void fixate(e.detail.doc.body)
     })
     // Pinching a book makes its words larger or smaller (the pages are set again), as e-readers do.
     let wanted = 0
@@ -187,6 +193,12 @@ export default function BookView({ file }: { file: File }) {
   useEffect(() => {
     viewRef.current?.renderer?.setStyles?.(bookCSS(theme, text))
   }, [theme, text])
+  // Fixation reading, turned on or off: the pages already laid out are changed in place.
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contents: { doc: Document }[] = (viewRef.current as any)?.renderer?.getContents?.() ?? []
+    for (const { doc } of contents) void (text.fixation ? fixate(doc.body) : unfixate(doc.body))
+  }, [text.fixation])
 
   useEffect(() => {
     viewRef.current?.renderer?.setAttribute('flow', scrolled ? 'scrolled' : 'paginated')

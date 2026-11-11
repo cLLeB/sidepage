@@ -6,7 +6,8 @@ import { Tool } from '../ui'
 import { baseName, goToPlace, onPlace, openBookByName, placeNow, sendQuote, type Place } from '../lib/platform'
 import { placeName } from '../lib/library'
 import { usePref } from '../lib/prefs'
-import { askBooks, checkExplanation, glossaryOf, gistOf, timelineOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Check, type Entry, type Kin, type Moment, type Question, type Term } from '../lib/insight'
+import { lazy, Suspense } from 'react'
+import { askBooks, stretchesOf, checkExplanation, glossaryOf, gistOf, timelineOf, kinOf, quizOf, termLinks, termsOf, type Answer, type Check, type Entry, type Kin, type Moment, type Question, type Term } from '../lib/insight'
 
 // The terms of a book drawn as a map: each a dot sized by how often it comes, joined to those it keeps company with.
 function IdeaMap({ terms, onPick }: { terms: Term[]; onPick(term: Term): void }) {
@@ -144,6 +145,29 @@ function TeachBack({ book, term, onGo }: { book: string; term: Term; onGo(to: Pl
   )
 }
 
+const Crossword = lazy(() => import('./Crossword'))
+
+// How hard the page is to read: its school grade and Flesch reading ease, from text-readability.
+const EASE = [[90, 'very easy'], [80, 'easy'], [70, 'fairly easy'], [60, 'plain'], [50, 'fairly hard'], [30, 'hard'], [-Infinity, 'very hard']] as const
+function useReadingLevel(book?: string, place?: string) {
+  const [level, setLevel] = useState<{ grade: number; ease: string; minutes: number } | null>(null)
+  useEffect(() => {
+    setLevel(null)
+    if (!book || !place) return
+    let cancelled = false
+    void (async () => {
+      const [{ default: readability }, stretches] = await Promise.all([import('text-readability'), stretchesOf(book)])
+      const text = stretches.find(stretch => stretch.place === place)?.text ?? ''
+      const words = readability.lexiconCount(text)
+      if (cancelled || words < 80) return
+      const score = readability.fleschReadingEase(text)
+      setLevel({ grade: Math.max(1, Math.round(readability.fleschKincaidGrade(text))), ease: EASE.find(([floor]) => score >= floor)![1], minutes: Math.max(1, Math.round(words / 230)) })
+    })()
+    return () => { cancelled = true }
+  }, [book, place])
+  return level
+}
+
 export default function GuideView() {
   const [here, setHere] = useState<Place | null>(placeNow)
   const [gist, setGist] = useState<string[] | null>(null)
@@ -154,6 +178,7 @@ export default function GuideView() {
   const [showMap, setShowMap] = useState(false)
   const [glossary, setGlossary] = useState<Entry[] | null>(null)
   const [showGlossary, setShowGlossary] = useState(false)
+  const [showCrossword, setShowCrossword] = useState(false)
   const [timeline, setTimeline] = useState<Moment[] | null>(null)
   useEffect(() => {
     setTimeline(null)
@@ -166,11 +191,11 @@ export default function GuideView() {
   const [showTimeline, setShowTimeline] = useState(false)
   useEffect(() => {
     setGlossary(null)
-    if (!showGlossary || !here || !terms?.length) return
+    if ((!showGlossary && !showCrossword) || !here || !terms?.length) return
     let cancelled = false
     void glossaryOf(here.book, terms).then(found => { if (!cancelled) setGlossary(found) })
     return () => { cancelled = true }
-  }, [showGlossary, terms]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showGlossary, showCrossword, terms]) // eslint-disable-line react-hooks/exhaustive-deps
   // The glossary as a table in the notes: term, what it is, and a link to where the book says so.
   const glossaryIntoNotes = () => {
     if (!glossary || !here) return
@@ -180,6 +205,7 @@ export default function GuideView() {
   }
 
   useEffect(() => onPlace(setHere), [])
+  const level = useReadingLevel(here?.book, here?.place)
 
   // The terms belong to the book; they are worked out once for each book opened.
   const book = here?.book
@@ -240,6 +266,7 @@ export default function GuideView() {
     <div className="note guide">
       <Ask onGo={goTo} />
       <p className="eyebrow">{baseName(here.book)} · {placeName(here.place)}</p>
+      {level && <p className="reading-level" title="Flesch Kincaid grade and Flesch reading ease of this page">Reads at about school grade {level.grade} ({level.ease}) · about {level.minutes} min to read</p>}
 
       <section>
         <h3>This page in brief</h3>
@@ -284,6 +311,9 @@ export default function GuideView() {
             {glossary.length > 0 && <Tool icon={NotebookPen} label="Put the glossary in my notes" onClick={glossaryIntoNotes} />}
           </div>
         )}
+        {terms && terms.length > 4 && <button className="soft" onClick={() => setShowCrossword(!showCrossword)}>{showCrossword ? 'Hide the crossword' : 'Make a crossword of these terms'}</button>}
+        {showCrossword && glossary === null && <p className="guide-wait">Finding where the book says what each term is…</p>}
+        {showCrossword && glossary && <Suspense fallback={null}><Crossword entries={glossary} /></Suspense>}
         {picked && (
           <div className="term-places">
             <span>“{picked.term}” is thickest at</span>

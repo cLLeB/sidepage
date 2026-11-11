@@ -58,8 +58,13 @@ export const FONTS = {
   serif: { name: 'Serif', css: "Georgia, 'Times New Roman', serif" },
   sans: { name: 'Sans-serif', css: "system-ui, 'Segoe UI', Roboto, sans-serif" },
   mono: { name: 'Typewriter', css: "'Courier New', ui-monospace, monospace" },
+  // Made for easier reading (see fonts.ts).
+  dyslexic: { name: 'OpenDyslexic (dyslexia)', css: "'OpenDyslexic', sans-serif" },
+  hyperlegible: { name: 'Atkinson Hyperlegible (low vision)', css: "'Atkinson Hyperlegible', sans-serif" },
+  lexend: { name: 'Lexend (easier flow)', css: "'Lexend', sans-serif" },
 } as const
-export type TextStyle = { size: number; spacing: number; font: keyof typeof FONTS }
+// `fixation`: the first letters of each word in bold, to lead the eye along the line (Bionic-style reading).
+export type TextStyle = { size: number; spacing: number; font: keyof typeof FONTS; fixation?: boolean }
 const DEFAULT_TEXT: TextStyle = { size: 100, spacing: 1.6, font: 'book' }
 
 let textStyle: TextStyle = { ...DEFAULT_TEXT, ...JSON.parse(localStorage.getItem('sidepage:text') ?? '{}') }

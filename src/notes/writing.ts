@@ -280,12 +280,63 @@ async function drawDiagram(text: string): Promise<string> {
   }
 }
 
+// More drawn from a few lines of text, each by its own open source project:
+//   plot   (function-plot)   one formula per line, "y = sin(x)", "x^2 - 1": drawn as a graph
+//   smiles (SmilesDrawer)    a molecule written in SMILES, "CC(=O)O": drawn as its structure
+//   calc   (math.js)         one sum per line, "5 cm to inch", "sqrt(2) * 3": each line's answer beside it
+const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+const failed = (what: string, error: unknown) => `<p class="diagram-error">${what}: ${escape(String((error as Error)?.message ?? error).split('\n')[0])}</p>`
+async function drawPlot(text: string, holder: HTMLElement) {
+  const loaded = await import('function-plot') as unknown as { default: typeof import('function-plot').default | { default: typeof import('function-plot').default } }
+  // A CommonJS module: its function may come wrapped once more.
+  const functionPlot = typeof loaded.default === 'function' ? loaded.default : loaded.default.default
+  const formulas = text.split('\n').map(line => line.replace(/^\s*(y|f\(x\))\s*=\s*/i, '').trim()).filter(line => line && !line.startsWith('#'))
+  const width = Math.min(560, Math.max(260, (document.querySelector('.milkdown')?.clientWidth ?? 520) - 40))
+  try {
+    functionPlot({ target: holder, width, height: Math.round(width * 0.62), grid: true, data: formulas.map(fn => ({ fn, graphType: 'polyline' as const })) })
+  } catch (error) { holder.innerHTML = failed('This graph has a mistake in it', error) }
+}
+async function drawMolecule(text: string, holder: HTMLElement) {
+  const { default: SmilesDrawer } = await import('smiles-drawer')
+  for (const smiles of text.split('\n').map(line => line.trim()).filter(Boolean)) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('class', 'molecule')
+    holder.append(svg)
+    const drawer = new SmilesDrawer.SvgDrawer({ width: 320, height: 220, bondThickness: 1.2 })
+    await new Promise<void>(resolve => SmilesDrawer.parse(smiles,
+      tree => { drawer.draw(tree, svg, currentTheme() === 'dark' ? 'dark' : 'light'); resolve() },
+      error => { svg.remove(); holder.insertAdjacentHTML('beforeend', failed(`“${escape(smiles)}” is not a molecule Sidepage can read`, error)); resolve() }))
+  }
+}
+async function drawSums(text: string, holder: HTMLElement) {
+  const { create, all } = await import('mathjs')
+  const math = create(all)
+  const scope = {}
+  const rows = text.split('\n').filter(line => line.trim()).map(line => {
+    if (line.trim().startsWith('#')) return `<tr><td colspan="2" class="sum-note">${escape(line.replace(/^\s*#\s*/, ''))}</td></tr>`
+    try {
+      return `<tr><td>${escape(line)}</td><td class="sum-answer">= ${escape(math.format(math.evaluate(line, scope), { precision: 10 }))}</td></tr>`
+    } catch (error) {
+      return `<tr><td>${escape(line)}</td><td><span class="sum-error">${escape(String((error as Error).message))}</span></td></tr>`
+    }
+  })
+  holder.innerHTML = `<table class="sums">${rows.join('')}</table>`
+}
+const DRAWN: Record<string, (text: string, holder: HTMLElement) => Promise<void>> = { plot: drawPlot, smiles: drawMolecule, calc: drawSums }
+
 export function addLooks(crepe: Crepe) {
   crepe.editor
     .config(ctx => {
       ctx.update(codeBlockConfig.key, previous => ({
         ...previous,
         renderPreview: (language, content, applyPreview) => {
+          const drawer = DRAWN[language.toLowerCase()]
+          if (drawer && content.trim()) {
+            const holder = document.createElement('div')
+            holder.className = `diagram drawn-${language.toLowerCase()}`
+            void drawer(content, holder).catch(error => { holder.innerHTML = failed('This could not be drawn', error) }).then(() => applyPreview(holder))
+            return null
+          }
           if (language.toLowerCase() !== 'mermaid' || !content.trim()) return previous.renderPreview(language, content, applyPreview)
           void drawDiagram(content).then(svg => {
             const holder = document.createElement('div')

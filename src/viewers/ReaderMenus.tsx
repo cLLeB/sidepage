@@ -128,6 +128,10 @@ export function TextMenu() {
           {(Object.keys(FONTS) as (keyof typeof FONTS)[]).map(key => <option key={key} value={key}>{FONTS[key].name}</option>)}
         </select>
       </label>
+      <label className="menu-row stay" title="The first letters of each word in bold, to lead your eye along the line">
+        Bold word starts
+        <input type="checkbox" checked={!!text.fixation} onChange={e => setTextStyle({ fixation: e.target.checked })} />
+      </label>
     </Menu>
   )
 }
