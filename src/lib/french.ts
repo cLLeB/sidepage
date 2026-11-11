@@ -835,6 +835,8 @@ export const FRENCH: Record<string, string> = {
   'No article could be found on that page.': 'Aucun article trouvé sur cette page.',
   // ── Panels ──
   // ── Link devices, speed reading, reading aids, drawings in notes, crossword, e-book ──
+  'Earlier chats': 'Conversations précédentes',
+  'Earlier chats about this book': 'Conversations précédentes sur ce livre',
   'Link devices': 'Relier mes appareils',
   "Link your phone or tablet with your computer: ask the computer's AI from the phone, send books and notes across": 'Reliez votre téléphone ou tablette à votre ordinateur : interrogez l’IA de l’ordinateur depuis le téléphone, envoyez livres et notes de l’un à l’autre',
   'Link devices: phone or tablet with computer': 'Relier mes appareils : téléphone ou tablette avec l’ordinateur',

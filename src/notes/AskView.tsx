@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import 'katex/dist/katex.min.css'
 import { ArrowUp, Check, Copy, ExternalLink, KeyRound, Laptop, NotebookPen, RotateCcw, Square } from 'lucide-react'
 import type { ModelMessage } from 'ai'
-import { baseName, onPlace, openOutside, placeNow, sendQuote } from '../lib/platform'
+import { baseName, loadNote, onPlace, openOutside, placeNow, saveNote, sendQuote } from '../lib/platform'
+import { uiLocale } from '../lib/language'
 import { placeName } from '../lib/library'
 import { usePref } from '../lib/prefs'
 import { useLink } from '../lib/link'
@@ -10,10 +11,36 @@ import { aiPossible as appOnThisDevice, bookText, installedTools, prepareBook, r
 import { askDirect, connect, connected, connection, OWN_APPS, pageToPaste, plainError, SERVICES, type Connection, type Service } from '../lib/directai'
 
 type Message = { from: 'reader' | 'ai'; text: string; status?: string; error?: boolean; done?: boolean }
-// `session` carries on a conversation with an AI app; `history` one with an AI reached with a key.
-type Chat = { messages: Message[]; session: string; history: ModelMessage[] }
-// Each book keeps its own conversation while the app is open.
-const chats = new Map<string, Chat>()
+// `session` carries on a conversation with an AI app (Claude Code resumes it: it remembers what was said);
+// `history` one with an AI reached with a key. `started` names the chat in the list of earlier ones.
+type Chat = { id: string; started: string; messages: Message[]; session: string; history: ModelMessage[] }
+const newChat = (): Chat => ({ id: Date.now().toString(36), started: new Date().toISOString(), messages: [], session: '', history: [] })
+
+// Each book's conversations are kept with its notes (ai-chats.json), the latest last, so closing Sidepage loses
+// nothing: the book opens again on its latest chat, and earlier ones can be brought back.
+const CHATS_FILE = 'ai-chats.json'
+const KEEP = 40
+async function loadChats(book: string): Promise<Chat[]> {
+  try { return JSON.parse((await loadNote(baseName(book), CHATS_FILE)) ?? '[]') as Chat[] } catch { return [] }
+}
+// Pictures sent along with a question are left out: they are large, and the answers say what they showed.
+const storable = (chat: Chat): Chat => ({
+  ...chat,
+  messages: chat.messages.map(message => ({ ...message, status: undefined })),
+  history: chat.history.map(message => message.role === 'user' && Array.isArray(message.content)
+    ? { ...message, content: message.content.filter(part => part.type !== 'image') } as ModelMessage : message),
+})
+async function saveChat(book: string, chat: Chat) {
+  if (!chat.messages.length) return
+  const all = (await loadChats(book)).filter(other => other.id !== chat.id)
+  await saveNote(baseName(book), CHATS_FILE, JSON.stringify([...all, storable(chat)].slice(-KEEP)))
+}
+// A chat's name in the list: its first question, and when it began.
+const chatName = (chat: Chat) => {
+  const first = chat.messages.find(message => message.from === 'reader')?.text.replace(/\s+/g, ' ') ?? ''
+  const when = new Date(chat.started).toLocaleDateString(uiLocale(), { day: 'numeric', month: 'short' })
+  return `${when} · ${first.length > 48 ? `${first.slice(0, 48)}…` : first}`
+}
 
 // An answer written in Markdown, made safe before it is shown (it comes from outside the app).
 function Answer({ text }: { text: string }) {
@@ -124,7 +151,7 @@ export default function AskView() {
   const [tools, setTools] = useState<Tool[] | null>(null)
   const [tool, setTool] = usePref<Tool>('ai-tool', 'claude')
   const [ready, setReady] = useState<boolean | null>(null)
-  const [chat, setChat] = useState<Chat>({ messages: [], session: '', history: [] })
+  const [chat, setChat] = useState<Chat>(newChat)
   // With the AI's app on this computer, or with a key (the only way on phones, tablets and the web).
   const [via, setVia] = usePref<'app' | 'key'>('ai-via', 'app')
   // The AI's app: on this computer, or on the reader's computer linked to this phone or tablet.
@@ -142,8 +169,29 @@ export default function AskView() {
   const book = here?.book ?? ''
 
   useEffect(() => onPlace(setHere), [])
-  useEffect(() => { setChat(chats.get(book) ?? { messages: [], session: '', history: [] }) }, [book])
-  useEffect(() => { if (book) chats.set(book, chat) }, [book, chat])
+  // The book's chats: the latest is shown again when the book opens.
+  const [earlier, setEarlier] = useState<Chat[]>([])
+  const shownFor = useRef('')
+  useEffect(() => {
+    shownFor.current = ''
+    setChat(newChat())
+    setEarlier([])
+    if (!book) return
+    let cancelled = false
+    void loadChats(book).then(all => {
+      if (cancelled) return
+      setEarlier(all)
+      if (all.length) setChat(all[all.length - 1])
+      shownFor.current = book
+    })
+    return () => { cancelled = true }
+  }, [book])
+  // Kept as it changes, a moment after each change (so after an answer is written, not at every word).
+  useEffect(() => {
+    if (!book || shownFor.current !== book || !chat.messages.length) return
+    const timer = setTimeout(() => void saveChat(book, chat).then(() => loadChats(book)).then(setEarlier), 700)
+    return () => clearTimeout(timer)
+  }, [book, chat])
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [chat])
 
   const look = async () => {
@@ -164,7 +212,7 @@ export default function AskView() {
     let messages = [...chat.messages, asked, answer]
     let session = chat.session
     let history = chat.history
-    const show = () => setChat({ messages: [...messages], session, history })
+    const show = () => setChat({ ...chat, messages: [...messages], session, history })
     const change = (patch: Partial<Message>) => { messages = [...messages.slice(0, -1), { ...messages.at(-1)!, ...patch }]; show() }
     show()
     if (withKey) {
@@ -211,7 +259,7 @@ export default function AskView() {
     setBusy(false)
   }
 
-  const fresh = () => setChat({ messages: [], session: '', history: [] })
+  const fresh = () => setChat(newChat())
   const useApp = aiPossible ? () => { setVia('app'); setChanging(false); fresh() } : undefined
   if (withKey && (changing || !connected(linked))) {
     return <Connect book={book} place={here?.place ?? ''} onDone={value => { setLinked(value); setChanging(false); fresh() }} onCancel={changing && connected(linked) ? () => setChanging(false) : undefined} onApp={useApp} />
@@ -255,6 +303,13 @@ export default function AskView() {
         {aiPossible && <button className="soft" disabled={busy} onClick={() => { setVia('key'); fresh() }}>Use a key</button>}
         </>}
         <span className="ai-spacer" />
+        {earlier.length > 1 && (
+          <select className="ai-earlier" aria-label="Earlier chats" title="Earlier chats about this book" disabled={busy} value={chat.id}
+            onChange={e => { const picked = earlier.find(other => other.id === e.target.value); if (picked) setChat(picked) }}>
+            {!earlier.some(other => other.id === chat.id) && <option value={chat.id}>New chat</option>}
+            {[...earlier].reverse().map(other => <option key={other.id} value={other.id}>{chatName(other)}</option>)}
+          </select>
+        )}
         {chat.messages.length > 0 && <button className="soft" disabled={busy} onClick={fresh}>New chat</button>}
       </div>
 

@@ -1364,3 +1364,4 @@ button.viewer-pos { font-weight: 500; }
 .crossword-clues i { color: var(--muted); font-style: normal; }
 .crossword-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .crossword-score { font-size: 13px; color: var(--muted); }
+.ai-bar .ai-earlier { max-width: min(240px, 38vw); text-overflow: ellipsis; }

@@ -99,7 +99,13 @@ When several are installed, choose which one at the top of the Ask AI panel. To 
 
 The panel shows what the AI is doing (**Searching the book for "Péclet"…**, **Reading the book…**), then the answer as it is written. Formulas, lists and tables are shown properly. Answers name the pages they come from, such as (p. 17).
 
-The AI knows which page you are on, so "explain this page" just works. Ask follow up questions: it remembers the conversation. Click **New chat** to start over. Each book keeps its own conversation while Sidepage is open.
+The AI knows which page you are on, so "explain this page" just works. Ask follow up questions: it remembers the conversation. Click **New chat** to start over.
+
+## Your chats are kept
+
+Each book keeps its chats, saved with its notes. Close Sidepage, open the book again, open **Ask AI**: your latest chat is there, and you can go on asking where you stopped (the AI remembers it too).
+
+To go back to an earlier chat about the book, pick it in the list at the top of the panel (each is named by its date and first question). Up to 40 chats are kept per book. They are part of [backups](/data/backup) and of **Save as one file**, and they travel with a book you [send to your other device](/data/link-devices).
 
 To stop an answer, click **■** in the question box.
 
