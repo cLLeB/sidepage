@@ -1,6 +1,6 @@
 [package]
 name = "sidepage"
-version = "0.37.1"
+version = "0.37.2"
 description = "Read books, documents and slides with your notes alongside"
 authors = ["cLLeB"]
 license = "GPL-3.0-or-later"
@@ -28,6 +28,11 @@ tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+
+# On Windows, to turn off the web view's own pinch zoom (Sidepage zooms the page itself).
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows = "0.62"
 
 # Keep the installed app small.
 [profile.release]

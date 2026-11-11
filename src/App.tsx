@@ -31,7 +31,7 @@ import { BACKUP_EXTENSION, packBackup, restoreBackup } from './lib/backup'
 import { addReadingTime, addSpent, asTime } from './lib/reading'
 
 // The panels float a little apart, each a sheet of its own.
-const PANELS: DockviewTheme = { name: 'sidepage', className: 'dockview-theme-light', gap: 8, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
+const PANELS: DockviewTheme = { name: 'sidepage', className: 'dockview-theme-light', gap: 4, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
 // Reading side by side: the books meet with a hairline between them.
 const PANELS_READING: DockviewTheme = { ...PANELS, name: 'sidepage-reading', gap: 2 }
 

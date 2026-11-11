@@ -64,6 +64,16 @@ async function picturesOf(page: pdfjs.PDFPageProxy, viewport: pdfjs.PageViewport
   return cut
 }
 
+// The page made as wide as its column, less a sliver at each side: PDF.js's own fit to the width keeps some forty
+// points free for a scrollbar, which shows as a wide empty margin beside the page.
+function fillWidth(viewer: PDFViewer, column: HTMLElement, room = 6) {
+  const view = viewer.getPageView(Math.max(0, viewer.currentPageNumber - 1))
+  const width = column.clientWidth - room * 2
+  if (!view || width <= 0) return void (viewer.currentScaleValue = 'page-width')
+  const widthAtOne = view.viewport.width / viewer.currentScale
+  if (widthAtOne) viewer.currentScale = width / widthAtOne
+}
+
 export default function PdfView({ file }: { file: File }) {
   const theme = useTheme()
   const container = useRef<HTMLDivElement>(null)
@@ -299,7 +309,7 @@ export default function PdfView({ file }: { file: File }) {
   }
   const fitWidth = () => {
     fitted.current = true
-    if (viewerRef.current?.pdfDocument) viewerRef.current.currentScaleValue = 'page-width'
+    if (viewerRef.current?.pdfDocument && container.current) fillWidth(viewerRef.current, container.current)
   }
 
   useEffect(() => {
@@ -344,7 +354,7 @@ export default function PdfView({ file }: { file: File }) {
       wrapper.append(pictures)
     })
     eventBus.on('pagesinit', () => {
-      viewer.currentScaleValue = 'page-width'
+      fillWidth(viewer, container.current!)
       // Reopen where the reader left off.
       const saved = Number(localStorage.getItem(placeKey))
       if (saved > 1 && saved <= viewer.pagesCount) viewer.currentPageNumber = saved
@@ -371,7 +381,7 @@ export default function PdfView({ file }: { file: File }) {
     const onReading = () => {
       if (!viewer.pdfDocument) return
       if (reading()) fillColumn()
-      else if (fitted.current) viewer.currentScaleValue = 'page-width'
+      else if (fitted.current) fillWidth(viewer, container.current!)
     }
     window.addEventListener('sidepage:reading', onReading)
     // While the divider is dragged the pages are only stretched to the new width (smooth, nothing drawn again);
@@ -386,7 +396,7 @@ export default function PdfView({ file }: { file: File }) {
       if (reading()) return fillColumn()
       if (fitted.current || (page && page.offsetWidth > width - 8)) {
         fitted.current = true
-        viewer.currentScaleValue = 'page-width'
+        fillWidth(viewer, container.current!)
       }
       widthDrawn = 0
     }

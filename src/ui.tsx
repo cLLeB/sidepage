@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 // One control in a toolbar: an icon with its name beside it. Where the bar is short of room the name drops
@@ -42,6 +42,20 @@ export function Menu({ icon, label, hint, quiet, on, opener, children }: {
 }) {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
+  // Opened beside the edge of a narrow panel, the menu would run off the window: it is moved back inside it, and
+  // scrolls when taller than the room below.
+  const panel = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const menu = panel.current
+    if (!open || !menu) return
+    menu.style.translate = ''
+    menu.style.maxHeight = ''
+    const box = menu.getBoundingClientRect()
+    const edge = 8
+    const shift = box.left < edge ? edge - box.left : box.right > innerWidth - edge ? innerWidth - edge - box.right : 0
+    if (shift) menu.style.translate = `${Math.round(shift)}px 0`
+    if (box.bottom > innerHeight - edge) { menu.style.maxHeight = `${Math.max(160, innerHeight - edge - box.top)}px`; menu.style.overflowY = 'auto' }
+  }, [open])
   useEffect(() => {
     if (!opener) return
     const show = () => setOpen(true)
@@ -53,7 +67,7 @@ export function Menu({ icon, label, hint, quiet, on, opener, children }: {
       <Tool icon={icon} label={label} hint={hint} quiet={quiet} on={on || open} onClick={() => setOpen(!open)} />
       {open && <>
         <div className="menu-backdrop" onClick={close} />
-        <div className="menu" onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) close() }}>
+        <div ref={panel} className="menu" onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) close() }}>
           {typeof children === 'function' ? children(close) : children}
         </div>
       </>}

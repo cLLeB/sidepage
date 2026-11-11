@@ -102,6 +102,25 @@ pub fn run() {
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_opener::init())
     .invoke_handler(handlers())
+    .setup(|_app| {
+      // A pinch on a Windows touchpad or touch screen would otherwise magnify the whole window (the web view's own
+      // pinch zoom) and cut its edges off: Sidepage zooms the page under the fingers itself (see src/lib/pinch.ts).
+      #[cfg(windows)]
+      if let Some(window) = _app.get_webview_window("main") {
+        let _ = window.with_webview(|webview| unsafe {
+          use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings5;
+          use windows::core::Interface;
+          if let Ok(core) = webview.controller().CoreWebView2() {
+            if let Ok(settings) = core.Settings() {
+              if let Ok(settings) = settings.cast::<ICoreWebView2Settings5>() {
+                let _ = settings.SetIsPinchZoomEnabled(false);
+              }
+            }
+          }
+        });
+      }
+      Ok(())
+    })
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
     .run(|_app, _event| {
