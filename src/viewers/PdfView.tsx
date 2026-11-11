@@ -1,4 +1,4 @@
-import { onPinch } from '../lib/pinch'
+import { keepUnder, onPinch, stretch, unstretch } from '../lib/pinch'
 import { useEffect, useRef, useState } from 'react'
 import * as pdfjs from 'pdfjs-dist'
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
@@ -374,29 +374,54 @@ export default function PdfView({ file }: { file: File }) {
       else if (fitted.current) viewer.currentScaleValue = 'page-width'
     }
     window.addEventListener('sidepage:reading', onReading)
-    const resize = new ResizeObserver(() => {
+    // While the divider is dragged the pages are only stretched to the new width (smooth, nothing drawn again);
+    // they are drawn again at their new size once the dragging stops.
+    const pages = () => container.current?.querySelector<HTMLElement>('.pdfViewer')
+    let settled = 0, widthDrawn = 0
+    const refit = () => {
       const width = container.current?.clientWidth ?? 0
-      if (!viewer.pdfDocument || !width || Math.abs(width - lastWidth) < 2) return
-      lastWidth = width
-      if (reading()) return fillColumn()
       const page = container.current?.querySelector<HTMLElement>('.page')
+      const held = pages()
+      if (held) unstretch(held)
+      if (reading()) return fillColumn()
       if (fitted.current || (page && page.offsetWidth > width - 8)) {
         fitted.current = true
         viewer.currentScaleValue = 'page-width'
       }
+      widthDrawn = 0
+    }
+    const resize = new ResizeObserver(() => {
+      const width = container.current?.clientWidth ?? 0
+      if (!viewer.pdfDocument || !width || Math.abs(width - lastWidth) < 2) return
+      if (!lastWidth) { lastWidth = width; return refit() }
+      if (!widthDrawn) widthDrawn = lastWidth
+      lastWidth = width
+      const held = pages()
+      if (held && (fitted.current || reading())) {
+        const box = container.current!.getBoundingClientRect()
+        stretch(held, width / widthDrawn, { x: box.left, y: box.top })
+      }
+      clearTimeout(settled)
+      settled = window.setTimeout(refit, 160)
     })
     resize.observe(container.current!)
     const stopReading = () => window.removeEventListener('sidepage:reading', onReading)
 
-    // Pinching the page zooms it: two fingers on the screen or the touchpad, or Ctrl and the wheel. The page is
-    // drawn again only once the zoom has changed enough to see, so a pinch stays smooth.
+    // Pinching the page zooms it: two fingers on the screen or the touchpad, or Ctrl and the wheel. While the
+    // fingers move, the pages drawn already are stretched (smooth); they are drawn again, sharp, when they lift.
     const surface = container.current!
-    let wanted = 0
-    const stopPinch = onPinch(surface, factor => {
-      if (!viewer.pdfDocument) return
-      fitted.current = false
-      wanted = Math.max(0.3, Math.min(5, (wanted || viewer.currentScale) * factor))
-      if (Math.abs(wanted - viewer.currentScale) / viewer.currentScale > 0.04) { viewer.currentScale = wanted; wanted = 0 }
+    const limit = (scale: number) => Math.max(0.3, Math.min(5, viewer.currentScale * scale)) / viewer.currentScale
+    const stopPinch = onPinch(surface, {
+      move: (scale, at) => { const held = pages(); if (viewer.pdfDocument && held) stretch(held, limit(scale), at) },
+      end: (scale, at) => {
+        const held = pages()
+        if (held) unstretch(held)
+        if (!viewer.pdfDocument || scale === 1) return
+        fitted.current = false
+        const ratio = limit(scale)
+        viewer.currentScale = viewer.currentScale * ratio
+        keepUnder(surface, ratio, at)
+      },
     })
 
     let task: pdfjs.PDFDocumentLoadingTask | undefined

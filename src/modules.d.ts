@@ -11,3 +11,7 @@ declare module 'text-readability' {
   export default readability
 }
 declare module 'crossword-layout-generator'
+declare module 'text-readability/easy_words.js' {
+  const words: string[]
+  export default words
+}

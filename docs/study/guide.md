@@ -25,7 +25,7 @@ A short quiz on the page: each question leaves out one of the book's key terms, 
 
 ## What this book turns on
 
-The book's key terms, the larger the more the book uses them. Click a term to see:
+The book's key terms, the larger the more the book uses them. Everyday words ("flow", "distance", "pressure") are left out in favour of the words particular to the book ("diffusion", "laminar flow", "viscosity"), so the quiz and the crossword ask about what the book really teaches. Click a term to see:
 
 - the pages where it is thickest, with how often it comes up (**p. 12 · 8×**); click one to go there;
 - **Teach it back**: explain the term in your own words without looking, then click **Check my explanation**. Sidepage shows what share of the book's key ideas on it you brought in (**You brought in**), what the book also speaks of that you left out (**The book also speaks of**), and the passage where the book explains it.

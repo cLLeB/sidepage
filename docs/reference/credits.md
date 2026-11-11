@@ -53,6 +53,7 @@ Sidepage is free and open source under the GPL-3.0 licence. Its source is at [gi
 | Graphs and maps | [force-graph](https://github.com/vasturiano/force-graph) | MIT |
 | Reading level | [text-readability](https://github.com/cdimascio/text-readability) | ISC |
 | Crosswords | [crossword-layout-generator](https://github.com/MichaelWehar/Crossword-Layout-Generator) | MIT |
+| Telling a book's own terms from everyday words | [SUBTLEX-US](https://www.ugent.be/pp/experimentele-psychologie/en/research/documents/subtlexus) word frequencies, through [subtlex-word-frequencies](https://github.com/words/subtlex-word-frequencies), and the Dale-Chall word list | ISC |
 | Ask AI with a key | [AI SDK](https://github.com/vercel/ai) | Apache-2.0 |
 
 ## The app

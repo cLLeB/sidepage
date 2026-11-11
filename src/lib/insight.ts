@@ -1,5 +1,6 @@
 import { shelf } from './platform'
 import type { Stretch } from './library'
+import easyWords from 'text-readability/easy_words.js'
 
 // A study guide worked out from the words of the books themselves, on this device, with no service asked:
 // the gist of a page, the terms a book turns on, and the places in your other books that speak of the same
@@ -129,6 +130,32 @@ export async function gistOf(book: string, place: string, howMany = 3): Promise<
 
 // ── The terms a book turns on, each with the places it is thickest ──
 export type Term = { term: string; count: number; places: { place: string; count: number }[]; everywhere: string[] }
+// Everyday words say little about what a book is about: "flow", "force", "distance". The words particular to it
+// ("diffusion", "laminar", "Reynolds") are its real terms, and the ones worth testing yourself on. How everyday a
+// word is comes from how often people say it: the 8,000 most frequent words of SUBTLEX-US, film and television
+// subtitles (via subtlex-word-frequencies; common-words.json, most frequent first), and the Dale-Chall list of
+// words most schoolchildren know (text-readability).
+const rankOf = new Map<string, number>()
+export async function loadEveryday() {
+  if (rankOf.size) return
+  const { default: words } = await import('./common-words.json')
+  ;(words as string[]).forEach((word, i) => { if (!rankOf.has(stem(word))) rankOf.set(stem(word), i + 1) })
+  for (const word of easyWords as string[]) if (!rankOf.has(stem(word.toLowerCase()))) rankOf.set(stem(word.toLowerCase()), 3000)
+}
+// How everyday a word is, from 1 (said all the time) to 0 (particular to a subject).
+const commonness = (word: string) => {
+  if (STOP.has(word)) return 1
+  const rank = rankOf.get(stem(word))
+  return !rank ? 0 : rank <= 3000 ? 1 : rank <= 6000 ? 0.6 : 0.25
+}
+// A term is everyday when every word of it is common: such terms are never asked about.
+export const everyday = (term: string) => term.toLowerCase().split(' ').every(word => commonness(word) >= 0.6)
+// How much a term counts among the book's terms: the more particular its words, the more.
+const particular = (term: string) => {
+  const words = term.toLowerCase().split(' ')
+  const common = words.reduce((sum, word) => sum + commonness(word), 0) / words.length
+  return 1 - 0.92 * common
+}
 // Worked out once per book (and again only if its words change), since cards and the guide both ask often.
 const knownTerms = new Map<string, { size: number; terms: Term[] }>()
 export async function termsOf(book: string, howMany = 36): Promise<Term[]> {
@@ -140,6 +167,7 @@ export async function termsOf(book: string, howMany = 36): Promise<Term[]> {
   return terms
 }
 async function workOutTerms(book: string, howMany: number): Promise<Term[]> {
+  await loadEveryday()
   const all = await stretchesOf(book)
   if (!all.length) return []
   const tokens = all.map(stretch => wordsOf(stretch.text))
@@ -168,7 +196,9 @@ async function workOutTerms(book: string, howMany: number): Promise<Term[]> {
     .map(([term, count]) => {
       // Often said, but not everywhere: said thickly in some places. Pairs are worth more than single words.
       const share = (spread.get(term) ?? 1) / all.length
-      return { term, count, score: count * Math.log(1 + 1 / (share + 0.02)) * (term.includes(' ') ? 2.2 : 1) }
+      // Everyday words count for little; a pair with one everyday word ("laminar flow") still counts well.
+      const special = particular(term)
+      return { term, count, score: count * Math.log(1 + 1 / (share + 0.02)) * (term.includes(' ') ? 2.2 : 1) * special }
     })
     .sort((a, b) => b.score - a.score)
   // A pair makes its two words redundant on their own.
@@ -231,7 +261,9 @@ export async function kinOf(book: string, place: string, most = 6): Promise<Kin[
 export type Question = { before: string; after: string; answer: string; choices: string[] }
 export async function quizOf(book: string, place: string, terms: Term[], most = 4): Promise<Question[]> {
   const sentences = await gistOf(book, place, 8)
-  const names = terms.map(term => term.term.toLowerCase())
+  // Only the book's own terms are taken out to test: never an everyday word.
+  await loadEveryday()
+  const names = terms.map(term => term.term.toLowerCase()).filter(name => !everyday(name))
   const questions: Question[] = []
   for (const sentence of sentences) {
     if (questions.length >= most) break

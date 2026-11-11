@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { onPinch } from '../lib/pinch'
+import { onPinch, textPinch } from '../lib/pinch'
 import { FONTS, setTextStyle, textStyleNow, useTextStyle } from '../lib/reading'
 import { addReadingFonts } from '../lib/fonts'
 import { fixate, unfixate } from '../lib/fixation'
@@ -36,19 +36,14 @@ export default function TextView({ file }: { file: File }) {
   useEffect(() => {
     const el = (isMarkdown ? host : pre).current
     if (!el || !ready) return
-    let wanted = 0
-    return onPinch(el, factor => {
-      const size = textStyleNow().size
-      wanted = (wanted || size) * factor
-      if (Math.abs(wanted - size) >= 5) { setTextStyle({ size: Math.round(wanted) }); wanted = 0 }
-    })
+    return onPinch(el, textPinch(() => el.firstElementChild as HTMLElement ?? el, scale => setTextStyle({ size: Math.round(textStyleNow().size * scale) })))
   }, [ready, isMarkdown])
   // A web page is shown in a frame of its own (where nothing of it can run): pinching is listened for inside it.
   const framed = (frame: HTMLIFrameElement) => {
     const page = frame.contentDocument
     if (!page) return
     let zoom = 1
-    onPinch(page, factor => { zoom = Math.max(0.4, Math.min(5, zoom * factor)); page.documentElement.style.zoom = String(zoom) })
+    onPinch(page, textPinch(() => page.body, scale => { zoom = Math.max(0.4, Math.min(5, zoom * scale)); page.documentElement.style.zoom = String(zoom) }))
   }
 
   useEffect(() => {

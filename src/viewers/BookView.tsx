@@ -11,7 +11,7 @@ import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMen
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { hasWords, keepWords, type Stretch } from '../lib/library'
 import { FONTS, loadHighlights, saveCover, saveHighlights, setProgress, setTextStyle, textStyleNow, useBookmarks, useTextStyle, type TextStyle } from '../lib/reading'
-import { onPinch } from '../lib/pinch'
+import { onPinch, textPinch } from '../lib/pinch'
 import { addReadingFonts, fontFaces } from '../lib/fonts'
 import { fixate, fixationCSS, unfixate } from '../lib/fixation'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
@@ -107,17 +107,13 @@ export default function BookView({ file }: { file: File }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     view.addEventListener('load', (e: any) => {
       e.detail.doc.addEventListener('keydown', onKey)
-      onPinch(e.detail.doc, pinchText)
+      onPinch(e.detail.doc, textPinch(() => host.current, resizeText, () => (e.detail.doc as Document).defaultView?.frameElement))
       if (textStyleNow().fixation) void fixate(e.detail.doc.body)
     })
-    // Pinching a book makes its words larger or smaller (the pages are set again), as e-readers do.
-    let wanted = 0
-    const pinchText = (factor: number) => {
-      const size = textStyleNow().size
-      wanted = (wanted || size) * factor
-      if (Math.abs(wanted - size) >= 5) { setTextStyle({ size: Math.round(wanted) }); wanted = 0 }
-    }
-    const stopPinch = body.current ? onPinch(body.current, pinchText) : () => {}
+    // Pinching a book makes its words larger or smaller (the pages are set again once the fingers lift), as
+    // e-readers do.
+    const resizeText = (scale: number) => setTextStyle({ size: Math.round(textStyleNow().size * scale) })
+    const stopPinch = body.current ? onPinch(body.current, textPinch(() => host.current, resizeText)) : () => {}
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') view.goLeft()
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') view.goRight()

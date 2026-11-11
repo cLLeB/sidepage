@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Entry } from '../lib/insight'
+import { everyday, loadEveryday, type Entry } from '../lib/insight'
 
 // A crossword made from the book's own glossary: each answer one of its key terms, each clue the sentence where the
 // book says what it is (with the term taken out). The fitting of words into a grid is crossword-layout-generator's.
 type Placed = { clue: string; answer: string; startx: number; starty: number; orientation: 'across' | 'down' | 'none'; position: number }
 type Layout = { rows: number; cols: number; result: Placed[] }
+
+// How long each word of an answer is, for its clue ("7, 4" for laminar flow).
+const lengthsOf = new Map<string, string>()
 
 function clueOf(entry: Entry) {
   const term = entry.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -21,13 +24,22 @@ export default function Crossword({ entries }: { entries: Entry[] }) {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      // Single words of three to twelve letters make a fair grid; the rest are left out.
+      await loadEveryday()
+      // The answers are the book's own terms, never everyday words ("flow", "force"): words of four to fifteen
+      // letters, or two-word terms ("laminar flow") written together, as printed crosswords do, with their
+      // lengths shown (7, 4). A clue is a real sentence: one that ends as sentences do and keeps enough words once
+      // the term is out.
       const words = entries
-        // A clue is a real sentence: one that ends as sentences do and keeps enough words once the term is out.
-        .filter(entry => /^[\p{L}]{3,12}$/u.test(entry.term) && entry.meaning.toLowerCase().includes(entry.term.toLowerCase())
-          && /[.!?]$/.test(entry.meaning.trim()) && (clueOf(entry).match(/\b[a-z][a-z'-]+\b/g) ?? []).length >= 6)
+        .filter(entry => {
+          const letters = entry.term.replace(/\s+/g, '')
+          return /^[\p{L} ]+$/u.test(entry.term) && letters.length >= 4 && letters.length <= 15 && entry.term.split(' ').length <= 2 && !everyday(entry.term)
+            && entry.meaning.toLowerCase().includes(entry.term.toLowerCase())
+            && /[.!?]$/.test(entry.meaning.trim()) && (clueOf(entry).match(/\b[a-z][a-z'-]+\b/g) ?? []).length >= 6
+        })
         .slice(0, 14)
-        .map(entry => ({ answer: entry.term.toLowerCase(), clue: clueOf(entry) }))
+        .map(entry => ({ answer: entry.term.toLowerCase().replace(/\s+/g, ''), clue: clueOf(entry), lengths: entry.term.split(' ').map(word => word.length).join(', ') }))
+      lengthsOf.clear()
+      for (const word of words) lengthsOf.set(word.answer, word.lengths)
       if (words.length < 3) return setLayout({ rows: 0, cols: 0, result: [] })
       const { generateLayout } = await import('crossword-layout-generator') as unknown as { generateLayout(words: { answer: string; clue: string }[]): Layout }
       const made = generateLayout(words)
@@ -92,7 +104,7 @@ export default function Crossword({ entries }: { entries: Entry[] }) {
         {(['across', 'down'] as const).map(way => clues(way).length > 0 && (
           <div key={way}>
             <h4>{way === 'across' ? 'Across' : 'Down'}</h4>
-            <ol>{clues(way).map(word => <li key={way + word.position} value={word.position}>{word.clue} <i>({word.answer.length})</i></li>)}</ol>
+            <ol>{clues(way).map(word => <li key={way + word.position} value={word.position}>{word.clue} <i>({lengthsOf.get(word.answer) ?? word.answer.length})</i></li>)}</ol>
           </div>
         ))}
       </div>
