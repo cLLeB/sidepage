@@ -19,6 +19,10 @@ on:
         description: Build only the Android APK
         type: boolean
         default: false
+      test_only:
+        description: Keep the Android build as a download of this run, not on a release (for testing on a device first)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -137,5 +141,12 @@ jobs:
           jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore sidepage.jks -storepass:env KEYSTORE_PASSWORD -keypass:env KEYSTORE_PASSWORD \
             -signedjar "Sidepage_${TAG#v}_play.aab" "$aab" sidepage
           rm sidepage.jks
+          if [ "${{ inputs.test_only }}" = "true" ]; then exit 0; fi
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Sidepage $TAG" --notes ""
           gh release upload "$TAG" "Sidepage_${TAG#v}_android.apk" "Sidepage_${TAG#v}_play.aab" --clobber
+      - if: ${{ inputs.test_only }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test
+          path: Sidepage_*_android.apk
+          retention-days: 7
