@@ -64,7 +64,7 @@ export default function SpeedRead({ onClose }: { onClose(): void }) {
       <div className="speed" role="dialog" aria-label="Speed reading">
         <div className="speed-head">
           <b>Speed reading</b>
-          {from && <span>from {from}</span>}
+          {from && <span>{`from ${from}`}</span>}
           <span className="spacer" />
           <button className="speed-close" aria-label="Close" onClick={onClose}><X size={18} aria-hidden /></button>
         </div>
@@ -90,10 +90,10 @@ export default function SpeedRead({ onClose }: { onClose(): void }) {
           <button aria-label="On a word" disabled={!engine} onClick={() => engine?.next()}><SkipForward size={18} aria-hidden /></button>
         </div>
         <label className="speed-pace">
-          <span>{wpm} words a minute</span>
+          <span>{`${wpm} words a minute`}</span>
           <input type="range" min={100} max={900} step={25} value={wpm} onChange={e => setWpm(Number(e.target.value))} />
         </label>
-        {left != null && left > 0 && <p className="speed-left">About {Math.max(1, Math.round(left / 60000))} min to the end of the book at this pace</p>}
+        {left != null && left > 0 && <p className="speed-left">{`About ${Math.max(1, Math.round(left / 60000))} min to the end of the book at this pace`}</p>}
       </div>
     </div>
   )

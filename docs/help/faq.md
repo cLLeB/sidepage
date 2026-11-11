@@ -74,7 +74,7 @@ Yes. Tap **Ask AI** in the bottom bar and [connect an AI with a key](/ai/ask-ai#
 
 ### I pay for Claude Pro (or ChatGPT Plus). Can I use it on my phone?
 
-Not inside Sidepage: a subscription works only in the AI's own apps, and they do not let other apps ask through them. Instead, tap **Ask in Claude** in **Ask AI**: Sidepage copies the page and opens the Claude app, where you ask with your plan. See [Use your plan on a phone](/ai/ask-ai#use-your-claude-pro-chatgpt-plus-or-gemini-plan-on-a-phone). On a computer, Sidepage uses your plan directly through [Claude Code](/ai/ask-ai#with-the-ai-s-app-on-a-computer).
+Yes, through your computer: [link your phone to your computer](/data/link-devices), and Ask AI on the phone uses Claude Code on the computer, signed in with your plan. Keep Sidepage open on the computer. Without a computer at hand, tap **Ask in Claude** in **Ask AI**: Sidepage copies the page and opens the Claude app, where you ask with your plan.
 
 ### Can I move my flashcards to Anki?
 

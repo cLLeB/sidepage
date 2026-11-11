@@ -42,6 +42,46 @@ flowchart LR
 
 draws three boxes with arrows from Diffusion and Convection to Mixing. Every kind of diagram is described at [mermaid.js.org](https://mermaid.js.org/intro/).
 
+## A graph, a molecule or sums, drawn from text
+
+Three more things Sidepage draws from a few lines you type. Click **+**, then under **Graphs, molecules and sums**, pick one. An example appears with its drawing; change the lines and the drawing follows. To see the lines again, click the drawing.
+
+### Graph of a formula
+
+One formula per line, in `x`. Each is drawn on the same axes, which you can drag and zoom.
+
+```plot
+y = sin(x)
+y = x^2 / 4
+```
+
+Write powers with `^`, and use `sqrt(x)`, `exp(x)`, `log(x)`, `abs(x)`, `sin`, `cos`, `tan`. Drawn with [function-plot](https://github.com/mauriciopoppe/function-plot).
+
+### Molecule
+
+A molecule written in SMILES, the way chemistry databases write structures, is drawn as its skeletal formula. One molecule per line.
+
+```smiles
+CC(=O)Oc1ccccc1C(=O)O
+```
+
+That is aspirin. To find the SMILES of any molecule, search for it on [PubChem](https://pubchem.ncbi.nlm.nih.gov) and copy the line marked **SMILES**. Drawn with [SmilesDrawer](https://github.com/reymond-group/smilesDrawer).
+
+### Sums and units
+
+One sum per line; each answer appears beside it. Units are understood and converted, and a name you give a value can be used in the lines after it.
+
+```calc
+# a line starting with # is a note
+2.5 kg * 9.81 m/s^2
+5 cm to inch
+speed = 120 km/h
+speed * 2.5 h
+sqrt(2) * 3
+```
+
+gives `24.525 N`, `1.968503937 inch`, `300 km` and `4.242640687`. Worked out with [math.js](https://mathjs.org).
+
 ## A layout for your notes
 
 Ready made page layouts for study notes:

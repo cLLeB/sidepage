@@ -43,6 +43,8 @@ export default defineConfig({
         { text: 'Look up and translate', link: '/reading/look-up-translate' },
         { text: 'Scanned pages and pictures', link: '/reading/scanned-pages' },
         { text: 'Focus and reading comfort', link: '/reading/focus-and-comfort' },
+        { text: 'Typefaces for easier reading', link: '/reading/reading-aids' },
+        { text: 'Speed reading', link: '/reading/speed-reading' },
         { text: 'Read a web page', link: '/reading/web-pages' },
       ] },
       { text: 'Notes', collapsed: false, items: [
@@ -72,6 +74,7 @@ export default defineConfig({
       { text: 'Your files and notes', items: [
         { text: 'Where your notes are kept', link: '/data/where-notes-live' },
         { text: 'Back up, restore and move', link: '/data/backup' },
+        { text: 'Link your phone and computer', link: '/data/link-devices' },
         { text: 'Make Sidepage your PDF app', link: '/data/default-app' },
       ] },
       { text: 'Settings', items: [

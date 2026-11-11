@@ -19,6 +19,9 @@ Sidepage is free and open source under the GPL-3.0 licence. Its source is at [gi
 | Web articles | [Readability](https://github.com/mozilla/readability) and [Turndown](https://github.com/mixmark-io/turndown) | Apache-2.0, MIT |
 | Reading text in pictures | [Tesseract.js](https://github.com/naptha/tesseract.js) | Apache-2.0 |
 | Natural voices | [Piper](https://github.com/rhasspy/piper) through [piper-tts-web](https://github.com/Mintplex-Labs/piper-tts-web) | MIT |
+| Speed reading | [rsvp-engine](https://github.com/altunmustafa/rsvp-engine) | MIT |
+| Bold word starts | [text-vide](https://github.com/Gumball12/text-vide) | MIT |
+| Reading typefaces | [OpenDyslexic](https://opendyslexic.org), [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/), [Lexend](https://www.lexend.com), through [Fontsource](https://fontsource.org) | OFL-1.1 |
 
 ## Notes
 
@@ -31,6 +34,10 @@ Sidepage is free and open source under the GPL-3.0 licence. Its source is at [gi
 | Formulas | [KaTeX](https://github.com/KaTeX/KaTeX) | MIT |
 | Speech into text | [Whisper](https://github.com/openai/whisper) through [transformers.js](https://github.com/huggingface/transformers.js) | MIT, Apache-2.0 |
 | Word export | [docx](https://github.com/dolanmiu/docx) | MIT |
+| E-book export | [epub-gen-memory](https://github.com/cpiber/epub-gen-memory) | MIT |
+| Graphs of formulas | [function-plot](https://github.com/mauriciopoppe/function-plot) | MIT |
+| Molecules | [SmilesDrawer](https://github.com/reymond-group/smilesDrawer) | MIT |
+| Sums and units | [math.js](https://github.com/josdejong/mathjs) | Apache-2.0 |
 | Spelling and grammar | [LanguageTool](https://github.com/languagetool-org/languagetool) (online service) | LGPL-2.1 |
 
 ## Study
@@ -44,6 +51,9 @@ Sidepage is free and open source under the GPL-3.0 licence. Its source is at [gi
 | Papers | [OpenAlex](https://openalex.org) (open data) | CC0 |
 | Calendar files | [ics](https://github.com/adamgibbons/ics) | ISC |
 | Graphs and maps | [force-graph](https://github.com/vasturiano/force-graph) | MIT |
+| Reading level | [text-readability](https://github.com/cdimascio/text-readability) | ISC |
+| Crosswords | [crossword-layout-generator](https://github.com/MichaelWehar/Crossword-Layout-Generator) | MIT |
+| Ask AI with a key | [AI SDK](https://github.com/vercel/ai) | Apache-2.0 |
 
 ## The app
 
@@ -51,6 +61,7 @@ Sidepage is free and open source under the GPL-3.0 licence. Its source is at [gi
 | --- | --- | --- |
 | Desktop and Android app | [Tauri](https://github.com/tauri-apps/tauri) and its plugins | MIT, Apache-2.0 |
 | Panels and tabs | [Dockview](https://github.com/mathuo/dockview) | MIT |
+| Linking your devices | [Trystero](https://github.com/dmotz/trystero) | MIT |
 | Folder tree | [react-arborist](https://github.com/brimdata/react-arborist) | MIT |
 | Icons | [Lucide](https://github.com/lucide-icons/lucide) | ISC |
 | Web app, offline | [vite-plugin-pwa](https://github.com/vite-pwa/vite-plugin-pwa) | MIT |

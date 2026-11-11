@@ -37,7 +37,11 @@ An AI running on your own computer needs no key and sends nothing over the inter
 
 ### Use your Claude Pro, ChatGPT Plus or Gemini plan on a phone
 
-A subscription such as Claude Pro works in the AI's own apps; another app cannot ask through it, even with the same account signed in on the phone. To use your plan from Sidepage on a phone or tablet:
+A subscription such as Claude Pro works in the AI's own apps; another app cannot ask through it, even with the same account signed in on the phone. Two ways to use your plan from Sidepage on a phone or tablet:
+
+**With your computer (best):** [link your phone to your computer](/data/link-devices). Ask AI on the phone then asks the AI app on your computer, signed in with your plan, and the answer appears on the phone, beside the book, as on the computer.
+
+**With the AI's own app:**
 
 1. Go to the page you are asking about and tap **Ask AI**.
 2. At the bottom of **Connect an AI**, tap **Ask in Claude** (or **Ask in ChatGPT**, **Ask in Gemini**).

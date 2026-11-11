@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { onPinch, usePinchZoom } from '../lib/pinch'
-import { FONTS, useTextStyle } from '../lib/reading'
+import { onPinch } from '../lib/pinch'
+import { FONTS, setTextStyle, textStyleNow, useTextStyle } from '../lib/reading'
 import { addReadingFonts } from '../lib/fonts'
 import { fixate, unfixate } from '../lib/fixation'
 import { TextQuote } from 'lucide-react'
-import { HighlightsMenu } from './ReaderMenus'
+import { HighlightsMenu, TextMenu } from './ReaderMenus'
 import { useTextHighlights } from './TextHighlights'
 import { Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
@@ -21,7 +21,6 @@ export default function TextView({ file }: { file: File }) {
   const [ready, setReady] = useState(false)
   const pre = useRef<HTMLPreElement>(null)
   const marks = useTextHighlights(isMarkdown ? host : pre, file, ready)
-  usePinchZoom(isMarkdown ? host : pre, ready, 'text')
   // The reader's typeface and fixation reading, as for books.
   const style = useTextStyle()
   useEffect(addReadingFonts, [])
@@ -29,8 +28,21 @@ export default function TextView({ file }: { file: File }) {
     const el = (isMarkdown ? host : pre).current
     if (!el || !ready) return
     el.style.fontFamily = FONTS[style.font].css
+    el.style.fontSize = `${style.size}%`
+    el.style.lineHeight = String(style.spacing)
     void (style.fixation ? fixate(el) : unfixate(el))
-  }, [style.font, style.fixation, ready, isMarkdown])
+  }, [style.font, style.fixation, style.size, style.spacing, ready, isMarkdown])
+  // Pinching makes the words larger or smaller, the same as the text size in Aa.
+  useEffect(() => {
+    const el = (isMarkdown ? host : pre).current
+    if (!el || !ready) return
+    let wanted = 0
+    return onPinch(el, factor => {
+      const size = textStyleNow().size
+      wanted = (wanted || size) * factor
+      if (Math.abs(wanted - size) >= 5) { setTextStyle({ size: Math.round(wanted) }); wanted = 0 }
+    })
+  }, [ready, isMarkdown])
   // A web page is shown in a frame of its own (where nothing of it can run): pinching is listened for inside it.
   const framed = (frame: HTMLIFrameElement) => {
     const page = frame.contentDocument
@@ -75,6 +87,7 @@ export default function TextView({ file }: { file: File }) {
     <div className="viewer">
       <div className="viewer-bar">
         <span className="spacer" />
+        {!isHtml && <TextMenu />}
         {!isHtml && <HighlightsMenu marks={marks.marks} onHighlight={colour => void marks.highlight(colour)} onGo={marks.go} onChange={marks.change} onRemove={marks.remove} />}
         {!isHtml && <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />}
       </div>

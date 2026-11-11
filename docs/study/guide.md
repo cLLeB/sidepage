@@ -9,6 +9,10 @@ The guide follows you: turn the page, and it updates for the new page.
 1. Open a book and go to the page you are studying.
 2. Click **Study** in the top bar, then **Guide**.
 
+## How hard the page is
+
+Under the book's name, the guide says how hard the page is to read: **Reads at about school grade 9 (plain) · about 2 min to read**. The grade is the Flesch Kincaid grade (the school year whose pupils read such text easily), the word in brackets the Flesch reading ease, from very easy to very hard, both worked out by [text-readability](https://github.com/cdimascio/text-readability). Use it to plan: a page that reads as hard deserves a slower pass and notes.
+
 ## This page in brief
 
 The few sentences that carry most of the page's weight, in the order they were written.
@@ -30,6 +34,7 @@ Below the terms:
 
 - **Show how its ideas connect** draws a map of the terms, linked when they come up together. Click a term on the map to pick it.
 - **Make a glossary of these terms** finds where the book says what each term is. Click an entry to go to that page, or **Put the glossary in my notes**.
+- **Make a crossword of these terms** makes a crossword from the glossary: each answer is one of the book's terms, each clue the book's own sentence about it with the term taken out. Type in the squares (the cursor moves on by itself; the arrow keys move around), then **Check** to see which letters are right, or **Show the answers**. Only terms that are a single word and have a full sentence to make a clue are used, so a short book may have too few.
 
 ## Timeline of this book
 

@@ -39,7 +39,7 @@ export default function LinkView() {
             <label className="ai-field">Or type the code shown on your other device
               <input value={typed} onChange={e => setTyped(e.target.value)} placeholder="abcde-fghjk" autoCapitalize="none" autoComplete="off" spellCheck={false} />
             </label>
-            <button className="soft" disabled={!validCode(typed)}>Link</button>
+            <button className="soft" disabled={!validCode(typed)}>Link the devices</button>
           </form>
           <p className="ai-fine">No account is needed. The devices talk straight to each other, encrypted with the code. Sidepage must be open on both.</p>
         </div>
@@ -51,7 +51,7 @@ export default function LinkView() {
       <div className="review-empty ai-connect">
         <h2>Link your devices</h2>
         {link.status === 'linked'
-          ? <p className="link-status on"><span className="ai-dot" /> Linked with your {other}</p>
+          ? <p className="link-status on"><span className="ai-dot" /> {`Linked with your ${other}`}</p>
           : <p className="link-status"><span className="ai-dot" /> Waiting for your other device…</p>}
         {link.status !== 'linked' && <>
           <p>On your other device, open Sidepage, then More, Link devices, and type this code:</p>
@@ -60,7 +60,7 @@ export default function LinkView() {
         </>}
         {link.status === 'linked' && <>
           {!canRunTools && link.other?.computer && <p>{link.other.tools.length ? 'Ask AI now uses the AI app on your computer. Keep Sidepage open on the computer.' : 'No AI app is installed on your computer yet: install Claude Code, Codex or Gemini CLI there.'}</p>}
-          {canRunTools && <p>Your {other} can now ask the AI app on this computer. Keep Sidepage open here.</p>}
+          {canRunTools && <p>{`Your ${other} can now ask the AI app on this computer. Keep Sidepage open here.`}</p>}
           <button className="primary" disabled={!book || !!sending} onClick={() => void send()}><Send size={16} aria-hidden /> {book ? `Send ${baseName(book)} and its notes to your ${other}` : 'Open a book to send it'}</button>
           {sending && <p className="ai-fine">{sending}</p>}
         </>}

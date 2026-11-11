@@ -36,9 +36,13 @@
 
 And in the same menu: **A heading for each page or slide**, **Keep pace with the book**, **Typewriter writing**. See [Write notes](/notes/written-notes).
 
-## In an e-book (Aa in the book's bar)
+## In an e-book or text file (Aa in the book's bar)
 
-Larger or smaller text, looser or tighter lines, and the typeface. See [Zoom, layout and page turning](/reading/layout#text-size-spacing-and-typeface-e-books).
+Larger or smaller text, looser or tighter lines, the typeface (including OpenDyslexic, Atkinson Hyperlegible and Lexend), and **Bold word starts**. See [Zoom, layout and page turning](/reading/layout#text-size-spacing-and-typeface-e-books) and [Typefaces for easier reading](/reading/reading-aids).
+
+## Speed reading
+
+The pace in words a minute, kept for next time. See [Speed reading](/reading/speed-reading).
 
 ## Elsewhere
 

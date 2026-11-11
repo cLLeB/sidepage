@@ -10,6 +10,7 @@ Click **⋯** in the note's bar, then:
 | --- | --- |
 | **Save as a Word document** | A real `.docx` file, with your headings, lists, tables, colours and pictures, that opens in Word, Google Docs and LibreOffice |
 | **Save as a web page** | An `.html` file that opens in any browser |
+| **Save as an e-book** | An `.epub` e-book of the note and all the book's highlights (with your comments), to read again on a Kindle, a Kobo, Apple Books or any e-reader app. Made with [epub-gen-memory](https://github.com/cpiber/epub-gen-memory) |
 | **Print this note** | Your printer, or **Save as PDF** in the print window (computer only) |
 | **Copy the whole note** | The note's text, ready to paste anywhere |
 

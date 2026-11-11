@@ -17,6 +17,7 @@ const CONTENT = [
   '.kin', '.gist', '.quiz-item p', '.review-front', '.review-back', '.highlight-text', '.highlight-comment', '.cite pre',
   '.book-name', '.hero-title', '.bound-title', '.plan-name', '.timeline span', '.translate-from', '.translate-to', '.meaning',
   '.diff-line', '.remembered q', '.exam-miss p', '.exam-choice', '.chip:not(.home *)', '.teach textarea', '.dv-default-tab-content',
+  '.crossword-clues li', '.speed-word', '.link-code', '.sums', '.ai-answer', '.ai-said',
   'input', 'textarea',
 ].join(', ')
 // …but a tab's title starts with the app's word for the panel ("Notes · …"), which is translated by pattern.

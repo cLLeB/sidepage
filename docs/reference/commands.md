@@ -33,6 +33,8 @@ Every command can be run from **Go to…**: press <kbd>Ctrl</kbd> <kbd>K</kbd> (
 | Review flashcards | **Study** |
 | Ask AI about this book | Top bar, **Ask AI** |
 | Explore papers: what it cites, what cites it | **Study**, Papers |
+| Speed read from this page | **Study**, Speed reading |
+| Link devices: phone or tablet with computer | **More**, Link devices |
 | Compare two books, word by word | **Study** |
 | All highlights | **Study** |
 | Graph of linked notes | **Study**, Graph of your notes |

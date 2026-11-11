@@ -266,7 +266,7 @@ export default function GuideView() {
     <div className="note guide">
       <Ask onGo={goTo} />
       <p className="eyebrow">{baseName(here.book)} · {placeName(here.place)}</p>
-      {level && <p className="reading-level" title="Flesch Kincaid grade and Flesch reading ease of this page">Reads at about school grade {level.grade} ({level.ease}) · about {level.minutes} min to read</p>}
+      {level && <p className="reading-level" title="Flesch Kincaid grade and Flesch reading ease of this page">{`Reads at about school grade ${level.grade} (${level.ease}) · about ${level.minutes} min to read`}</p>}
 
       <section>
         <h3>This page in brief</h3>

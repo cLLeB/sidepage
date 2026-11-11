@@ -1,10 +1,26 @@
 # Zoom, layout and page turning
 
-## Zoom a PDF
+## Zoom any page
+
+Pinch on the page, wherever it is open: alone, beside your notes, side by side with another book, or in Focus.
+
+| Device | How |
+| --- | --- |
+| Phone or tablet | Spread two fingers apart to zoom in, pinch them together to zoom out |
+| Laptop touchpad | The same, with two fingers on the touchpad |
+| Mouse | Hold <kbd>Ctrl</kbd> (<kbd>Cmd</kbd> on a Mac) and turn the wheel |
+
+What zooming does depends on what is open:
+
+- **PDFs, documents, slides, pictures, DjVu:** the page grows or shrinks; scroll to see the parts that no longer fit.
+- **E-books, text and Markdown files:** the words grow or shrink and the lines wrap again, as on an e-reader. It is the same as **Aa**, **Text size**.
+
+Only the page zooms, never the buttons around it.
+
+## Zoom a PDF with the buttons
 
 - Click **−** or **+** in the book's bar.
 - Click the percentage (**82%**) to fit the page to the width of the panel again.
-- On a phone or tablet, pinch with two fingers.
 
 When you make the panel wider or narrower, a page fitted to the width stays fitted.
 
