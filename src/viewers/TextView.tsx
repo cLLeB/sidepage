@@ -83,7 +83,7 @@ export default function TextView({ file }: { file: File }) {
       <div className="viewer-bar">
         <span className="spacer" />
         {!isHtml && <TextMenu />}
-        {!isHtml && <HighlightsMenu marks={marks.marks} onHighlight={colour => void marks.highlight(colour)} onGo={marks.go} onChange={marks.change} onRemove={marks.remove} />}
+        {!isHtml && <HighlightsMenu marks={marks.marks} notebook={baseName(file.name)} onHighlight={colour => void marks.highlight(colour)} onGo={marks.go} onChange={marks.change} onRemove={marks.remove} />}
         {!isHtml && <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />}
       </div>
       {isHtml

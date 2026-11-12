@@ -245,6 +245,8 @@ export const picturesIn = (markdown: string) => [...new Set([
   ...[...markdown.matchAll(/#sidepage-sound\?file=(sound-[\w.-]+)/g)].map(match => match[1]),
   // …and the pictures of its picture cards (picture-cards.json, read along with the note).
   ...[...markdown.matchAll(/"file":"(card-[\w.-]+)"/g)].map(match => match[1]),
+  // …and the voice notes on highlights (highlights.json, read along with the note).
+  ...[...markdown.matchAll(/"voice":\s*"(voice-[\w.-]+)"/g)].map(match => match[1]),
 ])]
 
 // Notes are saved a moment after the last keystroke. What is still waiting for that moment is listed here, so it
@@ -433,3 +435,19 @@ const [sendContents, onContentsSaid] = channel<string>('sidepage:contents')
 export const tellContents = (book: string, items: ContentsItem[]) => { contentsKept.set(book, items); sendContents(book) }
 export const contentsOf = (book: string) => contentsKept.get(book) ?? []
 export const onContents = onContentsSaid
+
+// A lecture recorded beside a book's notes follows its pages: each page or slide turned to while it records is
+// noted with its moment (lecture-marks.json), so the lecture can be heard again from any slide.
+export type LectureMark = { sound: string; place: string; t: number }
+const [sendPlaySound, onPlaySoundSaid] = channel<{ notebook: string; sound: string; t: number }>('sidepage:play-sound')
+export const playSound = sendPlaySound
+export const onPlaySound = onPlaySoundSaid
+const [sendMarksChanged, onMarksSaid] = channel<string>('sidepage:lecture-marks')
+export const onLectureMarks = onMarksSaid
+export async function lectureMarks(notebook: string): Promise<LectureMark[]> {
+  try { return JSON.parse((await loadNote(notebook, 'lecture-marks.json')) ?? '[]') } catch { return [] }
+}
+export async function keepLectureMarks(notebook: string, marks: LectureMark[]) {
+  await saveNote(notebook, 'lecture-marks.json', JSON.stringify(marks))
+  sendMarksChanged(notebook)
+}

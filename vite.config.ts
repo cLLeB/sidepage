@@ -53,7 +53,7 @@ export default defineConfig({
     include: [
       'jszip', 'docx-preview', 'page-flip', 'pdfjs-dist',
       'pdfjs-dist/web/pdf_viewer.mjs', '@excalidraw/excalidraw', 'mind-elixir',
-      'function-plot', 'mathjs', 'smiles-drawer', 'text-readability', 'crossword-layout-generator', 'text-vide', '@rsvp-engine/core', 'epub-gen-memory/bundle', 'trystero', 'ai', '@ai-sdk/google', '@ai-sdk/anthropic', '@ai-sdk/openai', '@ai-sdk/openai-compatible',
+      'function-plot', 'mathjs', 'smiles-drawer', 'text-readability', 'crossword-layout-generator', 'text-vide', '@rsvp-engine/core', 'epub-gen-memory/bundle', 'sentiment', 'leaflet', 'diff', '@breezystack/lamejs', 'trystero', 'ai', '@ai-sdk/google', '@ai-sdk/anthropic', '@ai-sdk/openai', '@ai-sdk/openai-compatible',
       '@milkdown/crepe', '@milkdown/kit/utils', '@milkdown/kit/core', '@milkdown/kit/prose/state', '@milkdown/kit/component/image-block',
       'idb-keyval', 'dockview-react', 'rtf.js', 'odf-kit/odt/to-html', 'dompurify', 'libarchive.js', '@file-viewer/doc', '@extend-ai/react-pptx', 'react-error-boundary', 'force-graph', 'ts-fsrs', 'lucide-react',
     ],

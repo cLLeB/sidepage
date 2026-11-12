@@ -1,3 +1,4 @@
+import LectureChip from './LectureChip'
 import { useEffect, useRef, useState } from 'react'
 import { usePinchZoom } from '../lib/pinch'
 import { ReactPptxViewer, setWasmSource, type PptxViewerController } from '@extend-ai/react-pptx'
@@ -60,6 +61,7 @@ export default function PptView({ file }: { file: File }) {
     <div className="viewer" onPointerDownCapture={() => { if (count) tellPlace({ book: file.name, place: `slide=${slide + 1}` }) }}>
       <div className="viewer-bar">
         <span className="viewer-pos">{count ? `${slide + 1} / ${count}` : '…'}</span>
+        {count > 0 && <LectureChip book={file.name} place={`slide=${slide + 1}`} />}
         <span className="spacer" />
         <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
         <Tool icon={BookOpen} label="Flip" hint="Turn slides like pages" on={flip} onClick={toggleFlip} />

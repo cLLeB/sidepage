@@ -17,6 +17,7 @@ import { planToday } from '../lib/reading'
 import { keepFacts, openCite } from './Cite'
 import PageMap from './PageMap'
 import { usePeek } from './Peek'
+import LectureChip from './LectureChip'
 import { KNOWN, QuestionsMenu, RecapCard, StudySheet, usePageMarks, type Sheet } from './PageStudy'
 import { hardnessOf, markKnown, noteVisit } from '../lib/pages'
 import { headingsOf, layoutOf } from '../lib/paper'
@@ -747,6 +748,7 @@ export default function PdfView({ file }: { file: File }) {
           : <button className="viewer-pos" title="Go to a page" onClick={() => mode === 'scroll' && setJumping(true)}>{page} / {doc?.numPages ?? '…'}</button>}
         {scanned && !scanning && <button className="viewer-pos plan-pill" title="Its pages are pictures. Read their words once so the book can be searched, summed up and quizzed on." onClick={() => void readScan()}>Scanned: make it searchable</button>}
         {scanning && <button className="viewer-pos" title="Stop reading the pages" onClick={() => { stopScan.current = true }}>Reading pages {scanning.done} / {scanning.total} · stop</button>}
+        {mode === 'scroll' && <LectureChip book={file.name} place={`page=${page}`} />}
         {plan && <span className={page >= goalPage ? 'viewer-pos plan-pill done' : 'viewer-pos plan-pill'} title="Today's mark in your reading plan">{page >= goalPage ? 'Today’s reading done' : `Today: to p. ${goalPage}`}</span>}
         <span className="spacer" />
         {mode === 'scroll' && <>
@@ -762,7 +764,7 @@ export default function PdfView({ file }: { file: File }) {
           {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
-          <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
+          <HighlightsMenu marks={highlights} notebook={baseName(file.name)} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
           <Tool quiet icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
           <QuestionsMenu book={file.name} marks={studied} onGo={place => go(pageOf(place) - page)} />
         </>}

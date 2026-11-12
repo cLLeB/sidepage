@@ -22,6 +22,7 @@ import '@milkdown/crepe/theme/frame.css'
 import {
   baseName, debounce, onPlace, onSaveNow, goToPlace, isMobile, isShown, loadNote, loadNoteFile, noteLink, noteLinks, onClip, saveNoteFile, onFindInNotes, onQuote, openBookByName, parseNoteLink,
   parsePlaceLink, placeLink, saveFileAs, saveNote, shelf,
+  keepLectureMarks, lectureMarks, onPlaySound, placeNow, type LectureMark,
 } from '../lib/platform'
 import {
   FACES, INKS, MARKER_COLOURS, TEXT_COLOURS, TEXT_FACES, TEXT_SIZES, WRITING_SIZES, GAPS, TINTS, addLooks, changeLine, checklist, clearLooks, findNext, insertLine, keepLineInPlace, replaceFound, insertTable, looksAt, redo, setAlign, setBlock,
@@ -228,9 +229,21 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     const name = `sound-${Date.now().toString(36)}.${recorder.mimeType.includes('mp4') ? 'm4a' : recorder.mimeType.includes('ogg') ? 'ogg' : 'webm'}`
     const parts: Blob[] = []
     recorder.ondataavailable = e => { if (e.data.size) parts.push(e.data) }
+    // The pages turned while it records, each with its moment (see platform.ts, lecture marks).
+    const turned: LectureMark[] = []
+    const started = Date.now()
+    const mark = (place: string) => {
+      if (turned.at(-1)?.place === place) return
+      turned.push({ sound: name, place, t: Math.max(0, Math.round((Date.now() - started) / 1000) - 1) })
+    }
+    const here = placeNow()
+    if (here && baseName(here.book) === notebook) mark(here.place)
+    const stopFollowing = onPlace(place => { if (baseName(place.book) === notebook) mark(place.place) })
     recorder.onstop = () => {
       stream.getTracks().forEach(track => track.stop())
+      stopFollowing()
       void saveNoteFile(notebook, name, new Blob(parts, { type: recorder.mimeType }))
+      if (turned.length) void lectureMarks(notebook).then(old => keepLectureMarks(notebook, [...old, ...turned]))
       setRecording(null)
     }
     recorder.start(1000)
@@ -242,6 +255,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
     stamp(false)
   }
   const [soundNote, setSoundNote] = useState('')
+  // "Hear the lecture from this slide", from the book's bar.
+  useEffect(() => onPlaySound(asked => { if (asked.notebook === notebook) void play(asked.sound, asked.t) }))
   const [proofing, setProofing] = useState(false)
   // Whether what is on the page has reached storage: shown in the bar, so there is never a doubt.
   const [saved, setSaved] = useState<'saved' | 'saving' | 'failed'>('saved')

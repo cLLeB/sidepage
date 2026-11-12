@@ -16,6 +16,10 @@ The recording is kept with the book's notes.
 
 Click a **▸** stamp in your notes. A player opens under the note's bar and plays from that moment.
 
+## Hear the lecture from a slide
+
+While you record, Sidepage notes which page or slide of the book is showing, and when. Later, on any page or slide that showed during the recording, the book's bar offers **Lecture from 12:30**: click it to hear the lecture from the moment that slide came up.
+
 ## Turn the speech into text
 
 1. Click a stamp to open the player for that recording.

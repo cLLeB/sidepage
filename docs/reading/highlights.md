@@ -15,6 +15,10 @@ Use the colours your way, for example yellow for key ideas and pink for things t
 
 A highlight with a comment becomes a flashcard: the passage on the front, your comment on the back. See [Flashcards](/study/flashcards).
 
+## Add a voice note to a highlight
+
+In the highlight's list (the highlighter in the book's bar), under a highlight, click **Record a voice note**, say what you think of the passage, then click **Stop**. **Voice note** plays it back. Voice notes are kept with the book's notes and its backups.
+
 ## Change, find or remove a highlight
 
 Click **Highlight** in the book's bar. For each highlight in the list:

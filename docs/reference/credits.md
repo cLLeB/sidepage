@@ -56,6 +56,8 @@ Sidepage is free and open source under the GPL-3.0 licence. Its source is at [gi
 | Telling a book's own terms from everyday words | [SUBTLEX-US](https://www.ugent.be/pp/experimentele-psychologie/en/research/documents/subtlexus) word frequencies, through [subtlex-word-frequencies](https://github.com/words/subtlex-word-frequencies), and the Dale-Chall word list | ISC |
 | Ask AI with a key | [AI SDK](https://github.com/vercel/ai) | Apache-2.0 |
 | Peek and contents found from headings | Text and positions from [PDF.js](https://github.com/mozilla/pdf.js); acronyms by the algorithm of Schwartz and Hearst (2003) | Apache-2.0 |
+| Explore a book | [sentiment](https://github.com/thisandagain/sentiment) (AFINN), [Leaflet](https://github.com/Leaflet/Leaflet) with [OpenStreetMap](https://www.openstreetmap.org) and Nominatim, [force-graph](https://github.com/vasturiano/force-graph) | MIT, BSD-2-Clause, ODbL |
+| Sound files | [Piper](https://github.com/rhasspy/piper) voices and [lamejs](https://github.com/shijinyu/lamejs) for MP3 | MIT, LGPL-3.0 |
 | Language practice | [MyMemory](https://mymemory.translated.net) (online service) for translations, [Whisper](https://github.com/openai/whisper) for saying it back, [jsdiff](https://github.com/kpdecker/jsdiff) for checking | MIT, BSD-3-Clause |
 
 ## The app

@@ -5,7 +5,7 @@ import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
   CircleHelp, RefreshCw, MonitorSmartphone, Gauge, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
-  Languages, Brain,
+  Languages, Brain, Telescope,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -128,7 +128,9 @@ const AskView = lazy(() => import('./notes/AskView'))
 const LinkView = lazy(() => import('./notes/LinkView'))
 const PracticeView = lazy(() => import('./notes/PracticeView'))
 const MethodsView = lazy(() => import('./notes/MethodsView'))
+const ExploreView = lazy(() => import('./notes/ExploreView'))
 const SpeedRead = lazy(() => import('./notes/SpeedRead'))
+const ExplorePanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><ExploreView /></Suspense></ErrorBoundary>
 const MethodsPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><MethodsView /></Suspense></ErrorBoundary>
 const PracticePanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><PracticeView /></Suspense></ErrorBoundary>
 const LinkPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><LinkView /></Suspense></ErrorBoundary>
@@ -261,7 +263,7 @@ function UpdateCard() {
   )
 }
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel, files: FilesPanel, link: LinkPanel, practice: PracticePanel, methods: MethodsPanel }
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel, files: FilesPanel, link: LinkPanel, practice: PracticePanel, methods: MethodsPanel, explore: ExplorePanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -645,6 +647,8 @@ export default function App() {
   const openPractice = useCallback(() => openSide('practice', 'Language practice'), [openSide])
   // Study methods worked on the book being read (see notes/MethodsView.tsx).
   const openMethods = useCallback(() => openSide('methods', 'Study methods'), [openSide])
+  // The book from above: its people, mood, phrases, places and style (see notes/ExploreView.tsx).
+  const openExplore = useCallback(() => openSide('explore', 'Explore this book'), [openSide])
   useEffect(() => {
     window.addEventListener('sidepage:link', openLink)
     if (getPref('link-code', '')) void import('./lib/link').then(link => link.resumeLink())
@@ -882,6 +886,7 @@ export default function App() {
     { group: 'Study', name: 'Speed read from this page', icon: Gauge, run: () => setSpeeding(true) },
     { group: 'Study', name: 'Language practice on this page', icon: Languages, run: openPractice },
     { group: 'Study', name: 'Study methods: memorise, blurt, SQ3R, mnemonics, past papers', icon: Brain, run: openMethods },
+    { group: 'Study', name: 'Explore this book: people, mood, phrases, places, style', icon: Telescope, run: openExplore },
     { group: 'Keep', name: 'Link devices: phone or tablet with computer', icon: MonitorSmartphone, run: openLink },
     { group: 'Study', name: 'Compare two books, word by word', icon: ArrowLeftRight, run: openCompare },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
@@ -968,6 +973,7 @@ export default function App() {
             <Tool icon={ArrowLeftRight} label="Compare two books" hint="What changed between two versions, word by word" onClick={openCompare} />
             <Tool icon={Share2} label="Graph of your notes" hint="How your books' notes link to each other" onClick={openGraph} />
             <Tool icon={Gauge} label="Speed reading" hint="Read the book from this page one word at a time, at the pace you set" disabled={empty} onClick={() => setSpeeding(true)} />
+            <Tool icon={Telescope} label="Explore this book" hint="Its people and who meets whom, its mood from start to end, the phrases it repeats, its places on a map, how it is written" disabled={empty} onClick={openExplore} />
             <Tool icon={Brain} label="Study methods" hint="Memorise a passage, blurt it out, questions before reading, learn in order, mnemonics, past exam papers" onClick={openMethods} />
             <Tool icon={Languages} label="Language practice" hint="Learn the language a book is written in: new words, translation, dictation, saying it back" disabled={empty} onClick={openPractice} />
             <Tool icon={Timer} label="Study timer" hint="Study for a stretch, then take a break" onClick={() => setTimeout(() => window.dispatchEvent(new Event('sidepage:timer')), 0)} />

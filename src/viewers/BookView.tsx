@@ -421,7 +421,7 @@ export default function BookView({ file }: { file: File }) {
           here={where.cfi ? { place: where.cfi, label: `${where.label || 'Page'} · ${Math.round(where.fraction * 100)}%` } : null}
           onGo={place => void viewRef.current?.goTo(place)}
         />
-        {canCurl && <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={cfi => void viewRef.current?.goTo(cfi)} onChange={changeHighlight} onRemove={removeHighlight} />}
+        {canCurl && <HighlightsMenu marks={highlights} notebook={baseName(file.name)} onHighlight={color => void highlight(color)} onGo={cfi => void viewRef.current?.goTo(cfi)} onChange={changeHighlight} onRemove={removeHighlight} />}
         {canCurl && <TextMenu />}
         {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
         <Tool quiet icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={() => void quote()} />

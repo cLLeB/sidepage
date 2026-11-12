@@ -1,4 +1,6 @@
-import { ALargeSmall, Bookmark, BookmarkCheck, BookmarkMinus, BookmarkPlus, Highlighter, List, X } from 'lucide-react'
+import { ALargeSmall, Bookmark, BookmarkCheck, BookmarkMinus, BookmarkPlus, Highlighter, List, Mic, Play, Square, X } from 'lucide-react'
+import { useState } from 'react'
+import { loadNoteFile, saveNoteFile } from '../lib/platform'
 import { Menu, Tool } from '../ui'
 import { FONTS, setTextStyle, useTextStyle, type Bookmark as Mark, type Highlight, type useBookmarks } from '../lib/reading'
 
@@ -36,8 +38,10 @@ export const HIGHLIGHT_COLOURS = { Yellow: '#ffd84d', Green: '#8fe3a0', Blue: '#
 
 // Highlight the selected passage in a colour, and look after the highlights already made: each can carry a
 // comment, which also becomes the back of its flashcard.
-export function HighlightsMenu({ marks, onHighlight, onGo, onChange, onRemove }: {
+export function HighlightsMenu({ marks, notebook, onHighlight, onGo, onChange, onRemove }: {
   marks: Highlight[]
+  // The book's notebook, where a voice note on a highlight is kept.
+  notebook?: string
   onHighlight(color: string): void
   onGo(cfi: string): void
   onChange(cfi: string, change: Partial<Highlight>): void
@@ -73,6 +77,7 @@ export function HighlightsMenu({ marks, onHighlight, onGo, onChange, onRemove }:
               defaultValue={mark.note ?? ''}
               onBlur={e => { if (e.target.value !== (mark.note ?? '')) onChange(mark.cfi, { note: e.target.value }) }}
             />
+            {notebook && <VoiceNote notebook={notebook} mark={mark} onChange={change => onChange(mark.cfi, change)} />}
           </div>
         ))}
       </div>
@@ -135,5 +140,43 @@ export function TextMenu() {
         <input type="checkbox" checked={!!text.fixation} onChange={e => setTextStyle({ fixation: e.target.checked })} />
       </label>
     </Menu>
+  )
+}
+
+// A voice note on a highlight: say what you think of the passage instead of typing it. Kept beside the notes.
+function VoiceNote({ notebook, mark, onChange }: { notebook: string; mark: Highlight; onChange(change: Partial<Highlight>): void }) {
+  const [recording, setRecording] = useState<MediaRecorder | null>(null)
+  const [trouble, setTrouble] = useState('')
+  const record = async () => {
+    if (recording) return recording.stop()
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const take = new MediaRecorder(stream)
+      const parts: Blob[] = []
+      const name = `voice-${Date.now().toString(36)}.${take.mimeType.includes('mp4') ? 'm4a' : take.mimeType.includes('ogg') ? 'ogg' : 'webm'}`
+      take.ondataavailable = e => { if (e.data.size) parts.push(e.data) }
+      take.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop())
+        setRecording(null)
+        await saveNoteFile(notebook, name, new Blob(parts, { type: take.mimeType }))
+        onChange({ voice: name })
+      }
+      take.start()
+      setRecording(take)
+      setTrouble('')
+    } catch {
+      setTrouble('The microphone is not available.')
+    }
+  }
+  const play = async () => {
+    const sound = mark.voice ? await loadNoteFile(notebook, mark.voice) : null
+    if (sound) void new Audio(URL.createObjectURL(sound)).play()
+  }
+  return (
+    <span className="voice-note">
+      {mark.voice && !recording && <button className="stay" onClick={() => void play()}><Play size={13} aria-hidden /> Voice note</button>}
+      <button className={recording ? 'stay recording' : 'stay'} onClick={() => void record()}>{recording ? <Square size={12} aria-hidden /> : <Mic size={13} aria-hidden />} {recording ? 'Stop' : mark.voice ? 'Record again' : 'Record a voice note'}</button>
+      {trouble && <span className="menu-note">{trouble}</span>}
+    </span>
   )
 }

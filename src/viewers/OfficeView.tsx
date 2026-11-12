@@ -105,7 +105,7 @@ export default function OfficeView({ file }: { file: File }) {
       <div className="viewer-bar">
         {ready && pagesOf(host.current!).length > 1 && <span className="viewer-pos">p. {page} / {pagesOf(host.current!).length}</span>}
         <span className="spacer" />
-        <HighlightsMenu marks={marks.marks} onHighlight={colour => void marks.highlight(colour)} onGo={marks.go} onChange={marks.change} onRemove={marks.remove} />
+        <HighlightsMenu marks={marks.marks} notebook={baseName(file.name)} onHighlight={colour => void marks.highlight(colour)} onGo={marks.go} onChange={marks.change} onRemove={marks.remove} />
         <Tool icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
         <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
           <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => translate(window.getSelection()?.toString())} />

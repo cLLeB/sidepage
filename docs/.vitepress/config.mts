@@ -63,6 +63,7 @@ export default defineConfig({
         { text: 'Peek, every use, study marks', link: '/study/peek-and-marks' },
         { text: 'Language practice', link: '/study/language-practice' },
         { text: 'Study methods', link: '/study/methods' },
+        { text: 'Explore a book', link: '/study/explore' },
         { text: 'Flashcards and review', link: '/study/flashcards' },
         { text: 'Mock exams and progress', link: '/study/exams-and-progress' },
         { text: 'Reading plans, goals and the calendar', link: '/study/plans' },

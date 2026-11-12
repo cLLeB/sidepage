@@ -92,12 +92,34 @@ export async function readableText(book: string, text: string): Promise<string> 
   }
   return withoutRunning(text, runningOf.get(book)!)
 }
+// A free e-book from Project Gutenberg opens and closes with the project's licence: not the book's own words, so
+// not its terms, its phrases or its places.
+function withoutLicence(stretches: Stretch[]): Stretch[] {
+  const start = /\*{3}\s*START OF (THE|THIS) PROJECT GUTENBERG[^*]*\*{3}/i
+  const end = /\*{3}\s*END OF (THE|THIS) PROJECT GUTENBERG/i
+  if (!stretches.some(stretch => end.test(stretch.text) || start.test(stretch.text))) return stretches
+  const out: Stretch[] = []
+  let before = stretches.some(stretch => start.test(stretch.text))
+  for (const stretch of stretches) {
+    let text = stretch.text
+    if (before) {
+      const at = text.search(start)
+      if (at < 0) continue
+      text = text.slice(at).replace(start, '')
+      before = false
+    }
+    const stop = text.search(end)
+    if (stop >= 0) { if (text.slice(0, stop).trim()) out.push({ ...stretch, text: text.slice(0, stop) }); break }
+    out.push({ ...stretch, text })
+  }
+  return out.length ? out : stretches
+}
 export async function stretchesOf(book: string): Promise<Stretch[]> {
   if (!cache.has(book)) {
     const { get } = await import('idb-keyval')
     const found = (await get<Stretch[]>(`text:${book}`)) ?? []
     if (!found.length) return found
-    cache.set(book, withoutRunningLines(found))
+    cache.set(book, withoutRunningLines(withoutLicence(found)))
   }
   return cache.get(book)!
 }
@@ -326,7 +348,8 @@ export async function glossaryOf(book: string, terms: Term[], most = 24): Promis
     // the shortest sentence there that names it.
     for (const { place } of term.places) {
       for (const sentence of sentencesOf(byPlace.get(place) ?? '')) {
-        if (sentence.length > 320 || !mentions.test(sentence)) continue
+        // A run of labels from a figure ("Nucleus Mitochondrion Golgi") names it without saying anything.
+        if (sentence.length > 320 || !mentions.test(sentence) || (sentence.match(/(^|\s)[a-z][a-z'-]+/g) ?? []).length < 4) continue
         const score = defines.some(pattern => pattern.test(sentence)) ? 2 : 1 / sentence.length
         if (!best || score > best.score) best = { sentence, place, score }
       }
