@@ -145,7 +145,7 @@ export function usePeek({ container, doc, file, go }: {
         {peek.entries.map((entry, i) => (
           <div key={i} className="peek-reference">
             <p>{entry.number ? <b>[{entry.number}] </b> : null}{entry.text}</p>
-            <button className="link-button" onClick={() => { setPeek(null); go(entry.page) }}>In the references, p. {entry.page}</button>
+            <button className="link-button" onClick={() => { setPeek(null); go(entry.page) }}>{`In the references, p. ${entry.page}`}</button>
           </div>
         ))}
       </>}
@@ -153,11 +153,11 @@ export function usePeek({ container, doc, file, go }: {
         <p className="peek-head">{peek.caption.label} · p. {peek.caption.page}</p>
         {peek.picture ? <img src={peek.picture} alt={peek.caption.text} /> : <p className="peek-wait">Drawing it…</p>}
         <p className="peek-caption">{peek.caption.text}</p>
-        <button className="link-button" onClick={() => { setPeek(null); go(peek.caption.page) }}>Go to p. {peek.caption.page}</button>
+        <button className="link-button" onClick={() => { setPeek(null); go(peek.caption.page) }}>{`Go to p. ${peek.caption.page}`}</button>
       </>}
       {peek.kind === 'acronym' && <>
         <p><b>{peek.acronym.short}</b>: {peek.acronym.long}</p>
-        <button className="link-button" onClick={() => { setPeek(null); go(Number(peek.acronym.place.replace('page=', '')) || 1) }}>First spelled out, {placeName(peek.acronym.place)}</button>
+        <button className="link-button" onClick={() => { setPeek(null); go(Number(peek.acronym.place.replace('page=', '')) || 1) }}>{`First spelled out, ${placeName(peek.acronym.place)}`}</button>
       </>}
     </div>
   )

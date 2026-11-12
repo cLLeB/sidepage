@@ -86,7 +86,7 @@ export function StudySheet({ book, sheet, onGo, onClose }: { book: string; sheet
       </div>
       {sheet.kind === 'uses' && (!sorted ? <p className="guide-wait">Looking through the book…</p> : !sorted.length ? <p className="guide-wait">Not found in the book’s text.</p> : <>
         <div className="study-sheet-row">
-          <span>{sorted.length >= 400 ? '400 or more uses' : `${sorted.length} use${sorted.length === 1 ? '' : 's'}`} on {new Set(sorted.map(use => use.place)).size} pages</span>
+          <span>{sorted.length >= 400 ? '400 or more uses' : `${sorted.length} use${sorted.length === 1 ? '' : 's'} on ${new Set(sorted.map(use => use.place)).size} page${new Set(sorted.map(use => use.place)).size === 1 ? '' : 's'}`}</span>
           <span className="spacer" />
           <label>Order <select value={order} onChange={e => setOrder(e.target.value as typeof order)}>
             <option value="book">As in the book</option>
@@ -106,7 +106,7 @@ export function StudySheet({ book, sheet, onGo, onClose }: { book: string; sheet
         </div>
       </>)}
       {sheet.kind === 'explained' && (explained === undefined ? <p className="guide-wait">Looking through the book…</p> : !explained ? <p className="guide-wait">Not found in the book’s text.</p> : <div className="explained">
-        <p className="eyebrow">{explained.defines ? 'Explained' : 'First comes'} on {placeName(explained.place)}</p>
+        <p className="eyebrow">{`${explained.defines ? 'Explained' : 'First comes'} on ${placeName(explained.place)}`}</p>
         <blockquote>{explained.sentence}</blockquote>
         <div className="study-sheet-row">
           <button className="primary" onClick={() => onGo(explained.place)}>Go there</button>
@@ -156,12 +156,12 @@ export function RecapCard({ book, onGo }: { book: string; onGo(page: number): vo
   return (
     <div className="recap" role="note">
       <div className="study-sheet-head">
-        <b>Last time, {when}: {recap.from === recap.to ? `p. ${recap.to}` : `pp. ${recap.from} to ${recap.to}`}</b>
+        <b>{`Last time, ${when}: ${recap.from === recap.to ? `p. ${recap.to}` : `pp. ${recap.from} to ${recap.to}`}`}</b>
         <button className="menu-x" aria-label="Close" onClick={() => setRecap(null)}><X size={16} aria-hidden /></button>
       </div>
       <ul>{recap.gist.map((line, i) => <li key={i}>{line}</li>)}</ul>
       <div className="study-sheet-row">
-        <button className="primary" onClick={() => { onGo(recap.to); setRecap(null) }}>Go on from p. {recap.to}</button>
+        <button className="primary" onClick={() => { onGo(recap.to); setRecap(null) }}>{`Go on from p. ${recap.to}`}</button>
         <button className="soft" onClick={() => setRecap(null)}>Close</button>
       </div>
     </div>

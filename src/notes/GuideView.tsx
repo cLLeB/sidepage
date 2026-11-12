@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import ForceGraph from 'force-graph'
 import { useTheme } from '../lib/theme'
-import { BookOpenText, NotebookPen } from 'lucide-react'
+import { BookOpenText, Mic, NotebookPen, Square } from 'lucide-react'
+import { useDictate } from '../lib/dictate'
+import { languageOf } from '../lib/speech'
 import { Tool } from '../ui'
 import { baseName, goToPlace, onPlace, openBookByName, placeNow, sendQuote, type Place } from '../lib/platform'
 import { placeName } from '../lib/library'
@@ -128,11 +130,19 @@ function TeachBack({ book, term, onGo }: { book: string; term: Term; onGo(to: Pl
   const [text, setText] = useState('')
   const [check, setCheck] = useState<Check | null>(null)
   useEffect(() => { setText(''); setCheck(null) }, [term])
+  // Or say it out loud, as you would explain it to someone: written out on the device, then checked the same way.
+  const [language, setLanguage] = useState('en')
+  useEffect(() => { void stretchesOf(book).then(all => setLanguage(languageOf(all.slice(0, 5).map(stretch => stretch.text).join(' ')))) }, [book])
+  const voice = useDictate(language, heard => { setText(now => (now ? `${now} ${heard}` : heard)); setCheck(null) })
   return (
     <div className="teach">
       <p className="eyebrow">Teach it back: explain “{term.term}” in your own words, without looking</p>
       <textarea rows={4} value={text} placeholder={`What is ${term.term}, and why does it matter here?`} onChange={e => { setText(e.target.value); setCheck(null) }} />
-      <button className="primary" disabled={text.trim().split(/\s+/).length < 5} onClick={() => void checkExplanation(book, term, text).then(setCheck)}>Check my explanation</button>
+      <div className="teach-buttons">
+        <button className="primary" disabled={text.trim().split(/\s+/).length < 5} onClick={() => void checkExplanation(book, term, text).then(setCheck)}>Check my explanation</button>
+        <button className={voice.recording ? 'soft recording' : 'soft'} onClick={() => void voice.toggle()}>{voice.recording ? <Square size={14} aria-hidden /> : <Mic size={15} aria-hidden />} {voice.recording ? 'Stop' : 'Explain it aloud'}</button>
+        {voice.busy && <span className="menu-note">{voice.busy}</span>}
+      </div>
       {check && (
         <div className="teach-result">
           <p><b>{Math.round(check.share * 100)}%</b> of the book's key ideas on this, in your words.</p>

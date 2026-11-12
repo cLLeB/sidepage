@@ -1,3 +1,4 @@
+import { studyCards } from './methods'
 import { savedWords } from './practice'
 import { createEmptyCard, fsrs, Rating, type Card, type Grade } from 'ts-fsrs'
 import { baseName, loadNote, saveNote, shelf } from './platform'
@@ -60,6 +61,8 @@ export async function allCards(): Promise<Flashcard[]> {
       const answer = lines.slice(i + 1).find(Boolean)?.match(/^A[:.]\s*(.+)/i)?.[1]
       if (question && answer) cards.push({ id: idOf(`${book.name}|Q|${question}`), book: book.name, front: question, back: answer })
     })
+    // Cards made by the study methods (blurting, SQ3R, mnemonics, past exams): see methods.ts.
+    for (const made of await studyCards(book.name)) cards.push({ id: idOf(`${book.name}|S|${made.front}`), book: book.name, front: made.front, back: made.back, place: made.place })
     // Words saved while reading in another language: the word in its sentence, then what it means.
     for (const saved of await savedWords(book.name)) {
       if (saved.meaning) cards.push({ id: idOf(`${book.name}|V|${saved.word.toLowerCase()}`), book: book.name, front: `${saved.word}
@@ -150,4 +153,12 @@ export async function learningProgress(days = 14): Promise<Progress> {
     fresh, learning, known, total: cards.length, ahead, weeks,
     answered: log.length, remembered: log.filter(answer => answer.rating !== Rating.Again).length, streak,
   }
+}
+
+// The cards you keep forgetting (forgotten twice or more after learning them): often a sign that the page they
+// come from needs reading again, more than the card needs more turns.
+export async function forgottenCards(most = 30): Promise<{ card: Flashcard; lapses: number }[]> {
+  const [cards, schedule] = await Promise.all([allCards(), loadSchedule()])
+  return cards.map(card => ({ card, lapses: schedule[card.id]?.lapses ?? 0 })).filter(found => found.lapses >= 2)
+    .sort((a, b) => b.lapses - a.lapses).slice(0, most)
 }

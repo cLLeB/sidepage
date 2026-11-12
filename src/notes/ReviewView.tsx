@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BookOpen, ClipboardCheck, FileDown, Repeat, RotateCcw } from 'lucide-react'
+import { BookOpen, ClipboardCheck, FileDown, Headphones, Repeat, RotateCcw, TriangleAlert } from 'lucide-react'
 import { Tool } from '../ui'
 import { baseName, goToPlace, openBookByName, saveFileAs } from '../lib/platform'
 import { allCards, dueCards, grade, Rating, type Flashcard } from '../lib/review'
 import { PictureCard } from './PictureCards'
 import LearningProgress from './LearningProgress'
 import Exam from './Exam'
+import { ForgottenCards, ListenToCards } from './ReviewExtras'
 
 // Every card as an Anki deck (.apkg): Anki, AnkiDroid and AnkiMobile open it as it is, picture cards included.
 const exportCards = async () => {
@@ -50,7 +51,13 @@ export default function ReviewView() {
   }, [])
   useEffect(load, [load])
 
+  // Listening to the cards hands free, and the cards forgotten again and again (see ReviewExtras.tsx).
+  const [listening, setListening] = useState<Flashcard[] | null>(null)
+  const [forgotten, setForgotten] = useState(false)
+  const listen = () => void (cards?.length ? Promise.resolve(cards) : allCards().then(all => all.sort(() => Math.random() - 0.5))).then(setListening)
   if (exam) return <div className="note review"><Exam onLeave={() => { setExam(false); load() }} /></div>
+  if (listening) return <div className="note review"><ListenToCards cards={listening} onLeave={() => setListening(null)} /></div>
+  if (forgotten) return <div className="note review"><ForgottenCards onLeave={() => setForgotten(false)} /></div>
   if (!cards) return <div className="note review"><p className="review-note">Gathering your cards…</p></div>
 
   const card = cards[0]
@@ -67,6 +74,8 @@ export default function ReviewView() {
           <Tool icon={RotateCcw} label="Check again" onClick={load} />
           {total > 0 && <LearningProgress key={done} />}
           {total > 0 && <Tool icon={ClipboardCheck} label="Mock exam" hint="A timed test of four-answer questions from the books you choose" onClick={() => setExam(true)} />}
+          {total > 0 && <Tool icon={Headphones} label="Listen to my cards" hint="Hands free: each card read aloud, a pause to answer in your head, then its answer" onClick={listen} />}
+          {total > 0 && <Tool icon={TriangleAlert} label="Cards I keep forgetting" hint="The cards forgotten again and again, with the pages to read again" onClick={() => setForgotten(true)} />}
           {total > 0 && <Tool icon={Repeat} label="Practise every card anyway" hint="Go through all your cards now, without changing when they are due" onClick={practise} />}
           {total > 0 && <Tool icon={FileDown} label="Save the cards for Anki" hint="An Anki deck (.apkg), one sub-deck for each book, picture cards included. Saving it again updates the cards already in Anki." onClick={() => void exportCards()} />}
         </div>
@@ -117,6 +126,8 @@ export default function ReviewView() {
         <Tool icon={BookOpen} label="Open in the book" onClick={openInBook} />
         <Tool icon={FileDown} label="Save the cards for Anki" hint="An Anki deck (.apkg), one sub-deck for each book, picture cards included. Saving it again updates the cards already in Anki." onClick={() => void exportCards()} />
         <Tool icon={ClipboardCheck} label="Mock exam" onClick={() => setExam(true)} />
+        <Tool icon={Headphones} label="Listen to my cards" hint="Hands free: each card read aloud, a pause to answer in your head, then its answer" onClick={listen} />
+        <Tool icon={TriangleAlert} label="Cards I keep forgetting" hint="The cards forgotten again and again, with the pages to read again" onClick={() => setForgotten(true)} />
       </div>
       <p className="review-note keys">Space turns the card · 1 to 4 say how it went</p>
     </div>

@@ -424,3 +424,12 @@ export const onAskAi = (handler: (question: string) => void) => {
   if (askWaiting) { handler(askWaiting); askWaiting = '' }
   return onAskSaid(question => { askWaiting = ''; handler(question) })
 }
+
+// A book's contents (its chapters and headings, and the page of each where known), as its reader found them, for
+// the study methods that work chapter by chapter.
+export type ContentsItem = { label: string; depth: number; place?: string }
+const contentsKept = new Map<string, ContentsItem[]>()
+const [sendContents, onContentsSaid] = channel<string>('sidepage:contents')
+export const tellContents = (book: string, items: ContentsItem[]) => { contentsKept.set(book, items); sendContents(book) }
+export const contentsOf = (book: string) => contentsKept.get(book) ?? []
+export const onContents = onContentsSaid

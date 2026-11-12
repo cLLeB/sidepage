@@ -475,3 +475,33 @@ export async function checkExplanation(book: string, term: Term, explanation: st
     place: best?.place ?? pages[0]?.place ?? '',
   }
 }
+
+// ── Blurting: write down all you remember of some pages, then see which of their key ideas you brought back ──
+// The pages' key words are the words they use far more than the rest of the book does (as for teaching a term
+// back, above); each comes with the sentence of those pages that carries it best, to learn it from.
+export type Recall = { covered: string[]; missed: { word: string; sentence: string; place: string }[]; share: number }
+export async function checkRecall(book: string, places: string[], written: string, most = 18): Promise<Recall> {
+  const all = await stretchesOf(book)
+  const rare = rarity(all.map(stretch => wordsOf(stretch.text)))
+  const pages = places.map(place => all.find(stretch => stretch.place === place)).filter((found): found is Stretch => !!found)
+  await loadEveryday()
+  const counts = new Map<string, number>()
+  for (const page of pages) for (const word of wordsOf(page.text)) counts.set(word, (counts.get(word) ?? 0) + 1)
+  const key = [...counts].filter(([word]) => commonness(word) < 1)
+    .map(([word, count]) => ({ word, weight: count * rare(word) })).sort((a, b) => b.weight - a.weight).slice(0, most).map(found => found.word)
+  const mine = new Set(wordsOf(written))
+  const spelled = (word: string) => (pages.map(page => page.text.match(new RegExp(`\b${word}\w*`, 'i'))?.[0]).find(Boolean) ?? word).toLowerCase()
+  const sentenceWith = (word: string) => {
+    for (const page of pages) {
+      const sentence = sentencesOf(page.text).filter(found => wordsOf(found).includes(word)).sort((a, b) => a.length - b.length)[0]
+      if (sentence) return { sentence, place: page.place }
+    }
+    return { sentence: '', place: pages[0]?.place ?? '' }
+  }
+  const covered = key.filter(word => mine.has(word))
+  return {
+    covered: covered.map(spelled),
+    missed: key.filter(word => !mine.has(word)).map(word => ({ word: spelled(word), ...sentenceWith(word) })),
+    share: key.length ? covered.length / key.length : 0,
+  }
+}

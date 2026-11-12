@@ -28,7 +28,7 @@ import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, t
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { hasWords, keepWords, lettersKept, type Stretch } from '../lib/library'
 import { pageFilter, useTheme } from '../lib/theme'
-import { baseName, debounce, loadNoteFile, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, saveNoteFile, sendClip, sendQuote, tellPlace } from '../lib/platform'
+import { tellContents, type ContentsItem, baseName, debounce, loadNoteFile, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, saveNoteFile, sendClip, sendQuote, tellPlace } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -478,7 +478,9 @@ export default function PdfView({ file }: { file: File }) {
         // Without one, a table of contents is worked out from the headings: the short lines set larger than the text.
         const fromHeadings = () => layoutOf(pdf).then(layout => {
           if (cancelled) return
-          setContents(headingsOf(layout).map(heading => ({
+          const headings = headingsOf(layout)
+          tellContents(file.name, headings.map(heading => ({ label: heading.label, depth: heading.depth, place: `page=${heading.page}` })))
+          setContents(headings.map(heading => ({
             label: heading.label, depth: heading.depth,
             go: () => viewer.scrollPageIntoView({ pageNumber: heading.page, destArray: [null, { name: 'XYZ' }, 0, layout.heights[heading.page - 1] * (1 - heading.top) + 12, null] }),
           })))
@@ -486,7 +488,22 @@ export default function PdfView({ file }: { file: File }) {
         })
         void pdf.getOutline().then(outline => {
           if (cancelled) return
-          if (outline?.length) setContents(flat(outline as Entry[]))
+          if (outline?.length) {
+            setContents(flat(outline as Entry[]))
+            // The page of each entry, for the study methods that go chapter by chapter.
+            const pageOf = async (dest: Entry['dest']) => {
+              try {
+                const target = typeof dest === 'string' ? await pdf.getDestination(dest) : dest
+                const ref = target?.[0]
+                return ref && typeof ref === 'object' ? (await pdf.getPageIndex(ref as never)) + 1 : typeof ref === 'number' ? ref + 1 : undefined
+              } catch { return undefined }
+            }
+            const listed = async (items: Entry[], depth = 0): Promise<ContentsItem[]> => (await Promise.all(items.map(async item => {
+              const page = await pageOf(item.dest)
+              return [{ label: item.title, depth, place: page ? `page=${page}` : undefined }, ...await listed(item.items ?? [], depth + 1)]
+            }))).flat()
+            void listed(outline as Entry[]).then(items => { if (!cancelled) tellContents(file.name, items) })
+          }
           else return fromHeadings()
         }).catch(() => {})
         // The book's words, page by page, so it can be found by them later. Done once, a little at a time.

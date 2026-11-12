@@ -1486,3 +1486,35 @@ button.viewer-pos { font-weight: 500; }
 .drill-extra { color: var(--muted); text-decoration: line-through; }
 .drill-answer { color: var(--muted); font-size: 13px; }
 button.recording { background: #e5484d !important; color: #fff !important; }
+.teach-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.teach-buttons button { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Study methods beside the book. */
+.methods .practice-tabs .chip { font-size: 12.5px; }
+.memorise-text { font: 18px/1.9 Georgia, 'Times New Roman', serif; margin: 6px 0; }
+.memorise-text .gap { display: inline-block; min-width: 1.4em; padding: 0 3px; margin: 0 1px; border-radius: 0; border-bottom: 2px solid var(--muted); background: none; box-shadow: none; font: inherit; color: var(--muted); line-height: 1.2; }
+.memorise-text .gap:hover { background: var(--hover); }
+.memorise-text mark { background: var(--accent-soft); color: var(--text); border-radius: 3px; }
+.methods textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; resize: vertical; }
+.blurt textarea { min-height: 180px; }
+.sq3r { gap: 14px !important; }
+.sq3r-item { display: flex; flex-direction: column; gap: 6px; width: calc(100% - var(--indent, 0px)); }
+.sq3r-item .kin b { display: block; font-weight: 600; color: var(--text); margin-top: 2px; }
+.order-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.order-diagram { width: 100%; overflow: auto; padding: 8px; border-radius: 12px; background: var(--bg); }
+.order-diagram svg { max-width: 100%; height: auto; }
+.mnemonic-letters { font: 700 28px/1.1 Georgia, serif; letter-spacing: 0.18em; margin: 0; }
+.mnemonic-sentence { font: 18px/1.5 Georgia, serif; margin: 0; }
+.mnemonic-sentence b { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.mnemonic-key { margin: 0; padding-left: 18px; color: var(--muted); }
+.file-button { position: relative; overflow: hidden; cursor: pointer; display: inline-flex; padding: 10px 16px; border-radius: 12px; font-weight: 600; background: var(--panel); box-shadow: var(--shadow-soft); }
+.file-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.exam-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box; }
+.exam-list li { display: flex; flex-direction: column; gap: 6px; }
+.exam-question { text-align: left; padding: 8px 10px; border-radius: 10px; background: var(--bg); box-shadow: none; font-weight: 500; line-height: 1.45; }
+.exam-question:hover { background: var(--hover); }
+
+/* Review: listening hands free, and the cards forgotten again and again. */
+.listen-cards, .forgotten { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+.listen-cards .review-grades { align-items: center; flex-wrap: wrap; }
+.listen-cards .review-grades .primary { display: inline-flex; align-items: center; gap: 6px; }

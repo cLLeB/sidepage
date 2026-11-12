@@ -91,7 +91,7 @@ function ReadTab({ book, place, sentences, language, mine, known }: { book: stri
   const share = words.length ? words.filter(word => statusOf(known, language, word) === 'known').length / words.length : 0
   return (
     <section>
-      <p className="practice-score">You know {Math.round(share * 100)}% of the words here. <span className="word-new">New</span> <span className="word-learning">Learning</span></p>
+      <p className="practice-score">{`You know ${Math.round(share * 100)}% of the words here.`} <span className="word-new">New</span> <span className="word-learning">Learning</span></p>
       <div className="practice-text">
         {sentences.map((sentence, i) => (
           <p key={i}>{piecesOf(sentence, language).map((piece, j) => {
@@ -109,7 +109,7 @@ function ReadTab({ book, place, sentences, language, mine, known }: { book: stri
           <button className="soft" onClick={() => setPicked(null)}>Close</button>
         </div>
       </div>}
-      {fresh.length > 0 && <button className="soft" onClick={() => void setStatus(language, fresh, 'known')} title="Every word still marked new here is one you know">I know the rest ({fresh.length})</button>}
+      {fresh.length > 0 && <button className="soft" onClick={() => void setStatus(language, fresh, 'known')} title="Every word still marked new here is one you know">{`I know the rest (${fresh.length})`}</button>}
     </section>
   )
 }
@@ -152,7 +152,7 @@ function WordsTab({ book, place, text, language, mine, known }: { book: string; 
         </div>
       )}
       {saved.length > 0 && <>
-        <h3>Words you are learning from this book ({saved.length})</h3>
+        <h3>{`Words you are learning from this book (${saved.length})`}</h3>
         <div className="word-list">
           {saved.slice().reverse().map(entry => (
             <div key={entry.word} className="word-row">
@@ -266,7 +266,7 @@ function SentenceDrill({ kind, sentences, language }: { kind: 'dictation' | 'sha
         <button className="primary" onClick={speak}>{voice.speaking ? <Pause size={15} aria-hidden /> : <Volume2 size={15} aria-hidden />} {voice.speaking ? 'Stop' : 'Listen'}</button>
         <label className="practice-slow"><input type="checkbox" checked={slow} onChange={e => setSlow(e.target.checked)} /> Slower</label>
         <span className="spacer" />
-        <span>Sentence {at + 1} / {sentences.length}</span>
+        <span>{`Sentence ${at + 1} / ${sentences.length}`}</span>
       </div>
       {kind === 'dictation' && <form onSubmit={async e => { e.preventDefault(); if (given.trim()) setResult(await compareWords(sentence, given)) }}>
         <textarea rows={3} value={given} onChange={e => setGiven(e.target.value)} placeholder="Write what you hear" lang={language} spellCheck={false}
@@ -279,8 +279,8 @@ function SentenceDrill({ kind, sentences, language }: { kind: 'dictation' | 'sha
         {busy && <span>{busy}</span>}
       </div>}
       {result && <div className="drill-result">
-        <p className="practice-score">{Math.round(result.score * 100)}% right{result.score === 1 ? '. Perfect.' : ''}</p>
-        {result.heard !== undefined && <p className="menu-note">Heard: “{result.heard}”</p>}
+        <p className="practice-score">{`${Math.round(result.score * 100)}% right${result.score === 1 ? '. Perfect.' : ''}`}</p>
+        {result.heard !== undefined && <p className="menu-note">{`Heard: “${result.heard}”`}</p>}
         <p className="drill-marked">{result.marked.map((part, i) => <span key={i} className={`drill-${part.kind}`}>{part.text} </span>)}</p>
         <p className="drill-answer">{sentence}</p>
       </div>}

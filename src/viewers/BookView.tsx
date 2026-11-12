@@ -17,6 +17,7 @@ import { fixate, fixationCSS, unfixate } from '../lib/fixation'
 import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
   baseName, extensionOf, findInNotes, onGoToPlace, prefersFlip, rememberFlip, sendQuote, tellPlace,
+  tellContents,
 } from '../lib/platform'
 
 type TocItem = { label: string; href: string; subitems?: TocItem[] }
@@ -139,6 +140,12 @@ export default function BookView({ file }: { file: File }) {
       marks.current = await loadHighlights(baseName(file.name), 'book')
       setHighlights(marks.current)
       setToc(flatten(view.book.toc ?? []))
+      // The part each chapter starts in, for the study methods that go chapter by chapter.
+      tellContents(file.name, flatten(view.book.toc ?? []).map(item => {
+        let index: number | undefined
+        try { index = (view.book as unknown as { resolveHref?(href: string): { index: number } }).resolveHref?.(item.href)?.index } catch { /* not every kind of book can say */ }
+        return { label: item.label, depth: item.depth, place: index === undefined ? undefined : `section=${index}` }
+      }))
       // What the book says about itself, for citing it. Titles and names can come as one string, a list, or
       // a set of translations.
       {
