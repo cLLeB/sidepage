@@ -69,14 +69,14 @@ The lines of the paper follow the size you choose. To change the kind of paper (
 
 ## Keep the line you write at the same height
 
-**⋯**, then **Typewriter writing**. The line you are writing stays in the middle of the screen and the page moves up instead.
+**⋯**, then **Typewriter**. The line you are writing stays in the middle of the screen and the page moves up instead.
 
 ## Lecture notes: a heading for each slide
 
 When you take notes on slides or a PDF lecture:
 
 1. Click **⋯** in the note's bar.
-2. Click **A heading for each page or slide**.
+2. Click **Heading per slide**.
 
 Now when you turn to a slide, your note jumps to that slide's heading, creating it the first time you write there. Your notes end up in slide order without any effort.
 

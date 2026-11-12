@@ -8,7 +8,7 @@ A few features need the internet. They contact the services below **only when yo
 | --- | --- | --- |
 | **Look up** | Free Dictionary (dictionaryapi.dev) and Wiktionary | The word |
 | **Translate** | MyMemory (mymemory.translated.net) | The selected passage |
-| **Check spelling and grammar** | LanguageTool (languagetool.org) | The note's text |
+| **Spelling** | LanguageTool (languagetool.org) | The note's text |
 | **Papers** | OpenAlex (openalex.org) | The paper's title or DOI, or what you searched |
 | **Free PDF** from Papers | The publisher's site | A request for that PDF |
 | **Read a web page** | The website you named | A request for that page |

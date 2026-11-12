@@ -8,11 +8,11 @@ Click **⋯** in the note's bar, then:
 
 | Choose | You get |
 | --- | --- |
-| **Save as a Word document** | A real `.docx` file, with your headings, lists, tables, colours and pictures, that opens in Word, Google Docs and LibreOffice |
-| **Save as a web page** | An `.html` file that opens in any browser |
-| **Save as an e-book** | An `.epub` e-book of the note and all the book's highlights (with your comments), to read again on a Kindle, a Kobo, Apple Books or any e-reader app. Made with [epub-gen-memory](https://github.com/cpiber/epub-gen-memory) |
-| **Print this note** | Your printer, or **Save as PDF** in the print window (computer only) |
-| **Copy the whole note** | The note's text, ready to paste anywhere |
+| **Word** | A real `.docx` file, with your headings, lists, tables, colours and pictures, that opens in Word, Google Docs and LibreOffice |
+| **Web page** | An `.html` file that opens in any browser |
+| **E-book** | An `.epub` e-book of the note and all the book's highlights (with your comments), to read again on a Kindle, a Kobo, Apple Books or any e-reader app. Made with [epub-gen-memory](https://github.com/cpiber/epub-gen-memory) |
+| **Print** | Your printer, or **Save as PDF** in the print window (computer only) |
+| **Copy all** | The note's text, ready to paste anywhere |
 
 ## Everything about one book
 
@@ -32,7 +32,7 @@ Click **⋯** in the note's bar, then:
 | Every highlight from every book | Study, All highlights, **Save these as a file** |
 | Your flashcards for Anki | Study, Review flashcards, **Save the cards for Anki** |
 | A bibliography of your books | <kbd>Ctrl</kbd> <kbd>K</kbd>, **Save a bibliography of every book (BibTeX)** or **Save a reading list of every book (APA)** |
-| A PDF with your highlights and drawings | In the PDF, **⋯ Tools**, **Save a copy with my marks** |
+| A PDF with your highlights and drawings | In the PDF, **⋯ Tools**, **With my marks** |
 | Everything, to keep safe | More, **Back up all notes**. See [Back up, restore and move](/data/backup) |
 
 ## Where saved files go

@@ -2,13 +2,13 @@
 
 ## Read a PDF as flowing text
 
-On a phone, a PDF's page is often too small to read without zooming and panning. Click **⋯ Tools**, then **Read as flowing text**: the words of the pages are set at the width of the screen, in the text size and typeface you chose for books (**Aa** in the bar), page after page. Headings stay headings; the lines repeated on every page (a running head, a page number) are left out. The page you reach is kept for when you go back with **Back to the pages**.
+On a phone, a PDF's page is often too small to read without zooming and panning. Click **⋯ Tools**, then **Flowing text**: the words of the pages are set at the width of the screen, in the text size and typeface you chose for books (**Aa** in the bar), page after page. Headings stay headings; the lines repeated on every page (a running head, a page number) are left out. The page you reach is kept for when you go back with **Back to the pages**.
 
 It needs the PDF's text: a scanned PDF must be [made searchable](/reading/scanned-pages) first.
 
 ## Selected words
 
-Select words on a PDF page, then click **⋯ Tools**:
+Select words on a PDF page: a bar comes up beside them. Click **⋯** in it for these:
 
 | Tool | What it does |
 | --- | --- |
@@ -18,14 +18,14 @@ Select words on a PDF page, then click **⋯ Tools**:
 
 ## A table into your notes
 
-1. Click **⋯ Tools**, then **Table into my notes**.
+1. Click **⋯ Tools**, then **A table**.
 2. Drag a box round the whole table on the page.
 
 The table goes into your notes as a table you can edit, its rows and columns as on the page.
 
 ## A new PDF from some pages
 
-Click **⋯ Tools**, then **New PDF from some pages**:
+Click **⋯ Tools**, then **New PDF**:
 
 - Under **Pages**, write the pages to keep, such as **3-7, 10**, then click **Save these pages as a PDF**.
 - Or click **Join another PDF after it** and choose a PDF: one PDF with both is saved.

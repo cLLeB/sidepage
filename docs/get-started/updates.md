@@ -23,7 +23,7 @@ If you are up to date, Sidepage says so. If not, the update card appears.
 
 To be asked before anything is downloaded:
 
-1. Open **More**.
+1. Open **More**, then **Settings**, **General**.
 2. Untick **Update by itself**.
 
 Sidepage then tells you when a new version is out, and downloads it only when you click **Update**.

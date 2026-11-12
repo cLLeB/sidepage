@@ -5,7 +5,7 @@ Take words or pictures from the book into your notes without typing them again.
 ## Quote a passage
 
 1. Select the passage in the book.
-2. Click **Quote** in the book's bar.
+2. In the bar that comes up beside the words, click **Quote**.
 
 The passage is added at the end of your notes, as the next line in a notebook. It goes in as plain text, ready for you to underline, colour or comment on.
 
@@ -13,7 +13,7 @@ The passage is added at the end of your notes, as the next line in a notebook. I
 
 For a diagram, a formula, a table or a figure:
 
-1. Click **⋯ Tools** in the book's bar, then **Clip a picture into my notes**.
+1. Click **⋯ Tools** in the book's bar, then **Clip a picture**.
 2. Drag a box over the part of the page you want.
 3. The picture goes into your notes.
 
@@ -34,14 +34,14 @@ Each box becomes a flashcard: the diagram with that label covered, then uncovere
 
 ## Words from a scanned page
 
-For a page that is a picture of words, use **⋯ Tools**, then **Read the text in a box**. See [Scanned pages and pictures](/reading/scanned-pages).
+For a page that is a picture of words, use **⋯ Tools**, then **Text in a box**. See [Scanned pages and pictures](/reading/scanned-pages).
 
 ## Keep pace with the book
 
 Turn the pages, and your notes scroll to what you quoted or clipped from each page.
 
 1. Click **⋯** in the note's bar.
-2. Click **Keep pace with the book**.
+2. Click **Keep pace**.
 
 ## From other places
 

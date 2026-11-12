@@ -1215,6 +1215,19 @@ export const FRENCH: Record<string, string> = {
   "Word": "Word",
   "E-book": "Livre numérique",
   "Print": "Imprimer",
+  // ── Palette and arrangement ──
+  "PDF": "PDF",
+  "Fit the page to the width": "Ajuster la page à la largeur",
+  "See all the pages": "Voir toutes les pages",
+  "Read aloud from this page": "Lire à voix haute depuis cette page",
+  "A table into my notes": "Un tableau dans mes notes",
+  "Picture cards from a diagram": "Cartes-images à partir d’un schéma",
+  "The text of this page into my notes": "Le texte de cette page dans mes notes",
+  "Shade the hard pages": "Ombrer les pages difficiles",
+  "Cite this book": "Citer ce livre",
+  "Read aloud, and how the pages turn": "Lecture à voix haute, et façon de tourner les pages",
+  "Page layout, clipping, study marks, this book": "Mise en page, découpes, marques d’étude, ce livre",
+  "This book, practice, your library, together": "Ce livre, exercices, votre bibliothèque, ensemble",
 }
 
 // Text with a number or a name in it, by pattern.

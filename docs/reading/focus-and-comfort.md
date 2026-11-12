@@ -13,7 +13,7 @@ To read two books in Focus, see [Read side by side, full screen](/reading/side-b
 
 ## Easier on the eyes
 
-Open **More** (⋯ at the top right). Under **Look**:
+Open **More** (⋯ at the top right), then **Settings**, **Look**:
 
 | Setting | What it does |
 | --- | --- |

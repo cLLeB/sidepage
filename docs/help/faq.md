@@ -52,11 +52,11 @@ Kindle books without DRM (`.mobi`, `.azw3` from other sources) yes. Books bought
 
 ### Can I write on the PDF itself?
 
-Yes: in a PDF, **⋯ Tools**, then **Draw**. Your drawings are kept and shown every time you open the PDF. **⋯ Tools**, **Save a copy with my marks** gives you a PDF with your highlights and drawings in it.
+Yes: in a PDF, **⋯ Tools**, then **Draw**. Your drawings are kept and shown every time you open the PDF. **⋯ Tools**, **With my marks** gives you a PDF with your highlights and drawings in it.
 
 ### Can it read my book aloud in French?
 
-Yes: French pages are read in French by themselves. For a lifelike voice, choose **Natural voice** in **More**. See [Read aloud](/reading/read-aloud).
+Yes: French pages are read in French by themselves. For a lifelike voice, choose **Natural voice** in **More**, **Settings**, **Voices**. See [Read aloud](/reading/read-aloud).
 
 ## Study and AI
 
@@ -84,4 +84,4 @@ Yes: **Study**, **Review flashcards**, **Save the cards for Anki**. See [Flashca
 
 ### Can Sidepage be in French?
 
-Yes: **More**, **Language**, **Français**. See [Language, theme and paper](/settings/look).
+Yes: **More**, **Settings**, **General**, **Language**, **Français**. See [Language, theme and paper](/settings/look).

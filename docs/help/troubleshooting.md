@@ -51,7 +51,7 @@ In the browser version, most sites block it: use the installed app. If the app s
 
 1. **Is it the same book?** Notes belong to a book by its name. If the file was renamed, open the file with the old name, or rename it back.
 2. **Same device and browser?** Notes stay on the device (and, in the browser version, in that browser). See [Where your notes are kept](/data/where-notes-live).
-3. **Earlier version?** In the note, **⋯**, **Earlier versions**.
+3. **Earlier version?** In the note, **⋯**, **Versions**.
 4. **Backup?** **More**, **Restore a backup**.
 
 ### The note says it could not be saved
@@ -62,7 +62,7 @@ On a computer, check that the **Documents** folder exists and is not full or rea
 
 ### Read aloud is missing or silent
 
-- Choose **Natural voice** in **More**, under **Reading aloud**. Device voices are often missing on Android.
+- Choose **Natural voice** in **More**, **Settings**, **Voices**. Device voices are often missing on Android.
 - Check the device's volume and that it is not in silent mode.
 - The first time, a natural voice needs the internet to download.
 
@@ -78,13 +78,13 @@ Your connection dropped. Click **Not now**, then later **More**, **Check for upd
 
 ### I want to stay on this version
 
-Untick **Update by itself** in **More**, and click **Not now** when a new version is offered.
+Untick **Update by itself** in **More**, **Settings**, **General**, and click **Not now** when a new version is offered.
 
 ## The screen
 
 ### A button is missing
 
-Most tools are one tap away in a menu: **⋯ Tools** in the book's bar, **Aa** and **⋯** in the note's bar, **Study** and **More** in the top bar. Or press <kbd>Ctrl</kbd> <kbd>K</kbd> and type its name. See [A tour of the screen](/get-started/tour).
+Most tools are one tap away: the bar that comes up beside selected words, **⋯ Tools** in the book's bar, **Aa** and **⋯** in the note's bar, **Study** and **More** in the top bar. Or press <kbd>Ctrl</kbd> <kbd>K</kbd> and type its name. See [A tour of the screen](/get-started/tour).
 
 ### The bars disappeared
 
@@ -92,7 +92,7 @@ You are in Focus. Press <kbd>Esc</kbd>, or click **⤡** in the top right corner
 
 ### Everything is dark, or tinted orange
 
-Check **Theme**, **Warmth** and **Dim** in **More**.
+Check **Theme**, **Warmth** and **Dim** in **More**, **Settings**, **Look**.
 
 ## Still stuck
 

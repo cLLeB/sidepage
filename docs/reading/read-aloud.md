@@ -15,12 +15,12 @@ Running heads, page numbers and copyright lines repeated on every page are skipp
 ## Have your notes read to you
 
 1. In the note's bar, click **⋯**.
-2. Click **Read this note aloud**.
+2. Click **Read aloud**.
 
 ## Choose the voice
 
-1. Open **More** (⋯ at the top right).
-2. Under **Reading aloud**, choose **Device voice** or **Natural voice**.
+1. Open **More** (⋯ at the top right), then **Settings**, **Voices**.
+2. choose **Device voice** or **Natural voice**.
 
 | | Device voice | Natural voice |
 | --- | --- | --- |
@@ -35,16 +35,16 @@ Running heads, page numbers and copyright lines repeated on every page are skipp
 
 ## Faster, slower, deeper
 
-In **More**, under **Reading aloud**:
+In **More**, **Settings**, **Voices**:
 
 - **Pace:** Slow, Normal, Brisk, Fast or Very fast.
 - **Pitch** (device voices): Deep, Lower, Normal, Higher or High.
 
 ## Fall asleep to a book
 
-In **More**, under **Reading aloud**, set **Stop after** to 10, 20, 30, 45 or 60 minutes. Reading stops by itself.
+In **More**, **Settings**, **Voices**, set **Stop after** to 10, 20, 30, 45 or 60 minutes. Reading stops by itself.
 
 ## Read aloud is missing
 
-- **On Android with device voices:** many Android devices have no voices that apps can use. Choose **Natural voice** in **More**.
+- **On Android with device voices:** many Android devices have no voices that apps can use. Choose **Natural voice** in **More**, **Settings**, **Voices**.
 - **Natural voice says it could not be fetched:** the first download needs the internet. Connect and try again.

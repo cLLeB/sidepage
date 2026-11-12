@@ -25,7 +25,7 @@ Drag a file from your desktop or folder onto the Sidepage window. Or press <kbd>
 ## 3. Put a passage from the book into your note
 
 1. In the book, select a sentence or a paragraph with the mouse (or press and hold on a phone, then drag the handles).
-2. Click **Quote** in the book's bar (the icon with lines and quote marks).
+2. In the bar that comes up beside the words, click **Quote**.
 
 The passage appears in your note, at the end, ready to be commented on.
 

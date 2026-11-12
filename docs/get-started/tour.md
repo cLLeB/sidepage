@@ -18,7 +18,7 @@ From left to right:
 | **Go to…** | Search for any command, book or setting by name (<kbd>Ctrl</kbd> <kbd>K</kbd>) |
 | **🔍** | Search your notes and books |
 | **⤢** | Focus: hide every bar and use the whole screen (<kbd>Ctrl</kbd> <kbd>.</kbd>) |
-| **⋯** More | Settings, backup, export, updates |
+| **⋯** More | This book (save as one file, export, study pack), all your notes (backup, restore), **Settings** (look, reading, voices, language), link devices, updates |
 
 ::: tip Cannot find something?
 Press <kbd>Ctrl</kbd> <kbd>K</kbd> (or tap **Go to…**, the ⌘ icon on a phone) and type a word such as "timer", "cite" or "backup". Every command in Sidepage can be found this way. See [Every command](/reference/commands).
@@ -37,8 +37,8 @@ Above the book (a PDF here):
 | **Bookmark** | Bookmark this page, and see your bookmarks |
 | **Search** | Find words in the book |
 | **Highlight** | Highlight the selected text in a colour, and see your highlights |
-| **Quote** | Put the selected text into your notes |
-| **⋯ Tools** | Everything else for the book: clip, read the text in a box, picture cards, draw, look up, translate, read aloud, page layout, scroll by itself, turn pages like paper, cite, save a copy |
+| The bar beside selected words | Highlight, **Quote** into your notes, **Look up**, **Translate**, **Ask AI**, and under **⋯** more |
+| **⋯ Tools** | Everything else for the book, in groups of tiles: **View** (fit, two pages, turn, all pages, flowing text, like paper, read aloud, scroll by itself), **Take from the page** (clip, text in a box, a table, picture cards, draw), **This page** (how well you know it, hard pages), **This book** (cite, new PDF, a copy with your marks, make it searchable) |
 
 When something from Tools is switched on (drawing, a clip box, reading aloud), its button stays on the bar so you can switch it off where you are.
 
@@ -69,7 +69,7 @@ The same controls, arranged for one hand:
 
 ## On a tablet
 
-Held sideways, the book and the notes sit side by side. Held upright, the notes go under the book. You can choose either way for good in **More**, **Layout**. See [Language, theme and paper](/settings/look).
+Held sideways, the book and the notes sit side by side. Held upright, the notes go under the book. You can choose either way for good in **More**, **Settings**, **Look**, **Layout**. See [Language, theme and paper](/settings/look).
 
 ## Panels
 

@@ -25,7 +25,7 @@ import { SelectionSheet, type Selected } from './SelectionTools'
 import { PageTools } from './PageTools'
 import Reflow from './Reflow'
 import SelectionBar from './SelectionBar'
-import { askAi } from '../lib/platform'
+import { askAi, placeNow } from '../lib/platform'
 import { TextMenu } from './ReaderMenus'
 import { usePref } from '../lib/prefs'
 import { lookUp, translate } from '../Extras'
@@ -745,6 +745,22 @@ export default function PdfView({ file }: { file: File }) {
     setBusy('No page marked “Not yet” or “Partly”.')
     setTimeout(() => setBusy(''), 4000)
   }
+
+  // The PDF tools by name, from the palette (Ctrl K): the PDF last touched answers.
+  const toolsByName = useRef<Record<string, () => void>>({})
+  toolsByName.current = {
+    'fit-width': fitWidth, 'whole-page': fitPage, 'two-pages': toggleSpread, turn: rotate, 'all-pages': () => setOverview(!overview), flowing: () => setFlowing(!flowing),
+    paper: () => { rememberFlip(true); setMode('flip') }, 'read-aloud': readAloud,
+    clip: () => { setReading(false); setCarding(false); setTabling(false); setClipping(true) }, 'text-box': () => { setCarding(false); setTabling(false); setReading(true); setClipping(true) },
+    table: () => { setReading(false); setCarding(false); setTabling(true); setClipping(true) }, 'picture-cards': () => { setReading(false); setTabling(false); setCarding(true); setClipping(true) },
+    draw: () => setTool('draw'), 'page-text': readWholePage, 'next-to-learn': nextUnknown, 'hard-pages': () => setShowHard(!showHard),
+    cite: () => openCite({ book: file.name, place: `page=${page}` }), 'new-pdf': () => setMaking(true), 'with-marks': () => void saveCopy(), searchable: () => void readScan(),
+  }
+  useEffect(() => {
+    const run = (e: Event) => { if (placeNow()?.book === file.name) toolsByName.current[(e as CustomEvent<string>).detail]?.() }
+    window.addEventListener('sidepage:pdf-tool', run)
+    return () => window.removeEventListener('sidepage:pdf-tool', run)
+  }, [file.name])
 
   // Rest the pointer on a citation, a figure's number or an acronym to see what it points to.
   const peek = usePeek({ container, doc, file: file.name, go: number => go(number - page) })

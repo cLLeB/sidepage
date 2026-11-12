@@ -15,21 +15,21 @@ Reading is more accurate when Sidepage knows the language.
 
 When you open a scanned PDF, the book's bar shows **Scanned: make it searchable**.
 
-1. Click **Scanned: make it searchable** (or **⋯ Tools**, then **Make the whole book searchable**).
+1. Click **Scanned: make it searchable** (or **⋯ Tools**, then **Searchable**).
 2. Sidepage reads every page. The bar shows **Reading pages 12 / 80 · stop**; you can keep reading meanwhile, or click it to stop.
 
 When it is done, the book can be searched, read aloud, summed up in the [study guide](/study/guide) and quizzed on, like any other book. This is done once per book.
 
 ## Put the words of one area into your notes
 
-1. Click **⋯ Tools**, then **Read the text in a box**.
+1. Click **⋯ Tools**, then **Text in a box**.
 2. Drag a box over the area with the words (a paragraph, a table, a diagram's labels).
 3. The words are added to your notes.
 
 ## Put the words of a whole page into your notes
 
 1. Go to the page.
-2. Click **⋯ Tools**, then **Read the text of this whole page**.
+2. Click **⋯ Tools**, then **Page's text**.
 
 ## Pictures
 

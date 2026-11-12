@@ -2,27 +2,28 @@
 
 ## In More (⋯ at the top right)
 
-| Setting | Choices | Explained in |
-| --- | --- | --- |
-| Check for updates | | [Updates](/get-started/updates) |
-| Update by itself | On (default) or off | [Updates](/get-started/updates) |
-| Choose notes folder (Chrome and Edge only) | A folder | [Where your notes are kept](/data/where-notes-live) |
-| Language | English, Français | [Language, theme and paper](/settings/look) |
-| Accent | Colours | [Language, theme and paper](/settings/look) |
-| Warmth | Slider | [Focus and comfort](/reading/focus-and-comfort) |
-| Dim | Slider | [Focus and comfort](/reading/focus-and-comfort) |
-| Reading ruler | On or off | [Focus and comfort](/reading/focus-and-comfort) |
-| Keep the screen on | On or off | [Focus and comfort](/reading/focus-and-comfort) |
-| Reading aloud: kind of voice | Device voice, Natural voice | [Read aloud](/reading/read-aloud) |
-| Reading aloud: voices | English and French natural voices, or a device voice | [Read aloud](/reading/read-aloud) |
-| Pace | Slow, Normal, Brisk, Fast, Very fast | [Read aloud](/reading/read-aloud) |
-| Pitch (device voices) | Deep, Lower, Normal, Higher, High | [Read aloud](/reading/read-aloud) |
-| Stop after | Never, 10 to 60 minutes | [Read aloud](/reading/read-aloud) |
-| Text in pictures | English, French, both, German, Spanish, Portuguese, Italian, Dutch | [Scanned pages](/reading/scanned-pages) |
-| Daily goal | None, 15 minutes to 2 hours | [Reading plans](/study/plans) |
-| Paper | Blank, Lined, Grid, Dots | [Language, theme and paper](/settings/look) |
-| Layout | Automatic, Side by side, Book above notes, One at a time | [Language, theme and paper](/settings/look) |
-| Theme | Follow the device, Light, Sepia, Dark, Black | [Language, theme and paper](/settings/look) |
+| Setting | Explained in |
+| --- | --- |
+| Check for updates | [Updates](/get-started/updates) |
+| Choose notes folder (Chrome and Edge only) | [Where your notes are kept](/data/where-notes-live) |
+
+## In Settings (More, then Settings)
+
+| Tab | Setting | Choices | Explained in |
+| --- | --- | --- | --- |
+| Look | Accent | Colours | [Language, theme and paper](/settings/look) |
+| Look | Warmth, Dim | Sliders | [Focus and comfort](/reading/focus-and-comfort) |
+| Look | Reading ruler, Keep the screen on | On or off | [Focus and comfort](/reading/focus-and-comfort) |
+| Look | Theme | Follow the device, Light, Sepia, Dark, Black | [Language, theme and paper](/settings/look) |
+| Look | Paper | Blank, Lined, Grid, Dots | [Language, theme and paper](/settings/look) |
+| Look | Layout | Automatic, Side by side, Book above notes, One at a time | [Language, theme and paper](/settings/look) |
+| Reading | Text in pictures | English, French, both, German, Spanish, Portuguese, Italian, Dutch | [Scanned pages](/reading/scanned-pages) |
+| Reading | Daily goal | None, 15 minutes to 2 hours | [Reading plans](/study/plans) |
+| Voices | Kind of voice | Device voice, Natural voice | [Read aloud](/reading/read-aloud) |
+| Voices | Voices | English and French natural voices, or a device voice | [Read aloud](/reading/read-aloud) |
+| Voices | Pace, Pitch, Stop after | Slow to Very fast; Deep to High; Never or 10 to 60 minutes | [Read aloud](/reading/read-aloud) |
+| General | Language | English, Français | [Language, theme and paper](/settings/look) |
+| General | Check for updates, Update by itself | On (default) or off | [Updates](/get-started/updates) |
 
 ## In a note (⋯, Paper and writing)
 
@@ -34,7 +35,7 @@
 | Lines | Narrow, Normal, Wide |
 | Paper | The theme's own, White, Cream, Legal yellow, Pale blue, Pale green, Pale pink |
 
-And in the same menu: **A heading for each page or slide**, **Keep pace with the book**, **Typewriter writing**. See [Write notes](/notes/written-notes).
+And in the same menu: **Heading per slide**, **Keep pace**, **Typewriter**. See [Write notes](/notes/written-notes).
 
 ## In an e-book or text file (Aa in the book's bar)
 

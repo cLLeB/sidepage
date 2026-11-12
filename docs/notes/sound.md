@@ -5,7 +5,7 @@ Record a lecture (or yourself explaining something) beside your notes. Every lin
 ## Record
 
 1. Open the notes for the book.
-2. Click **⋯** in the note's bar, then **Record sound with this note**.
+2. Click **⋯** in the note's bar, then **Record sound**.
 3. The first time, allow Sidepage to use the microphone.
 4. Write your notes as usual. Each new line gets a small **▸ 12:30** stamp: the moment in the recording.
 5. To stop, click **⋯**, then **Stop recording sound**.

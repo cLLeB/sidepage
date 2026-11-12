@@ -2,7 +2,7 @@
 
 ## Cite the book you are reading
 
-1. In a PDF, click **⋯ Tools** in the book's bar, then **Cite this book…**. In any book, you can also press <kbd>Ctrl</kbd> <kbd>K</kbd> and choose **Cite this book…**.
+1. In a PDF, click **⋯ Tools** in the book's bar, then **Cite it**. In any book, you can also press <kbd>Ctrl</kbd> <kbd>K</kbd> and choose **Cite it**.
 2. Pick the **Style**: **APA**, **MLA**, **Chicago** or **BibTeX**.
 3. Copy what you need:
    - **In the list of references**: the full reference

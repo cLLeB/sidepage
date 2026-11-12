@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import SelectionBar from './SelectionBar'
 import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
 import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
-import { BookA, Languages, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2, Ellipsis } from 'lucide-react'
+import { BookA, Languages, Link2, MessageCircleQuestion, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2, Ellipsis } from 'lucide-react'
 import { lookUp, translate } from '../Extras'
-import { keepFacts } from './Cite'
+import { keepFacts, openCite } from './Cite'
 import { Tool, Menu } from '../ui'
 import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu, TextMenu, type Highlight } from './ReaderMenus'
 import { canSpeak, useReadAloud } from '../lib/speech'
@@ -18,6 +19,7 @@ import CurlBook, { type CurlHandle, type CurlPlace } from './CurlBook'
 import {
   baseName, extensionOf, findInNotes, onGoToPlace, prefersFlip, rememberFlip, sendQuote, tellPlace,
   tellContents,
+  askAi,
 } from '../lib/platform'
 
 type TocItem = { label: string; href: string; subitems?: TocItem[] }
@@ -316,6 +318,9 @@ export default function BookView({ file }: { file: File }) {
     void viewRef.current.deleteAnnotation({ value: cfi })
   }
 
+  // The chapters on screen, each in a frame of its own, for the bar beside selected words.
+  const chapterDocs = useCallback((): Document[] => (viewRef.current?.renderer?.getContents?.() ?? []).map((part: { doc: Document }) => part.doc), [])
+
   // Quote: highlight the passage and send it to the notes with a link back to its place.
   const quote = async () => {
     const source = [baseName(file.name), where.label].filter(Boolean).join(', ')
@@ -424,11 +429,7 @@ export default function BookView({ file }: { file: File }) {
         {canCurl && <HighlightsMenu marks={highlights} notebook={baseName(file.name)} onHighlight={color => void highlight(color)} onGo={cfi => void viewRef.current?.goTo(cfi)} onChange={changeHighlight} onRemove={removeHighlight} />}
         {canCurl && <TextMenu />}
         {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
-        <Tool quiet icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={() => void quote()} />
-        <Menu quiet icon={Ellipsis} label="Tools" hint="Look up, translate, read aloud, and how the pages turn" on={scrolled || curl}>
-          <p className="menu-head">Selected words</p>
-          <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => void selectedPassage().then(passage => lookUp(passage?.text))} />
-          <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => void selectedPassage().then(passage => translate(passage?.text))} />
+        <Menu quiet icon={Ellipsis} label="Tools" hint="Read aloud, and how the pages turn" on={scrolled || curl}>
           {canCurl && canSpeak && !turning && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
           <p className="menu-head">Pages</p>
           {!turning && <Tool icon={ScrollText} label="Read as one long scroll" on={scrolled} onClick={() => setScrolled(s => !s)} />}
@@ -442,6 +443,23 @@ export default function BookView({ file }: { file: File }) {
         style={{ '--book-scale': text.size / 100, '--book-spacing': text.spacing, ...(FONTS[text.font].css ? { '--book-font': FONTS[text.font].css } : {}) } as React.CSSProperties}
       >
         <div ref={host} className="book-host" style={{ visibility: turning ? 'hidden' : undefined }} />
+        {/* What can be done with selected words, beside them (see SelectionBar.tsx); the chapters are in frames. */}
+        {!turning && (
+          <SelectionBar
+            host={body}
+            frames={chapterDocs}
+            onHighlight={color => void highlight(color)}
+            actions={[
+              { icon: TextQuote, label: 'Quote', hint: 'Copy the selected text into your notes', run: () => void quote() },
+              { icon: BookA, label: 'Look up', hint: 'What the selected word means', run: words => lookUp(words) },
+              { icon: Languages, label: 'Translate', hint: 'Translate the selected passage (sent to a free online service)', run: words => translate(words) },
+              { icon: MessageCircleQuestion, label: 'Ask AI', hint: 'Ask the AI about the selected passage', run: words => askAi(`Explain this passage: “${words}”`) },
+            ]}
+            more={[
+              { icon: Link2, label: 'Cite this passage', hint: 'The selected passage with its source', run: words => openCite({ book: file.name, place: where.label, passage: words }) },
+            ]}
+          />
+        )}
         {turning && <CurlBook key={`${curlStart.key}/${text.size}/${text.spacing}/${text.font}`} ref={curlRef} sections={sections} start={curlStart.place} onPlace={onCurlPlace} />}
       </div>
     </div>

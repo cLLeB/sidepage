@@ -6,14 +6,14 @@ All of these are in **More** (⋯ at the top right), **Settings**: Language unde
 
 Sidepage speaks **English** and **French**.
 
-1. Open **More**.
+1. Open **More**, then **Settings**, **General**.
 2. Set **Language** to **English** or **Français**.
 
 Books and your notes are never translated; only Sidepage's own buttons and messages. Read aloud and Write it out follow each book's own language, whatever you choose here.
 
 ## Theme
 
-1. Open **More**.
+1. Open **More**, then **Settings**, **Look**.
 2. Set **Theme**:
    - **Follow the device**: light by day, dark at night, as your device is set
    - **Light**
@@ -27,18 +27,18 @@ In dark themes, pages are darkened too, while photos and diagrams keep their rea
 
 ## Accent colour
 
-Under **Look**, click one of the **Accent** colours. It colours buttons, links and marks across Sidepage.
+In **More**, **Settings**, **Look**, click one of the **Accent** colours. It colours buttons, links and marks across Sidepage.
 
 ## Paper for your notes
 
-1. Open **More**.
-2. Under **Reading**, set **Paper** to **Blank**, **Lined**, **Grid** or **Dots**.
+1. Open **More**, then **Settings**, **Look**.
+2. Set **Paper** to **Blank**, **Lined**, **Grid** or **Dots**.
 
 This applies to every note. For the colour of the paper, the ink and the size of your writing, see [Write notes](/notes/written-notes#the-paper-and-your-handwriting).
 
 ## Layout: notes beside or under the book
 
-1. Open **More**.
+1. Open **More**, then **Settings**, **Look**.
 2. Set **Layout**:
    - **Automatic**: beside the book on a wide screen, under it on a tablet held upright, tabs on a phone
    - **Side by side**: always beside
