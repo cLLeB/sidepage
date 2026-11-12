@@ -23,6 +23,7 @@ import {
   loadNote,
   baseName, finishSaving, moveNotebook, saveWaiting, canPickNotesFolder, chooseNotesFolder, extensionOf, fromShelf, isShown, notesFolder, onClip, onFindInNotes, onGoToPlace, onOpenBookByName, onQuote, sendClip, sendQuote,
   onNotesFolderChange, openOutside, onOpenedFiles, onOpenFileNow, pickFile, placeNow, tellPlace, PICTURE_EXTENSIONS, restoreNotesFolder, saveFileAs, shelf, shelve, unshelve, type Shelved,
+  onAskAiRequest,
 } from './lib/platform'
 import { BUNDLE_EXTENSION, packBundle, unpackBundle } from './lib/bundle'
 import { withDetectedType } from './lib/sniff'
@@ -640,6 +641,8 @@ export default function App() {
     if (getPref('link-code', '')) void import('./lib/link').then(link => link.resumeLink())
     return () => window.removeEventListener('sidepage:link', openLink)
   }, [openLink])
+  // A question sent to Ask AI from the book opens the panel.
+  useEffect(() => onAskAiRequest(() => openAsk()), [openAsk])
   // The paper explorer (OpenAlex), beside the notes.
   const openPapers = useCallback(() => {
     const dock = api.current

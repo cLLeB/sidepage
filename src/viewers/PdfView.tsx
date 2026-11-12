@@ -8,7 +8,7 @@ import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
 import {
-  BookA, Languages, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
+  BookA, Languages, CircleHelp, Gauge, ListTree, SearchCode, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
   ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
@@ -16,6 +16,10 @@ import { readableText } from '../lib/insight'
 import { planToday } from '../lib/reading'
 import { keepFacts, openCite } from './Cite'
 import PageMap from './PageMap'
+import { usePeek } from './Peek'
+import { KNOWN, QuestionsMenu, RecapCard, StudySheet, usePageMarks, type Sheet } from './PageStudy'
+import { hardnessOf, markKnown, noteVisit } from '../lib/pages'
+import { headingsOf, layoutOf } from '../lib/paper'
 import { usePref } from '../lib/prefs'
 import { lookUp, translate } from '../Extras'
 import { Menu, Tool } from '../ui'
@@ -298,6 +302,7 @@ export default function PdfView({ file }: { file: File }) {
   }
   const links = useRef<PDFLinkService | null>(null)
   const [contents, setContents] = useState<{ label: string; depth: number; go(): void }[]>([])
+  const [contentsFound, setContentsFound] = useState(false)
   // Zoom: the page fills the panel's width until the reader zooms; after that their zoom is kept.
   const fitted = useRef(true)
   const [zoom, setZoom] = useState(100)
@@ -361,6 +366,7 @@ export default function PdfView({ file }: { file: File }) {
     })
     eventBus.on('pagechanging', (e: { pageNumber: number }) => {
       setPage(e.pageNumber)
+      noteVisit(file.name, e.pageNumber)
       tellPlace({ book: file.name, place: `page=${e.pageNumber}` })
       localStorage.setItem(placeKey, String(e.pageNumber))
       setProgress(file.name, viewer.pagesCount > 1 ? (e.pageNumber - 1) / (viewer.pagesCount - 1) : 1)
@@ -469,7 +475,20 @@ export default function PdfView({ file }: { file: File }) {
           { label: item.title, depth, go: () => { if (item.dest) void linkService.goToDestination(item.dest as string) } },
           ...flat(item.items ?? [], depth + 1),
         ])
-        void pdf.getOutline().then(outline => { if (!cancelled) setContents(flat((outline ?? []) as Entry[])) }).catch(() => {})
+        // Without one, a table of contents is worked out from the headings: the short lines set larger than the text.
+        const fromHeadings = () => layoutOf(pdf).then(layout => {
+          if (cancelled) return
+          setContents(headingsOf(layout).map(heading => ({
+            label: heading.label, depth: heading.depth,
+            go: () => viewer.scrollPageIntoView({ pageNumber: heading.page, destArray: [null, { name: 'XYZ' }, 0, layout.heights[heading.page - 1] * (1 - heading.top) + 12, null] }),
+          })))
+          setContentsFound(true)
+        })
+        void pdf.getOutline().then(outline => {
+          if (cancelled) return
+          if (outline?.length) setContents(flat(outline as Entry[]))
+          else return fromHeadings()
+        }).catch(() => {})
         // The book's words, page by page, so it can be found by them later. Done once, a little at a time.
         void hasWords(file.name).then(async known => {
           if (known) return
@@ -651,6 +670,39 @@ export default function PdfView({ file }: { file: File }) {
     if (viewer) viewer.currentPageNumber = Math.min(Math.max(1, page + delta), doc?.numPages ?? 1)
   }
 
+  // Study marks: how well you know each page, the questions passages left you with, and pages hard to read.
+  const studied = usePageMarks(file.name)
+  const [sheet, setSheet] = useState<Sheet | null>(null)
+  const [showHard, setShowHard] = usePref('map-hard', false)
+  const [hard, setHard] = useState<number[]>([])
+  useEffect(() => {
+    if (!showHard || !doc) return setHard([])
+    let cancelled = false
+    void hardnessOf(file.name, doc.numPages).then(grades => {
+      // Hard: well above the book's own usual grade, not a fixed school level (a physics text is hard throughout).
+      const read = grades.filter(Boolean).sort((a, b) => a - b)
+      const usual = read[Math.floor(read.length / 2)] ?? 0
+      const spread = read[Math.floor(read.length * 0.85)] ?? usual
+      if (!cancelled) setHard(grades.flatMap((grade, i) => (grade && grade >= Math.max(usual + 2, spread) ? [i + 1] : [])))
+    })
+    return () => { cancelled = true }
+  }, [showHard, doc, file.name])
+  const selected = () => window.getSelection()?.toString().trim().replace(/\s+/g, ' ') ?? ''
+  const knownHere = studied.known[`page=${page}`]
+  const nextUnknown = () => {
+    if (!doc) return
+    for (let step = 1; step <= doc.numPages; step++) {
+      const number = ((page - 1 + step) % doc.numPages) + 1
+      const known = studied.known[`page=${number}`]
+      if (known && known < 3) return go(number - page)
+    }
+    setBusy('No page marked “Not yet” or “Partly”.')
+    setTimeout(() => setBusy(''), 4000)
+  }
+
+  // Rest the pointer on a citation, a figure's number or an acronym to see what it points to.
+  const peek = usePeek({ container, doc, file: file.name, go: number => go(number - page) })
+
   // The guide and the notes follow whichever book was last opened or touched.
   useEffect(() => { if (doc) tellPlace({ book: file.name, place: `page=${page}` }) }, [doc]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -663,7 +715,7 @@ export default function PdfView({ file }: { file: File }) {
           <Tool quiet icon={ChevronLeft} label="Previous page" onClick={() => go(-1)} />
           <Tool quiet icon={ChevronRight} label="Next page" onClick={() => go(1)} />
         </>}
-        {mode === 'scroll' && <ContentsMenu items={contents} onGo={() => {}} />}
+        {mode === 'scroll' && <ContentsMenu items={contents} onGo={() => {}} found={contentsFound} />}
         {jumping
           ? <input
               className="page-jump" type="number" autoFocus min={1} max={doc?.numPages} defaultValue={page} aria-label="Go to page"
@@ -695,6 +747,7 @@ export default function PdfView({ file }: { file: File }) {
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <HighlightsMenu marks={highlights} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
           <Tool quiet icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
+          <QuestionsMenu book={file.name} marks={studied} onGo={place => go(pageOf(place) - page)} />
         </>}
         <Menu quiet icon={Ellipsis} label="Tools" hint="Clip, read aloud, look up, translate, draw, page layout and more" on={mode === 'flip'}>
           {mode === 'scroll' && <>
@@ -703,9 +756,26 @@ export default function PdfView({ file }: { file: File }) {
             <Tool icon={ScanText} label="Read the text in a box" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setReading(true); setClipping(!(clipping && reading)) }} />
             <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setCarding(true); setClipping(!(clipping && carding)) }} />
             <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
+            <p className="menu-head">This page</p>
+            <div className="known-row" title="Mark how well you know this page: it shows on the page map, and you can come back to the pages you do not know yet">
+              <span className="menu-note">I know it</span>
+              {([1, 2, 3] as const).map(level => (
+                <button key={level} className={knownHere === level ? 'stay on' : 'stay'} style={knownHere === level ? { background: KNOWN[level].colour } : undefined}
+                  onClick={() => void markKnown(file.name, `page=${page}`, knownHere === level ? null : level)}>{KNOWN[level].name}</button>
+              ))}
+            </div>
+            <Tool icon={Gauge} label="Next page I do not know yet" hint="The next page marked Not yet or Partly" onClick={nextUnknown} />
+            <Tool icon={ListTree} label={showHard ? 'Hide hard pages on the map' : 'Show hard pages on the map'} hint="Shade the pages much harder to read than the rest of the book" on={showHard} onClick={() => setShowHard(!showHard)} />
             <p className="menu-head">Selected words</p>
             <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
             <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => translate(window.getSelection()?.toString())} />
+            <Tool icon={BookA} label="Where is this explained?" hint="The sentence of the book that says what the selected words are" onClick={() => { const words = selected(); if (words) setSheet({ kind: 'explained', words }) }} />
+            <Tool icon={SearchCode} label="Every use in this book" hint="Each place the selected words come, with the words around them, lined up" onClick={() => { const words = selected(); if (words) setSheet({ kind: 'uses', words }) }} />
+            <Tool icon={CircleHelp} label="A question about this" hint="Note a question on the selected passage, to answer later or ask the AI" onClick={() => {
+              const passage = selected()
+              const pageDiv = window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>('.page')
+              if (passage) setSheet({ kind: 'question', passage, place: `page=${Number(pageDiv?.dataset.pageNumber) || page}` })
+            }} />
             {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
             <p className="menu-head">Pages</p>
             <Tool icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />
@@ -745,16 +815,23 @@ export default function PdfView({ file }: { file: File }) {
           ref={container}
           className="pdf-container"
           style={{ visibility: mode === 'scroll' ? undefined : 'hidden' }}
+          {...peek.handlers}
           // A stylus touching the page means writing on it: switch to Draw without being asked.
           onPointerDownCapture={e => { if (e.pointerType === 'pen' && tool === 'none') setTool('draw') }}
         >
           <div className="pdfViewer" />
         </div>
+        {mode === 'scroll' && peek.view}
+        {mode === 'scroll' && sheet && <StudySheet book={file.name} sheet={sheet} onGo={place => { setSheet(null); go(pageOf(place) - page) }} onClose={() => setSheet(null)} />}
+        {mode === 'scroll' && doc && <RecapCard book={file.name} onGo={number => go(number - page)} />}
         {mode === 'scroll' && doc && (
           <PageMap
             file={file.name} pages={doc.numPages} current={page} goal={plan ? goalPage : undefined}
             highlights={highlights.map(mark => ({ page: pageOf(mark.cfi), colour: mark.color ?? '#ffd84d' }))}
             bookmarks={bookmarks.list.map(mark => pageOf(mark.place))}
+            known={Object.fromEntries(Object.entries(studied.known).map(([place, level]) => [pageOf(place), KNOWN[level].colour]))}
+            questions={studied.questions.filter(q => !q.answered).map(q => pageOf(q.place))}
+            hard={hard}
             onGo={number => go(number - page)}
           />
         )}

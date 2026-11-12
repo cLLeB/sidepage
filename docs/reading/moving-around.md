@@ -19,6 +19,8 @@ After a jump, a **↩ p. 3** button appears in the bar. Click it to go back to t
 1. Click **Contents** in the book's bar (the list icon). It shows when the book has chapters.
 2. Click a chapter.
 
+A PDF without contents of its own (many papers and course notes) gets them from its headings: the short lines set larger than the text, and numbered ones such as **2.3 Methods**. The list then says **Found from the headings**.
+
 ## See every page at once (PDF)
 
 1. Click **⋯ Tools** in the book's bar.

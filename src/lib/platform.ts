@@ -412,3 +412,15 @@ export async function moveNotebook(from: string, to: string) {
     if (data) await saveNoteFile(to, name, data)
   }
 }
+
+// A question to put to Ask AI, from elsewhere (an open question on a passage): the panel opens with it typed in.
+// It is also kept a moment, for the panel that is only now opening.
+let askWaiting = ''
+const [sendAsk, onAskSaid] = channel<string>('sidepage:ask-ai')
+export const askAi = (question: string) => { askWaiting = question; sendAsk(question) }
+// For opening the panel: hears the question without taking it.
+export const onAskAiRequest = onAskSaid
+export const onAskAi = (handler: (question: string) => void) => {
+  if (askWaiting) { handler(askWaiting); askWaiting = '' }
+  return onAskSaid(question => { askWaiting = ''; handler(question) })
+}

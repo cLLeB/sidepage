@@ -6,13 +6,17 @@ import { baseName, loadNote, onQuote } from '../lib/platform'
 // or drag along it.
 export type PageMarks = { colours: string[]; noted: number; bookmarked: boolean }
 
-export default function PageMap({ file, pages, current, goal, highlights, bookmarks, onGo }: {
+export default function PageMap({ file, pages, current, goal, highlights, bookmarks, known = {}, questions = [], hard = [], onGo }: {
   file: string
   pages: number
   current: number
   goal?: number
   highlights: { page: number; colour: string }[]
   bookmarks: number[]
+  // How well you know each page (its colour), the pages with an open question, and the pages hard to read.
+  known?: Record<number, string>
+  questions?: number[]
+  hard?: number[]
   onGo(page: number): void
 }) {
   // Pages the notes point to: quotes, clips and links carry their page.
@@ -67,6 +71,9 @@ export default function PageMap({ file, pages, current, goal, highlights, bookma
       onPointerUp={() => { dragging.current = false }}
       onPointerCancel={() => { dragging.current = false }}
     >
+      {hard.map(page => <i key={`d${page}`} className="map-hard" style={{ top: `${((page - 1) / pages) * 100}%`, height: `${100 / pages}%` }} title={`Page ${page}: harder to read than most of the book`} />)}
+      {Object.entries(known).map(([page, colour]) => <i key={`k${page}`} className="map-known" style={{ top: at(Number(page)), background: colour }} />)}
+      {questions.map(page => <i key={`q${page}`} className="map-question" style={{ top: at(page) }} title={`Page ${page}: an open question`} />)}
       {[...byPage].map(([page, colours]) => <i key={`h${page}`} className="map-highlight" style={{ top: at(page), background: colours[0] }} title={`Page ${page}: ${colours.length} highlight${colours.length === 1 ? '' : 's'}`} />)}
       {[...noted].map(([page, count]) => <i key={`n${page}`} className="map-note" style={{ top: at(page) }} title={`Page ${page}: in your notes ${count} time${count === 1 ? '' : 's'}`} />)}
       {bookmarks.map(page => <i key={`b${page}`} className="map-bookmark" style={{ top: at(page) }} title={`Page ${page}: bookmarked`} />)}

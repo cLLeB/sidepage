@@ -60,6 +60,7 @@ export default defineConfig({
       { text: 'Study', collapsed: false, items: [
         { text: 'The study guide', link: '/study/guide' },
         { text: 'Ask your books', link: '/study/ask-your-books' },
+        { text: 'Peek, every use, study marks', link: '/study/peek-and-marks' },
         { text: 'Flashcards and review', link: '/study/flashcards' },
         { text: 'Mock exams and progress', link: '/study/exams-and-progress' },
         { text: 'Reading plans, goals and the calendar', link: '/study/plans' },

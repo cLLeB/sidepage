@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import 'katex/dist/katex.min.css'
 import { ArrowUp, Check, Copy, ExternalLink, KeyRound, Laptop, NotebookPen, RotateCcw, Square } from 'lucide-react'
 import type { ModelMessage } from 'ai'
-import { baseName, loadNote, onPlace, openOutside, placeNow, saveNote, sendQuote } from '../lib/platform'
+import { baseName, loadNote, onAskAi, onPlace, openOutside, placeNow, saveNote, sendQuote } from '../lib/platform'
 import { uiLocale } from '../lib/language'
 import { placeName } from '../lib/library'
 import { usePref } from '../lib/prefs'
@@ -169,6 +169,8 @@ export default function AskView() {
   const book = here?.book ?? ''
 
   useEffect(() => onPlace(setHere), [])
+  // A question sent from the book (an open question on a passage) is typed in, ready to send.
+  useEffect(() => onAskAi(setQuestion), [])
   // The book's chats: the latest is shown again when the book opens.
   const [earlier, setEarlier] = useState<Chat[]>([])
   const shownFor = useRef('')

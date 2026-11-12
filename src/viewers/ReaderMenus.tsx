@@ -81,10 +81,12 @@ export function HighlightsMenu({ marks, onHighlight, onGo, onChange, onRemove }:
 }
 
 // A book's or a PDF's table of contents.
-export function ContentsMenu({ items, onGo }: { items: { label: string; depth: number; go: string | (() => void) }[]; onGo(target: string): void }) {
+export function ContentsMenu({ items, onGo, found }: { items: { label: string; depth: number; go: string | (() => void) }[]; onGo(target: string): void; found?: boolean }) {
   if (!items.length) return null
   return (
     <Menu quiet icon={List} label="Contents">
+      {/* A PDF without contents of its own gets them from its headings. */}
+      {found && <p className="menu-note contents-found">Found from the headings</p>}
       <div className="menu-scroll">
         {items.map((item, i) => (
           <button

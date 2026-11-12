@@ -1377,3 +1377,67 @@ button.viewer-pos { font-weight: 500; }
 .crossword-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .crossword-score { font-size: 13px; color: var(--muted); }
 .ai-bar .ai-earlier { max-width: min(240px, 38vw); text-overflow: ellipsis; }
+
+/* Peek: what a citation, a figure or an acronym points to, beside the pointer. */
+.peek {
+  position: fixed; z-index: 900; width: min(380px, calc(100vw - 16px)); max-height: min(60vh, 460px); overflow: auto;
+  padding: 12px 14px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: var(--shadow); font-size: 13.5px; line-height: 1.5; animation: rise 0.12s ease-out;
+}
+.peek p { margin: 0 0 6px; }
+.peek-head { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.02em; }
+.peek-reference + .peek-reference { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.peek img { display: block; width: 100%; border-radius: 8px; border: 1px solid var(--border); background: #fff; margin: 4px 0 8px; }
+.peek-caption { font-size: 12.5px; color: var(--muted); }
+.peek-wait { color: var(--muted); padding: 24px 0; text-align: center; }
+.link-button { padding: 2px 0; color: var(--text); font-weight: 600; font-size: 12.5px; background: none; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Study marks on the page map: how well each page is known (a tick at its left), an open question, a hard page. */
+.page-map .map-known { left: -5px; right: auto; width: 3px; height: 5px; margin-top: -2.5px; }
+.page-map .map-question { left: 1px; right: 1px; height: 5px; margin-top: -2.5px; border-radius: 50%; background: #0c8f9c; box-shadow: 0 0 0 1px var(--panel); }
+.page-map .map-hard { left: 0; right: 0; margin-top: 0; border-radius: 0; background: color-mix(in srgb, #f5a524 30%, transparent); }
+
+/* A sheet over the page: a concordance, where something is explained, a question to keep. The recap is the same card. */
+.study-sheet, .recap {
+  position: absolute; z-index: 30; left: 50%; translate: -50% 0; top: 10px; width: min(640px, calc(100% - 20px)); max-height: calc(100% - 20px);
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); animation: rise 0.14s ease-out;
+}
+.recap { top: auto; bottom: 14px; }
+.study-sheet-head { display: flex; align-items: center; gap: 8px; }
+.study-sheet-head b { flex: 1; font-size: 14.5px; }
+.study-sheet-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 13px; }
+.study-sheet-row select { margin-left: 6px; }
+.study-sheet-row button.soft, .study-sheet-row button.primary { padding: 8px 14px; }
+.study-sheet blockquote, .recap blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--border); color: var(--text); font-size: 13.5px; line-height: 1.55; max-height: 30vh; overflow: auto; }
+.study-sheet textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; resize: vertical; }
+.explained { display: flex; flex-direction: column; gap: 10px; }
+.explained .eyebrow { margin: 0; }
+.recap ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.5; max-height: 34vh; overflow: auto; }
+.concordance { overflow: auto; display: flex; flex-direction: column; font-size: 13px; border-top: 1px solid var(--border); }
+.concordance button {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto minmax(0, 1fr); align-items: baseline; gap: 6px;
+  padding: 6px 4px; text-align: left; background: none; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); border-radius: 0;
+}
+.concordance button:hover { background: var(--hover); }
+.kwic-place { color: var(--muted); font-size: 11.5px; }
+.kwic-before { display: flex; justify-content: flex-end; white-space: nowrap; overflow: hidden; color: var(--muted); }
+.kwic-before span { flex: none; }
+.kwic-after { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.concordance mark { background: var(--accent-soft); color: var(--text); font-weight: 600; padding: 0 3px; border-radius: 4px; }
+@media (max-width: 560px) { .concordance button { grid-template-columns: 40px minmax(0, 1fr) auto minmax(0, 1fr); font-size: 12.5px; } }
+
+/* Open questions in the book's bar. */
+.questions { display: flex; flex-direction: column; gap: 2px; max-height: 50vh; }
+.question { display: flex; align-items: flex-start; gap: 4px; }
+.question .menu-item { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; white-space: normal; }
+.question .menu-item span { color: var(--muted); font-size: 12px; }
+.question.answered b { text-decoration: line-through; color: var(--muted); }
+.question-tools { display: flex; gap: 2px; padding-top: 6px; }
+.question-tools button { padding: 6px; border-radius: 8px; background: none; color: var(--muted); }
+.question-tools button:hover { background: var(--hover); color: var(--text); }
+.known-row { display: flex; align-items: center; gap: 4px; padding: 2px 6px; }
+.known-row .menu-note { flex: 1; }
+.known-row button { padding: 6px 9px; border-radius: 8px; font-size: 12.5px; background: var(--bg); }
+.known-row button.on { color: #fff; }
+.contents-found { margin: 4px 10px; }

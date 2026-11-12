@@ -16,7 +16,8 @@ export async function hasWords(book: string) {
 export async function keepWords(book: string, stretches: Stretch[]) {
   const { set } = await import('idb-keyval')
   try {
-    await set(key(book), stretches.filter(stretch => stretch.text.trim()))
+    // Typeset ligatures ("ﬁ", "ﬂ") are kept as the letters they stand for, so "fight" finds "ﬁght".
+    await set(key(book), stretches.filter(stretch => stretch.text.trim()).map(stretch => ({ ...stretch, text: stretch.text.normalize('NFKC') })))
   } catch {
     // Out of room: the book still reads; it just cannot be found by its words.
   }
