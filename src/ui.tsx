@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { LucideIcon } from 'lucide-react'
 
 // One control in a toolbar: an icon with its name beside it. Where the bar is short of room the name drops
@@ -28,9 +29,12 @@ export function Tool({ icon: Icon, label, hint, on, quiet, disabled, onClick }: 
   )
 }
 
+// Phones show menus as a sheet from the bottom of the screen, within reach of the thumb.
+export const sheetNow = () => matchMedia('(max-width: 700px)').matches
+
 // A toolbar control that opens a small panel under itself: a list to pick from, or a few settings.
 // Picking a button inside closes it; so does a tap anywhere else.
-export function Menu({ icon, label, hint, quiet, on, opener, children }: {
+export function Menu({ icon, label, hint, quiet, on, opener, wide, children }: {
   icon: LucideIcon
   label: string
   hint?: string
@@ -38,6 +42,8 @@ export function Menu({ icon, label, hint, quiet, on, opener, children }: {
   on?: boolean
   // A window event that opens it from elsewhere.
   opener?: string
+  // Room for two columns of tiles (a long menu of tools, the Study menu).
+  wide?: boolean
   children: ReactNode | ((close: () => void) => ReactNode)
 }) {
   const [open, setOpen] = useState(false)
@@ -48,6 +54,8 @@ export function Menu({ icon, label, hint, quiet, on, opener, children }: {
   useLayoutEffect(() => {
     const menu = panel.current
     if (!open || !menu) return
+    // On a phone the menu rises from the bottom of the screen as a sheet: nothing to fit.
+    if (sheetNow()) return
     menu.style.translate = ''
     menu.style.maxHeight = ''
     const box = menu.getBoundingClientRect()
@@ -65,9 +73,15 @@ export function Menu({ icon, label, hint, quiet, on, opener, children }: {
   return (
     <span className="menu-anchor">
       <Tool icon={icon} label={label} hint={hint} quiet={quiet} on={on || open} onClick={() => setOpen(!open)} />
-      {open && <>
+      {open && sheetNow() && createPortal(<>
         <div className="menu-backdrop" onClick={close} />
-        <div ref={panel} className="menu" onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) close() }}>
+        <div ref={panel} className={wide ? 'menu wide' : 'menu'} onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) close() }}>
+          {typeof children === 'function' ? children(close) : children}
+        </div>
+      </>, document.body)}
+      {open && !sheetNow() && <>
+        <div className="menu-backdrop" onClick={close} />
+        <div ref={panel} className={wide ? 'menu wide' : 'menu'} onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) close() }}>
           {typeof children === 'function' ? children(close) : children}
         </div>
       </>}

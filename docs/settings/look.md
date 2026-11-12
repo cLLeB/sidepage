@@ -1,6 +1,6 @@
 # Language, theme and paper
 
-All of these are in **More** (⋯ at the top right).
+All of these are in **More** (⋯ at the top right), **Settings**: Language under **General**, the rest under **Look**.
 
 ## Language
 

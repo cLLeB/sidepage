@@ -745,23 +745,30 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           ref={picker} type="file" accept="image/*" hidden
           onChange={e => { const picture = e.target.files?.[0]; e.target.value = ''; if (picture) void addPicture(picture) }}
         />
-        <Menu quiet icon={Ellipsis} label="More for this note">
-          <div className="menu-line">
+        <Menu quiet icon={Ellipsis} label="More for this note" wide>
+          <p className="menu-head">Writing</p>
+          <div className="menu-tiles">
             <Tool icon={Redo2} label="Redo" onClick={() => redo(crepe())} />
-            <Tool icon={Replace} label="Find and replace" on={finding} onClick={() => setFinding(!finding)} />
+            <Tool icon={Replace} label="Find" hint="Find and replace" on={finding} onClick={() => setFinding(!finding)} />
+            <Tool icon={SpellCheck} label="Spelling" hint="Mistakes and suggestions from LanguageTool, in the note's own language" onClick={() => setProofing(true)} />
+            <Tool icon={HistoryIcon} label="Versions" hint="See how the note looked before, and bring a version back" onClick={openHistory} />
+            <Tool icon={AlignVerticalJustifyCenter} label="Typewriter" hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
+            {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} hint="Read this note aloud" on={voice.speaking} onClick={readAloud} />}
           </div>
-          {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read this note aloud'} onClick={readAloud} />}
-          <Tool icon={Mic} label={recording ? 'Stop recording sound' : 'Record sound with this note'} hint="Record a lecture or yourself; lines you write meanwhile are stamped with their moment" on={!!recording} onClick={() => void record()} />
-          <Tool icon={Presentation} label={byPage ? 'A heading for each page or slide: on' : 'A heading for each page or slide'} hint="Lecture notes: turn to a slide and the note goes to that slide's heading, made when first needed" on={byPage} onClick={() => setByPage(!byPage)} />
-          <Tool icon={Footprints} label={pace ? 'Keep pace with the book: on' : 'Keep pace with the book'} hint="As you turn the pages of the book, show what you quoted or clipped from there" on={pace} onClick={() => setPace(!pace)} />
-          <Tool icon={AlignVerticalJustifyCenter} label={typewriter ? 'Typewriter writing: on' : 'Typewriter writing'} hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
-          <Tool icon={SpellCheck} label="Check spelling and grammar" hint="Mistakes and suggestions from LanguageTool, in the note's own language" onClick={() => setProofing(true)} />
-          <Tool icon={HistoryIcon} label="Earlier versions" hint="See how the note looked before, and bring a version back" onClick={openHistory} />
-          <Tool icon={ClipboardCopy} label="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
-          <Tool icon={FileType} label="Save as a Word document" onClick={() => void saveAs('docx')} />
-          <Tool icon={Globe} label="Save as a web page" onClick={() => void saveAs('html')} />
-          <Tool icon={BookDown} label="Save as an e-book" hint="Your notes and highlights as an EPUB, to read on a Kindle, Kobo or any e-reader" onClick={() => void saveAs('epub')} />
-          {!isMobile && <Tool icon={Printer} label="Print this note" onClick={print} />}
+          <p className="menu-head">With the book</p>
+          <div className="menu-tiles">
+            <Tool icon={Mic} label={recording ? 'Stop recording' : 'Record sound'} hint="Record a lecture or yourself; lines you write meanwhile are stamped with their moment, and the slides you turn are followed" on={!!recording} onClick={() => void record()} />
+            <Tool icon={Presentation} label="Heading per slide" hint="Lecture notes: turn to a slide and the note goes to that slide's heading, made when first needed" on={byPage} onClick={() => setByPage(!byPage)} />
+            <Tool icon={Footprints} label="Keep pace" hint="As you turn the pages of the book, show what you quoted or clipped from there" on={pace} onClick={() => setPace(!pace)} />
+          </div>
+          <p className="menu-head">Save and share</p>
+          <div className="menu-tiles">
+            <Tool icon={ClipboardCopy} label="Copy all" hint="Copy the whole note" onClick={() => void navigator.clipboard?.writeText(host.current?.querySelector<HTMLElement>('.ProseMirror')?.innerText ?? '')} />
+            <Tool icon={FileType} label="Word" hint="Save as a Word document" onClick={() => void saveAs('docx')} />
+            <Tool icon={Globe} label="Web page" hint="Save as a web page" onClick={() => void saveAs('html')} />
+            <Tool icon={BookDown} label="E-book" hint="Your notes and highlights as an EPUB, to read on a Kindle, Kobo or any e-reader" onClick={() => void saveAs('epub')} />
+            {!isMobile && <Tool icon={Printer} label="Print" hint="Print this note" onClick={print} />}
+          </div>
           <p className="menu-head">Headings in this note</p>
           {(() => {
             const found = headings()

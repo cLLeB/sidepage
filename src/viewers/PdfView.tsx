@@ -8,7 +8,7 @@ import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
 import {
-  BookA, Languages, CircleHelp, Files, WrapText, Gauge, ListTree, SearchCode, Sigma, Ruler, SquareStack, Table2, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
+  BookA, Languages, CircleHelp, MessageCircleQuestion, Link2, Files, WrapText, Gauge, ListTree, SearchCode, Sigma, Ruler, SquareStack, Table2, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
   ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
@@ -24,6 +24,8 @@ import { asMarkdownTable, headingsOf, layoutOf, tableIn } from '../lib/paper'
 import { SelectionSheet, type Selected } from './SelectionTools'
 import { PageTools } from './PageTools'
 import Reflow from './Reflow'
+import SelectionBar from './SelectionBar'
+import { askAi } from '../lib/platform'
 import { TextMenu } from './ReaderMenus'
 import { usePref } from '../lib/prefs'
 import { lookUp, translate } from '../Extras'
@@ -791,18 +793,37 @@ export default function PdfView({ file }: { file: File }) {
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />
           <HighlightsMenu marks={highlights} notebook={baseName(file.name)} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
-          <Tool quiet icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
           <QuestionsMenu book={file.name} marks={studied} onGo={place => go(pageOf(place) - page)} />
           {flowing && <TextMenu />}
         </>}
-        <Menu quiet icon={Ellipsis} label="Tools" hint="Clip, read aloud, look up, translate, draw, page layout and more" on={mode === 'flip'}>
+        <Menu quiet icon={Ellipsis} label="Tools" hint="Page layout, clipping, study marks, this book" on={mode === 'flip'} wide>
           {mode === 'scroll' && <>
-            <p className="menu-head">On the page</p>
-            <Tool icon={Crop} label="Clip a picture into my notes" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading && !carding && !tabling} onClick={() => { setReading(false); setCarding(false); setTabling(false); setClipping(!clipping) }} />
-            <Tool icon={ScanText} label="Read the text in a box" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setTabling(false); setReading(true); setClipping(!(clipping && reading)) }} />
-            <Tool icon={Table2} label="Table into my notes" hint="Drag a box round a table on the page: it goes into your notes as a table you can edit" on={clipping && tabling} onClick={() => { setReading(false); setCarding(false); setTabling(true); setClipping(!(clipping && tabling)) }} />
-            <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setTabling(false); setCarding(true); setClipping(!(clipping && carding)) }} />
-            <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
+            <p className="menu-head">View</p>
+            <div className="menu-tiles">
+              <Tool icon={MoveHorizontal} label="Fit width" hint="Fit the page to the panel's width" onClick={fitWidth} />
+              <Tool icon={Maximize} label="Whole page" hint="Fit the whole page in the panel" onClick={fitPage} />
+              <Tool icon={BookCopy} label={spread ? 'One page' : 'Two pages'} hint={spread ? 'One page at a time' : 'Two pages side by side'} on={spread} onClick={toggleSpread} />
+              <Tool icon={RotateCw} label="Turn" hint="Turn the pages a quarter" onClick={rotate} />
+              <Tool icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />
+              <Tool icon={WrapText} label="Flowing text" hint="The words of the pages set at the width of the screen, in your text size and typeface: easier on a phone" on={flowing} onClick={() => setFlowing(!flowing)} />
+              <Tool icon={BookOpen} label="Like paper" hint="Turn pages like paper" onClick={() => { rememberFlip(true); setMode('flip') }} />
+              {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} hint="Read the book aloud from this page" on={voice.speaking} onClick={readAloud} />}
+            </div>
+            <div className="menu-line">
+              <span className="menu-note">Scroll by itself</span>
+              {[['Off', 0], ['Slow', 1], ['Steady', 2], ['Fast', 4]].map(([name, speed]) => (
+                <button key={name} className={drift === speed ? 'menu-item on' : 'menu-item'} onClick={() => setDrift(speed as number)}>{name}</button>
+              ))}
+            </div>
+            <p className="menu-head">Take from the page</p>
+            <div className="menu-tiles">
+              <Tool icon={Crop} label="Clip a picture" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading && !carding && !tabling} onClick={() => { setReading(false); setCarding(false); setTabling(false); setClipping(!clipping) }} />
+              <Tool icon={ScanText} label="Text in a box" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setTabling(false); setReading(true); setClipping(!(clipping && reading)) }} />
+              <Tool icon={Table2} label="A table" hint="Drag a box round a table on the page: it goes into your notes as a table you can edit" on={clipping && tabling} onClick={() => { setReading(false); setCarding(false); setTabling(true); setClipping(!(clipping && tabling)) }} />
+              <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setTabling(false); setCarding(true); setClipping(!(clipping && carding)) }} />
+              <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
+              <Tool icon={ScanText} label="Page's text" hint="For a scanned page: put the words of the whole page into your notes" onClick={readWholePage} />
+            </div>
             <p className="menu-head">This page</p>
             <div className="known-row" title="Mark how well you know this page: it shows on the page map, and you can come back to the pages you do not know yet">
               <span className="menu-note">I know it</span>
@@ -811,45 +832,20 @@ export default function PdfView({ file }: { file: File }) {
                   onClick={() => void markKnown(file.name, `page=${page}`, knownHere === level ? null : level)}>{KNOWN[level].name}</button>
               ))}
             </div>
-            <Tool icon={Gauge} label="Next page I do not know yet" hint="The next page marked Not yet or Partly" onClick={nextUnknown} />
-            <Tool icon={ListTree} label={showHard ? 'Hide hard pages on the map' : 'Show hard pages on the map'} hint="Shade the pages much harder to read than the rest of the book" on={showHard} onClick={() => setShowHard(!showHard)} />
-            <p className="menu-head">Selected words</p>
-            <Tool icon={BookA} label="Look up" hint="What the selected word means" onClick={() => lookUp(window.getSelection()?.toString())} />
-            <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => translate(window.getSelection()?.toString())} />
-            <Tool icon={BookA} label="Where is this explained?" hint="The sentence of the book that says what the selected words are" onClick={() => { const words = selected(); if (words) setSheet({ kind: 'explained', words }) }} />
-            <Tool icon={SearchCode} label="Every use in this book" hint="Each place the selected words come, with the words around them, lined up" onClick={() => { const words = selected(); if (words) setSheet({ kind: 'uses', words }) }} />
-            <Tool icon={Sigma} label="Plot this formula" hint="Draw the selected formula as a graph, with a slider for each constant" onClick={() => pickFor('plot')} />
-            <Tool icon={Ruler} label="Convert units" hint="The selected measurement (such as 25 psi) in other units" onClick={() => pickFor('units')} />
-            <Tool icon={SquareStack} label="Gap cards from this passage" hint="Flashcards from the selected passage, each with one of the book's terms hidden" onClick={() => pickFor('cloze')} />
-            <Tool icon={CircleHelp} label="A question about this" hint="Note a question on the selected passage, to answer later or ask the AI" onClick={() => {
-              const passage = selected()
-              const pageDiv = window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>('.page')
-              if (passage) setSheet({ kind: 'question', passage, place: `page=${Number(pageDiv?.dataset.pageNumber) || page}` })
-            }} />
-            {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}
-            <p className="menu-head">Pages</p>
-            <Tool icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />
-            <Tool icon={MoveHorizontal} label="Fit the width" onClick={fitWidth} />
-            <Tool icon={Maximize} label="Fit the whole page" onClick={fitPage} />
-            <Tool icon={BookCopy} label={spread ? 'One page at a time' : 'Two pages side by side'} on={spread} onClick={toggleSpread} />
-            <Tool icon={RotateCw} label="Turn the pages a quarter" onClick={rotate} />
-            <div className="menu-line">
-              <span className="menu-note">Scroll by itself</span>
-              {[['Off', 0], ['Slow', 1], ['Steady', 2], ['Fast', 4]].map(([name, speed]) => (
-                <button key={name} className={drift === speed ? 'menu-item on' : 'menu-item'} onClick={() => setDrift(speed as number)}>{name}</button>
-              ))}
+            <div className="menu-tiles">
+              <Tool icon={Gauge} label="Next to learn" hint="The next page marked Not yet or Partly" onClick={nextUnknown} />
+              <Tool icon={ListTree} label="Hard pages" hint="Shade the pages much harder to read than the rest of the book on the page map" on={showHard} onClick={() => setShowHard(!showHard)} />
             </div>
-          </>}
-          {mode === 'scroll' && <Tool icon={WrapText} label={flowing ? 'Back to the pages' : 'Read as flowing text'} hint="The words of the pages set at the width of the screen, in your text size and typeface: easier on a phone" on={flowing} onClick={() => setFlowing(!flowing)} />}
-          <Tool icon={BookOpen} label={mode === 'flip' ? 'Back to scrolling' : 'Turn pages like paper'} on={mode === 'flip'} onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} />
-          {mode === 'scroll' && <>
             <p className="menu-head">This book</p>
-            <Tool icon={TextQuote} label="Cite this book…" hint="As a reference, in your text with this page, or the selected passage with its source" onClick={() => openCite({ book: file.name, place: `page=${page}`, passage: window.getSelection()?.toString() })} />
-            <Tool icon={Files} label="New PDF from some pages" hint="Save some of its pages as a PDF of their own, or join another PDF after it" onClick={() => setMaking(true)} />
-            <Tool icon={Download} label="Save a copy with my marks" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
-            <Tool icon={ScanText} label="Make the whole book searchable" hint="For a scanned book: read every page's words once" onClick={() => void readScan()} />
-            <Tool icon={ScanText} label="Read the text of this whole page" hint="For a scanned page: put its words into your notes" onClick={readWholePage} />
+            <div className="menu-tiles">
+              <Tool icon={TextQuote} label="Cite it" hint="As a reference, in your text with this page, or the selected passage with its source" onClick={() => openCite({ book: file.name, place: `page=${page}`, passage: window.getSelection()?.toString() })} />
+              <Tool icon={Files} label="New PDF" hint="Save some of its pages as a PDF of their own, or join another PDF after it" onClick={() => setMaking(true)} />
+              <Tool icon={Download} label="With my marks" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
+              <Tool icon={ScanText} label="Searchable" hint="For a scanned book: read every page's words once, so it can be searched and studied" onClick={() => void readScan()} />
+            </div>
+            <p className="menu-note small">Select words on the page for more: look up, translate, plot, convert, gap cards and more.</p>
           </>}
+          {mode === 'flip' && <Tool icon={BookOpen} label="Back to scrolling" on onClick={leaveFlip} />}
         </Menu>
       </div>
       <div className="viewer-body">
@@ -875,6 +871,31 @@ export default function PdfView({ file }: { file: File }) {
         </div>
         {mode === 'scroll' && flowing && doc && <Reflow doc={doc} page={page} onPage={number => { setPage(number); tellPlace({ book: file.name, place: `page=${number}` }); localStorage.setItem(`sidepage:place:${file.name}`, String(number)) }} />}
         {mode === 'scroll' && peek.view}
+        {/* What can be done with selected words, beside them (see SelectionBar.tsx). */}
+        {mode === 'scroll' && !flowing && (
+          <SelectionBar
+            host={container}
+            onHighlight={color => void highlight(color)}
+            actions={[
+              { icon: TextQuote, label: 'Quote', hint: 'Copy the selected text into your notes', run: () => quote() },
+              { icon: BookA, label: 'Look up', hint: 'What the selected word means', run: words => lookUp(words) },
+              { icon: Languages, label: 'Translate', hint: 'Translate the selected passage (sent to a free online service)', run: words => translate(words) },
+              { icon: MessageCircleQuestion, label: 'Ask AI', hint: 'Ask the AI about the selected passage', run: words => askAi(`Explain this passage (p. ${page}): “${words}”`) },
+            ]}
+            more={[
+              { icon: BookA, label: 'Where is this explained?', hint: 'The sentence of the book that says what the selected words are', run: words => setSheet({ kind: 'explained', words }) },
+              { icon: SearchCode, label: 'Every use in this book', hint: 'Each place the selected words come, with the words around them, lined up', run: words => setSheet({ kind: 'uses', words }) },
+              { icon: CircleHelp, label: 'A question about this', hint: 'Note a question on the selected passage, to answer later or ask the AI', run: words => {
+                const pageDiv = window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>('.page')
+                setSheet({ kind: 'question', passage: words, place: `page=${Number(pageDiv?.dataset.pageNumber) || page}` })
+              } },
+              { icon: SquareStack, label: 'Gap cards from this passage', hint: "Flashcards from the selected passage, each with one of the book's terms hidden", run: () => pickFor('cloze') },
+              { icon: Sigma, label: 'Plot this formula', hint: 'Draw the selected formula as a graph, with a slider for each constant', run: () => pickFor('plot') },
+              { icon: Ruler, label: 'Convert units', hint: 'The selected measurement (such as 25 psi) in other units', run: () => pickFor('units') },
+              { icon: Link2, label: 'Cite this passage', hint: 'The selected passage with its source', run: words => openCite({ book: file.name, place: `page=${page}`, passage: words }) },
+            ]}
+          />
+        )}
         {mode === 'scroll' && making && doc && <PageTools file={file} pages={doc.numPages} current={page} onClose={() => setMaking(false)} />}
         {mode === 'scroll' && picked && <SelectionSheet book={file.name} selected={picked} onClose={() => setPicked(null)} />}
         {mode === 'scroll' && sheet && <StudySheet book={file.name} sheet={sheet} onGo={place => { setSheet(null); go(pageOf(place) - page) }} onClose={() => setSheet(null)} />}

@@ -1604,3 +1604,56 @@ button.recording { background: #e5484d !important; color: #fff !important; }
 .reflow .reflow-page { margin: 1.6em 0 0.6em; font: 600 11px system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--border); padding-top: 6px; }
 .reflow section:first-child .reflow-page { margin-top: 0; }
 :root[data-theme='dark'] .reflow { background: var(--panel); }
+
+/* ── Arrangement: tiles for long menus, wide menus, sheets on phones, and the bar beside selected words ── */
+.menu.wide { width: min(400px, calc(100vw - 16px)); max-height: min(80vh, 720px); overflow: auto; }
+.menu-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px; padding: 2px 2px 4px; }
+.menu .menu-tiles .tool {
+  flex-direction: column; justify-content: flex-start; align-items: center; gap: 5px; width: auto; height: auto; min-height: 66px;
+  padding: 10px 4px 8px; border-radius: 12px; text-align: center; font-size: 12px; line-height: 1.2; white-space: normal;
+}
+.menu .menu-tiles .tool svg { width: 20px; height: 20px; }
+.menu .menu-tiles .tool-label { display: block; }
+.menu .menu-head:first-child { margin-top: 2px; }
+.menu-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.menu-group > div { min-width: 0; }
+@media (max-width: 520px) { .menu-group { grid-template-columns: 1fr; } }
+
+/* Phones: every menu rises from the bottom as a sheet, the page dimmed behind it. */
+@media (max-width: 700px) {
+  .menu, .menu.wide, .menu.settings {
+    position: fixed; left: 0; right: 0; top: auto; bottom: 0; width: auto; max-width: none; translate: none !important;
+    max-height: min(82vh, 760px); overflow: auto; padding: 8px 12px calc(14px + env(safe-area-inset-bottom));
+    border-radius: 22px 22px 0 0; border-bottom: 0; z-index: 960; animation: sheet-up 0.2s ease-out;
+  }
+  .menu::before { content: ''; display: block; width: 40px; height: 4px; margin: 2px auto 8px; border-radius: 2px; background: var(--border); }
+  .menu-backdrop { z-index: 955; background: rgb(0 0 0 / 0.28); }
+  .menu .menu-tiles { grid-template-columns: repeat(4, 1fr); }
+}
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+
+.selection-bar {
+  position: fixed; z-index: 920; display: flex; flex-direction: column; gap: 4px; padding: 5px; max-width: calc(100vw - 16px);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); animation: rise 0.12s ease-out;
+}
+.selection-row { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.selection-swatches { display: flex; align-items: center; gap: 5px; padding: 0 6px 0 4px; margin-right: 2px; border-right: 1px solid var(--border); }
+.selection-swatches .swatch { width: 20px; height: 20px; min-height: 0; padding: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12); }
+.selection-action { display: inline-flex; align-items: center; gap: 6px; padding: 7px 9px; min-height: 0; border-radius: 10px; font-size: 12.5px; }
+.selection-more { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding-top: 4px; border-top: 1px solid var(--border); }
+.selection-more-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; min-height: 0; border-radius: 10px; text-align: left; font-size: 12.5px; }
+@media (max-width: 520px) {
+  .selection-action span { display: none; }
+  .selection-action { padding: 9px; }
+  .selection-more { grid-template-columns: 1fr; }
+}
+/* A phone's reading bar: one row. Pages turn by scrolling, so the arrows give way. */
+@media (max-width: 520px) {
+  .viewer-bar .tool[aria-label='Previous page'], .viewer-bar .tool[aria-label='Next page'] { display: none; }
+}
+.settings-window { width: min(520px, calc(100vw - 24px)); max-height: min(84vh, 720px); display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; overflow: hidden; }
+.settings-body { display: flex; flex-direction: column; gap: 4px; overflow: auto; padding-right: 2px; }
+.settings-body .menu-row { padding: 8px 4px 8px 0; color: var(--text); border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent); }
+.settings-body .menu-head { margin: 12px 0 2px; }
+.settings-body .tool { justify-content: flex-start; }
+@media (max-width: 700px) { .settings-window { position: fixed; left: 0; right: 0; bottom: 0; width: auto; max-height: 88vh; border-radius: 22px 22px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); } }

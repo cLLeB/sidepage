@@ -5,7 +5,7 @@ import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
   CircleHelp, RefreshCw, MonitorSmartphone, Gauge, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
-  Languages, Brain, Telescope, Users,
+  Languages, Brain, Telescope, Users, Settings2, X,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -18,7 +18,10 @@ import { ACCENTS, applyAccent, usePref, type Accent, getPref, setPref } from './
 import { OCR_LANGUAGES } from './lib/ocr'
 import { LANGUAGES, setLanguage, uiLanguage, type Language } from './lib/language'
 import { bibliography, CiteDialog, openCite } from './viewers/Cite'
-import { Tool, Menu } from './ui'
+import { Tool, Menu, sheetNow } from './ui'
+import { createPortal } from 'react-dom'
+// On a phone a menu is a sheet over everything, so it is put at the top of the page, out of the bar.
+const onTop = (node: React.ReactNode) => (sheetNow() ? createPortal(node, document.body) : node)
 import 'dockview-react/dist/styles/dockview.css'
 import {
   loadNote,
@@ -276,6 +279,9 @@ export default function App() {
   const theme = useThemeChoice()
   // A short message after something has been done out of sight (a backup made, notes restored).
   const [notice, setNotice] = useState('')
+  // Settings in a window of their own, by subject (they were at the foot of More).
+  const [settings, setSettings] = useState(false)
+  const [settingsTab, setSettingsTab] = usePref<'look' | 'reading' | 'voice' | 'general'>('settings-tab', 'look')
   // A link to the reader's other device, made now or before (it can carry on from where that one was reading).
   const [linkCode] = usePref('link-code', '')
   // Speed reading, over everything (see notes/SpeedRead.tsx).
@@ -973,19 +979,41 @@ export default function App() {
             </Menu>
           </span>
           <Tool icon={MessageCircleQuestion} label="Ask AI" hint="Ask an AI (Gemini, Claude, ChatGPT or your own) about the book" onClick={openAsk} />
-          <Menu icon={Sparkles} label="Study" hint="Guide, highlights, flashcards, papers and more">
-            <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, a quiz, and kindred places in your other books" onClick={openGuide} />
-            <Tool icon={GraduationCap} label="Review flashcards" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
-            <Tool icon={Highlighter} label="All highlights" hint="Every highlight from every book" onClick={openHighlights} />
-            <Tool icon={Network} label="Papers" hint="What this paper cites, what cites it, and related work, with free PDFs to open (OpenAlex)" onClick={openPapers} />
-            <Tool icon={ArrowLeftRight} label="Compare two books" hint="What changed between two versions, word by word" onClick={openCompare} />
-            <Tool icon={Share2} label="Graph of your notes" hint="How your books' notes link to each other" onClick={openGraph} />
-            <Tool icon={Gauge} label="Speed reading" hint="Read the book from this page one word at a time, at the pace you set" disabled={empty} onClick={() => setSpeeding(true)} />
-            <Tool icon={Telescope} label="Explore this book" hint="Its people and who meets whom, its mood from start to end, the phrases it repeats, its places on a map, how it is written" disabled={empty} onClick={openExplore} />
-            <Tool icon={Users} label="Study together" hint="A room for your study group: see where each is reading, follow someone, send a few words, play a quiz duel" onClick={openTogether} />
-            <Tool icon={Brain} label="Study methods" hint="Memorise a passage, blurt it out, questions before reading, learn in order, mnemonics, past exam papers" onClick={openMethods} />
-            <Tool icon={Languages} label="Language practice" hint="Learn the language a book is written in: new words, translation, dictation, saying it back" disabled={empty} onClick={openPractice} />
-            <Tool icon={Timer} label="Study timer" hint="Study for a stretch, then take a break" onClick={() => setTimeout(() => window.dispatchEvent(new Event('sidepage:timer')), 0)} />
+          <Menu icon={Sparkles} label="Study" hint="This book, practice, your library, together" wide>
+            <div className="menu-group">
+              <div>
+                <p className="menu-head">This book</p>
+                <div className="menu-tiles">
+                  <Tool icon={Sparkles} label="Guide" hint="The gist of this page, the book's key terms, a quiz, and kindred places in your other books" onClick={openGuide} />
+                  <Tool icon={Telescope} label="Explore this book" hint="Its people and who meets whom, its mood from start to end, the phrases it repeats, its places on a map, how it is written" disabled={empty} onClick={openExplore} />
+                  <Tool icon={Languages} label="Language practice" hint="Learn the language a book is written in: new words, translation, dictation, saying it back" disabled={empty} onClick={openPractice} />
+                  <Tool icon={Gauge} label="Speed reading" hint="Read the book from this page one word at a time, at the pace you set" disabled={empty} onClick={() => setSpeeding(true)} />
+                </div>
+              </div>
+              <div>
+                <p className="menu-head">Practise</p>
+                <div className="menu-tiles">
+                  <Tool icon={GraduationCap} label="Review flashcards" hint="Go through the flashcards made from your highlights and notes" onClick={openReview} />
+                  <Tool icon={Brain} label="Study methods" hint="Memorise a passage, blurt it out, questions before reading, learn in order, mnemonics, past exam papers" onClick={openMethods} />
+                  <Tool icon={Timer} label="Study timer" hint="Study for a stretch, then take a break" onClick={() => setTimeout(() => window.dispatchEvent(new Event('sidepage:timer')), 0)} />
+                </div>
+              </div>
+              <div>
+                <p className="menu-head">Your library</p>
+                <div className="menu-tiles">
+                  <Tool icon={Highlighter} label="All highlights" hint="Every highlight from every book" onClick={openHighlights} />
+                  <Tool icon={Share2} label="Graph of your notes" hint="How your books' notes link to each other" onClick={openGraph} />
+                  <Tool icon={Network} label="Papers" hint="What this paper cites, what cites it, and related work, with free PDFs to open (OpenAlex)" onClick={openPapers} />
+                  <Tool icon={ArrowLeftRight} label="Compare two books" hint="What changed between two versions, word by word" onClick={openCompare} />
+                </div>
+              </div>
+              <div>
+                <p className="menu-head">With others</p>
+                <div className="menu-tiles">
+                  <Tool icon={Users} label="Study together" hint="A room for your study group: see where each is reading, follow someone, send a few words, play a quiz duel" onClick={openTogether} />
+                </div>
+              </div>
+            </div>
           </Menu>
         </div>
         <span className="spacer" />
@@ -994,14 +1022,14 @@ export default function App() {
         <StudyTimer onNotice={setNotice} />
         <Tool quiet icon={Maximize2} label="Focus" hint="Hide everything but the page and your notes (Ctrl+.)" disabled={empty} onClick={() => setFocus(true)} />
         <Tool quiet icon={Ellipsis} label="More" on={more} onClick={() => setMore(!more)} />
-        {more && <>
+        {more && onTop(<>
           <div className="menu-backdrop" onClick={() => setMore(false)} />
           <div className="menu settings" onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) setMore(false) }}>
-            {updatesHere && <Tool icon={RefreshCw} label="Check for updates" hint="See whether a newer Sidepage is out" onClick={() => window.dispatchEvent(new Event('sidepage:check-updates'))} />}
-            {canUpdateInPlace && <label className="menu-row stay">Update by itself
-              <input type="checkbox" checked={autoUpdate} onChange={e => setAutoUpdate(e.target.checked)} />
-            </label>}
+            <p className="menu-head">This book</p>
             <Tool icon={Package} label="Save as one file" hint="Save the book and all its notes together as one .sidepage file" disabled={empty} onClick={() => void saveWhole()} />
+            <Tool icon={FileDown} label="Export notes" hint="Save this book's notes, highlights and bookmarks as one Markdown file" disabled={empty} onClick={() => void exportNotes()} />
+            <Tool icon={BookMarked} label="Make a study pack" hint="Notes, highlights, glossary and questions for this book, as one document to print" disabled={empty} onClick={() => void makeStudyPack()} />
+            <p className="menu-head">All your notes</p>
             <Tool
               icon={Archive}
               label="Back up all notes"
@@ -1011,10 +1039,7 @@ export default function App() {
                 setNotice(`Backed up the notes of ${notebooks} book${notebooks === 1 ? '' : 's'}.`)
               })}
             />
-            <Tool icon={MonitorSmartphone} label="Link devices" hint="Link your phone or tablet with your computer: ask the computer's AI from the phone, send books and notes across" onClick={openLink} />
             <Tool icon={ArchiveRestore} label="Restore a backup" hint="Put back notes from a backup file. Nothing already here is overwritten." onClick={() => void browse()} />
-            <Tool icon={BookMarked} label="Make a study pack" hint="Notes, highlights, glossary and questions for this book, as one document to print" disabled={empty} onClick={() => void makeStudyPack()} />
-            <Tool icon={FileDown} label="Export notes" hint="Save this book's notes, highlights and bookmarks as one Markdown file" disabled={empty} onClick={() => void exportNotes()} />
             {canPickNotesFolder && (
               <Tool
                 icon={FolderCog}
@@ -1023,61 +1048,16 @@ export default function App() {
                 onClick={() => void chooseNotesFolder()}
               />
             )}
-            <label className="menu-row">Language
-              <select value={uiLanguage()} onChange={e => { setLanguage(e.target.value as Language); setMore(false) }}>
-                {(Object.keys(LANGUAGES) as Language[]).map(code => <option key={code} value={code}>{LANGUAGES[code]}</option>)}
-              </select>
-            </label>
-            <p className="menu-head">Look</p>
-            <div className="menu-row">Accent
-              <span className="swatches">
-                {(Object.keys(ACCENTS) as Accent[]).map(name => (
-                  <button key={name} className={accent === name ? 'swatch stay on' : 'swatch stay'} style={{ background: ACCENTS[name] || 'var(--muted)' }} title={name[0].toUpperCase() + name.slice(1)} aria-label={`${name} accent`} onClick={() => { setAccent(name); applyAccent(name) }} />
-                ))}
-              </span>
-            </div>
-            <label className="menu-row">Warmth<input type="range" min={0} max={100} step={5} value={warmth} onChange={e => setWarmth(Number(e.target.value))} /></label>
-            <label className="menu-row">Dim<input type="range" min={0} max={60} step={5} value={dim} onChange={e => setDim(Number(e.target.value))} /></label>
-            <label className="menu-row">Reading ruler<input type="checkbox" checked={ruler} onChange={e => setRuler(e.target.checked)} /></label>
-            <label className="menu-row">Keep the screen on<input type="checkbox" checked={awake} onChange={e => setAwake(e.target.checked)} /></label>
-            <VoiceSettings />
-            <p className="menu-head">Reading</p>
-            <label className="menu-row">Text in pictures
-              <select value={ocrLanguage} onChange={e => setOcrLanguage(e.target.value)} title="The language “Read text” looks for in scans and pictures">
-                {Object.entries(OCR_LANGUAGES).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-              </select>
-            </label>
-            <label className="menu-row">
-              Daily goal
-              <select value={goal} onChange={e => { setGoal(Number(e.target.value)); localStorage.setItem('sidepage:goal', e.target.value) }}>
-                <option value={0}>None</option>
-                {[15, 30, 45, 60, 90, 120].map(minutes => <option key={minutes} value={minutes}>{asTime(minutes)}</option>)}
-              </select>
-            </label>
-            <label className="menu-row">
-              Paper
-              <select value={paper} onChange={e => setPaper(e.target.value as Paper)}>
-                {PAPERS.map(p => <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>)}
-              </select>
-            </label>
-            <label className="menu-row">
-              Layout
-              <select value={layout} onChange={e => setLayout(e.target.value as Layout)}>
-                {(Object.keys(LAYOUTS) as Layout[]).map(key => <option key={key} value={key}>{LAYOUTS[key]}</option>)}
-              </select>
-            </label>
-            <label className="menu-row">
-              Theme
-              <select value={theme} onChange={e => setTheme(e.target.value as ThemeChoice)}>
-                {THEME_CHOICES.map(t => <option key={t} value={t}>{t === 'auto' ? `Follow the device (${deviceIsDark() ? 'dark' : 'light'} now)` : THEME_NAMES[t]}</option>)}
-              </select>
-            </label>
+            <p className="menu-head">Sidepage</p>
+            <Tool icon={Settings2} label="Settings" hint="Look, reading, voices, language" onClick={() => setSettings(true)} />
+            <Tool icon={MonitorSmartphone} label="Link devices" hint="Link your phone or tablet with your computer: ask the computer's AI from the phone, send books and notes across" onClick={openLink} />
+            {updatesHere && <Tool icon={RefreshCw} label="Check for updates" hint="See whether a newer Sidepage is out" onClick={() => window.dispatchEvent(new Event('sidepage:check-updates'))} />}
             <div className="menu-foot">
               <span>Sidepage {__APP_VERSION__}</span>
               <button className="menu-link" onClick={() => void openOutside('https://clleb.github.io/sidepage/docs/')}><CircleHelp size={15} aria-hidden /> Help and how to</button>
             </div>
           </div>
-        </>}
+        </>)}
       </header>
       {focus && <FocusClock />}
       {focus && <button className="focus-exit" title="Show the toolbars again" aria-label="Leave focus" onClick={() => setFocus(false)}><Minimize2 size={18} aria-hidden /></button>}
@@ -1105,6 +1085,75 @@ export default function App() {
       <FolderStepper />
       <UpdateCard />
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
+      {settings && (
+        <div className="palette-shade" onClick={() => setSettings(false)}>
+          <div className="palette settings-window" role="dialog" aria-label="Settings" onClick={e => e.stopPropagation()}>
+            <div className="study-sheet-head"><b>Settings</b><button className="menu-x" aria-label="Close" onClick={() => setSettings(false)}><X size={16} aria-hidden /></button></div>
+            <div className="practice-tabs" role="tablist">
+              {(['look', 'reading', 'voice', 'general'] as const).map(tab => <button key={tab} role="tab" aria-selected={settingsTab === tab} className={settingsTab === tab ? 'chip on' : 'chip'} onClick={() => setSettingsTab(tab)}>{({ look: 'Look', reading: 'Reading', voice: 'Voices', general: 'General' })[tab]}</button>)}
+            </div>
+            <div className="settings-body">
+              {settingsTab === 'look' && <>
+                <div className="menu-row">Accent
+                  <span className="swatches">
+                    {(Object.keys(ACCENTS) as Accent[]).map(name => (
+                      <button key={name} className={accent === name ? 'swatch stay on' : 'swatch stay'} style={{ background: ACCENTS[name] || 'var(--muted)' }} title={name[0].toUpperCase() + name.slice(1)} aria-label={`${name} accent`} onClick={() => { setAccent(name); applyAccent(name) }} />
+                    ))}
+                  </span>
+                </div>
+                <label className="menu-row">Warmth<input type="range" min={0} max={100} step={5} value={warmth} onChange={e => setWarmth(Number(e.target.value))} /></label>
+                <label className="menu-row">Dim<input type="range" min={0} max={60} step={5} value={dim} onChange={e => setDim(Number(e.target.value))} /></label>
+                <label className="menu-row">Reading ruler<input type="checkbox" checked={ruler} onChange={e => setRuler(e.target.checked)} /></label>
+                <label className="menu-row">Keep the screen on<input type="checkbox" checked={awake} onChange={e => setAwake(e.target.checked)} /></label>
+                <label className="menu-row">
+                  Theme
+                  <select value={theme} onChange={e => setTheme(e.target.value as ThemeChoice)}>
+                    {THEME_CHOICES.map(t => <option key={t} value={t}>{t === 'auto' ? `Follow the device (${deviceIsDark() ? 'dark' : 'light'} now)` : THEME_NAMES[t]}</option>)}
+                  </select>
+                </label>
+                <label className="menu-row">
+                  Paper
+                  <select value={paper} onChange={e => setPaper(e.target.value as Paper)}>
+                    {PAPERS.map(p => <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>)}
+                  </select>
+                </label>
+                <label className="menu-row">
+                  Layout
+                  <select value={layout} onChange={e => setLayout(e.target.value as Layout)}>
+                    {(Object.keys(LAYOUTS) as Layout[]).map(key => <option key={key} value={key}>{LAYOUTS[key]}</option>)}
+                  </select>
+                </label>
+              </>}
+              {settingsTab === 'reading' && <>
+                <label className="menu-row">Text in pictures
+                  <select value={ocrLanguage} onChange={e => setOcrLanguage(e.target.value)} title="The language “Read text” looks for in scans and pictures">
+                    {Object.entries(OCR_LANGUAGES).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                  </select>
+                </label>
+                <label className="menu-row">
+                  Daily goal
+                  <select value={goal} onChange={e => { setGoal(Number(e.target.value)); localStorage.setItem('sidepage:goal', e.target.value) }}>
+                    <option value={0}>None</option>
+                    {[15, 30, 45, 60, 90, 120].map(minutes => <option key={minutes} value={minutes}>{asTime(minutes)}</option>)}
+                  </select>
+                </label>
+              </>}
+              {settingsTab === 'voice' && <VoiceSettings />}
+              {settingsTab === 'general' && <>
+                <label className="menu-row">Language
+                  <select value={uiLanguage()} onChange={e => { setLanguage(e.target.value as Language); setSettings(false) }}>
+                    {(Object.keys(LANGUAGES) as Language[]).map(code => <option key={code} value={code}>{LANGUAGES[code]}</option>)}
+                  </select>
+                </label>
+                {updatesHere && <Tool icon={RefreshCw} label="Check for updates" hint="See whether a newer Sidepage is out" onClick={() => window.dispatchEvent(new Event('sidepage:check-updates'))} />}
+                {canUpdateInPlace && <label className="menu-row stay">Update by itself
+                  <input type="checkbox" checked={autoUpdate} onChange={e => setAutoUpdate(e.target.checked)} />
+                </label>}
+              </>}
+            </div>
+          </div>
+        </div>
+      )}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
       {/* Carrying on from the linked device, where it was reading (see notes/CarryOn.tsx). */}
       {linkCode && <Suspense fallback={null}><CarryOn /></Suspense>}
