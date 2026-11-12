@@ -1547,3 +1547,20 @@ button.recording { background: #e5484d !important; color: #fff !important; }
 .lecture-chip { display: inline-flex; align-items: center; gap: 5px; }
 .voice-note { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .voice-note button { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 8px; font-size: 12px; background: var(--bg); }
+
+/* Code that runs, algebra, charts, music and geometry in the notes. */
+.run-code { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); font: 13px/1.5 ui-monospace, 'Cascadia Code', Consolas, monospace; white-space: pre-wrap; text-align: left; }
+.run-bar { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.run-button { padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 12.5px; background: var(--text); color: var(--panel); }
+.run-button:disabled { opacity: 0.6; }
+.run-what { color: var(--muted); font-size: 12px; }
+.run-out { margin-top: 6px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); text-align: left; font-size: 13px; }
+.run-out pre { margin: 0; white-space: pre-wrap; font: 13px/1.5 ui-monospace, 'Cascadia Code', Consolas, monospace; }
+.run-out img { max-width: 100%; background: #fff; border-radius: 8px; margin-top: 6px; }
+.run-error { color: #e5484d; white-space: pre-wrap; }
+.run-quiet { color: var(--muted); }
+.algebra .algebra-ask { color: var(--muted); }
+.chart-legend { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.molecule-name { margin: 6px 0 0; font-weight: 600; text-transform: capitalize; }
+.geometry-board { margin: 0 auto; border-radius: 10px; border: 1px solid var(--border) !important; background: var(--panel); }
+.drawn-music svg { max-width: 100%; }

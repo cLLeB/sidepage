@@ -59,7 +59,15 @@ const DIAGRAMS = {
 const DRAWINGS: Record<string, [string, string]> = {
   'Graph of a formula': ['plot', 'y = sin(x)\ny = x^2 / 4'],
   'Molecule (SMILES)': ['smiles', 'CC(=O)Oc1ccccc1C(=O)O'],
+  'Molecule by its name': ['molecule', 'caffeine'],
   'Sums and units': ['calc', '# each line is worked out\n2.5 kg * 9.81 m/s^2\n5 cm to inch\nsqrt(2) * 3'],
+  'Algebra: solve, differentiate, integrate': ['algebra', '# each line is worked out\nsolve(x^2 - 5x + 6, x)\ndiff(x^3 * sin(x), x)\nintegrate(x * e^x, x)\nfactor(x^2 - 9)'],
+  'Chart from a table': ['chart', 'Year, Sales\n2022, 120\n2023, 180\n2024, 260'],
+  'Pie chart': ['chart', 'pie Time spent\nReading, 40\nNotes, 25\nReview, 35'],
+  'Geometry you can drag': ['geometry', 'A = (0, 0)\nB = (4, 0)\nC = (1, 3)\ntriangle A B C\ncircle A 2'],
+  'Music (ABC notation)': ['music', 'X:1\nT:Scale\nM:4/4\nL:1/4\nK:C\nC D E F | G A B c |'],
+  'Python you can run': ['python', 'import math\nfor n in range(1, 6):\n    print(n, math.factorial(n))'],
+  'JavaScript you can run': ['javascript', 'const squares = [1, 2, 3, 4].map(n => n * n)\nconsole.log(squares)'],
 }
 
 // Ready-made layouts for a note. "Question and answer" lines become flashcards (see lib/review.ts).
@@ -713,7 +721,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           {Object.entries(DIAGRAMS).map(([name, text]) => (
             <button key={name} className="menu-item" onClick={() => put(`\n\`\`\`mermaid\n${text}\n\`\`\`\n`)}>{name}</button>
           ))}
-          <p className="menu-head">Graphs, molecules and sums</p>
+          <p className="menu-head">Graphs, molecules, sums, code and music</p>
           {Object.entries(DRAWINGS).map(([name, [kind, text]]) => (
             <button key={name} className="menu-item" onClick={() => put('\n```' + kind + '\n' + text + '\n```\n')}>{name}</button>
           ))}

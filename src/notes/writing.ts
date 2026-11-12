@@ -1,3 +1,4 @@
+import { MORE_DRAWN, smilesOf } from './blocks'
 import { useSyncExternalStore } from 'react'
 import type { Crepe } from '@milkdown/crepe'
 import { commandsCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core'
@@ -298,7 +299,11 @@ async function drawPlot(text: string, holder: HTMLElement) {
 }
 async function drawMolecule(text: string, holder: HTMLElement) {
   const { default: SmilesDrawer } = await import('smiles-drawer')
-  for (const smiles of text.split('\n').map(line => line.trim()).filter(Boolean)) {
+  for (const line of text.split('\n').map(line => line.trim()).filter(Boolean)) {
+    // A name ("caffeine", "aspirin") is looked up on PubChem first.
+    let smiles = line, name = ''
+    try { const found = await smilesOf(line); smiles = found.smiles; name = found.name ?? '' } catch (error) { holder.insertAdjacentHTML('beforeend', failed(`“${escape(line)}” was not found`, error)); continue }
+    if (name) holder.insertAdjacentHTML('beforeend', `<p class="molecule-name">${escape(name)}</p>`)
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     svg.setAttribute('class', 'molecule')
     holder.append(svg)
@@ -322,7 +327,7 @@ async function drawSums(text: string, holder: HTMLElement) {
   })
   holder.innerHTML = `<table class="sums">${rows.join('')}</table>`
 }
-const DRAWN: Record<string, (text: string, holder: HTMLElement) => Promise<void>> = { plot: drawPlot, smiles: drawMolecule, calc: drawSums }
+const DRAWN: Record<string, (text: string, holder: HTMLElement) => Promise<void>> = { plot: drawPlot, smiles: drawMolecule, molecule: drawMolecule, calc: drawSums, ...MORE_DRAWN }
 
 export function addLooks(crepe: Crepe) {
   crepe.editor

@@ -49,11 +49,13 @@ export default defineConfig({
   clearScreen: false,
   server: { port: 5173, strictPort: true },
   optimizeDeps: {
+    // Only the app's own page: left to itself the scan also crawls the HTML in the Rust build and the store folders.
+    entries: ['index.html'],
     // The viewers load lazily; listing them stops Vite re-bundling mid-session.
     include: [
       'jszip', 'docx-preview', 'page-flip', 'pdfjs-dist',
       'pdfjs-dist/web/pdf_viewer.mjs', '@excalidraw/excalidraw', 'mind-elixir',
-      'function-plot', 'mathjs', 'smiles-drawer', 'text-readability', 'crossword-layout-generator', 'text-vide', '@rsvp-engine/core', 'epub-gen-memory/bundle', 'sentiment', 'leaflet', 'diff', '@breezystack/lamejs', 'trystero', 'ai', '@ai-sdk/google', '@ai-sdk/anthropic', '@ai-sdk/openai', '@ai-sdk/openai-compatible',
+      'function-plot', 'mathjs', 'smiles-drawer', 'text-readability', 'crossword-layout-generator', 'text-vide', '@rsvp-engine/core', 'epub-gen-memory/bundle', 'sentiment', 'leaflet', 'diff', '@breezystack/lamejs', 'nerdamer', 'abcjs', 'jsxgraph', 'katex', 'trystero', 'ai', '@ai-sdk/google', '@ai-sdk/anthropic', '@ai-sdk/openai', '@ai-sdk/openai-compatible',
       '@milkdown/crepe', '@milkdown/kit/utils', '@milkdown/kit/core', '@milkdown/kit/prose/state', '@milkdown/kit/component/image-block',
       'idb-keyval', 'dockview-react', 'rtf.js', 'odf-kit/odt/to-html', 'dompurify', 'libarchive.js', '@file-viewer/doc', '@extend-ai/react-pptx', 'react-error-boundary', 'force-graph', 'ts-fsrs', 'lucide-react',
     ],
