@@ -213,3 +213,103 @@ export function acronymsIn(stretches: Stretch[]): Map<string, Acronym> {
   }
   return found
 }
+
+// ── A table on a page, as a table for the notes ──
+// The words inside the box drawn over the page, put in rows by their height on the page and in columns where the
+// rows line up: each run of words with a wide gap after it is a cell, and cells that start near the same place
+// across the rows are one column.
+export async function tableIn(page: import('pdfjs-dist').PDFPageProxy, box: { x: number; y: number; w: number; h: number }): Promise<string[][]> {
+  const viewport = page.getViewport({ scale: 1 })
+  const content = await page.getTextContent()
+  type Piece = { text: string; x: number; right: number; y: number; size: number }
+  const pieces: Piece[] = []
+  for (const item of content.items) {
+    if (!('str' in item) || !item.str.trim()) continue
+    const size = Math.hypot(item.transform[2], item.transform[3]) || item.height
+    const x = item.transform[4] / viewport.width, y = (viewport.height - item.transform[5] - size * 0.6) / viewport.height
+    if (x < box.x - 0.005 || x > box.x + box.w || y < box.y - 0.005 || y > box.y + box.h) continue
+    pieces.push({ text: item.str.normalize('NFKC'), x: item.transform[4], right: item.transform[4] + (item.width ?? 0), y: item.transform[5], size })
+  }
+  if (!pieces.length) return []
+  // Rows: pieces whose baselines are within half a letter of each other, top first.
+  pieces.sort((a, b) => b.y - a.y || a.x - b.x)
+  const rows: Piece[][] = []
+  for (const piece of pieces) {
+    const row = rows.find(found => Math.abs(found[0].y - piece.y) < piece.size * 0.5)
+    if (row) row.push(piece); else rows.push([piece])
+  }
+  // Cells: pieces along a row with less than a wide space between them join.
+  const cells = rows.map(row => row.sort((a, b) => a.x - b.x).reduce<Piece[]>((joined, piece) => {
+    const last = joined.at(-1)
+    if (last && piece.x - last.right < piece.size * 0.9) { last.text += (piece.x - last.right > piece.size * 0.15 ? ' ' : '') + piece.text; last.right = piece.right }
+    else joined.push({ ...piece })
+    return joined
+  }, []))
+  // Columns: the places cells start, near ones taken as one.
+  const starts = cells.flat().map(cell => cell.x).sort((a, b) => a - b)
+  const columns: number[] = []
+  for (const x of starts) if (!columns.length || x - columns.at(-1)! > 14) columns.push(x)
+  const columnOf = (x: number) => columns.reduce((best, start, i) => (Math.abs(start - x) < Math.abs(columns[best] - x) ? i : best), 0)
+  const lines = cells.map(row => {
+    const line = new Array(columns.length).fill('')
+    for (const cell of row) { const at = columnOf(cell.x); line[at] = line[at] ? `${line[at]} ${cell.text.trim()}` : cell.text.trim() }
+    return { line, y: row[0].y }
+  }).filter(({ line }) => line.some(Boolean))
+  // A cell whose words run on to a second line: the lines of one row sit closer together than two rows do.
+  const gaps = lines.slice(1).map((row, i) => lines[i].y - row.y).filter(gap => gap > 0).sort((a, b) => a - b)
+  const lineGap = gaps[Math.floor(gaps.length * 0.2)] ?? 0
+  const rowsOut: string[][] = []
+  lines.forEach(({ line }, i) => {
+    const gap = i ? lines[i - 1].y - lines[i].y : Infinity
+    const last = rowsOut.at(-1)
+    if (last && lineGap && gap < lineGap * 1.3 && rowsOut.length > 1) line.forEach((text, j) => { if (text) last[j] = last[j] ? `${last[j]} ${text}` : text })
+    else rowsOut.push([...line])
+  })
+  // The caption above a table ("Table 1. …") is not a row of it.
+  if (rowsOut[0] && /^(table|tab\.)\s*\d/i.test(rowsOut[0][0]) && rowsOut[0].filter(Boolean).length === 1) rowsOut.shift()
+  // A word broken at the end of a line joins again ("tempera- ture"); a real hyphen before a name stays ("Beer-Lambert").
+  return rowsOut.map(row => row.map(text => text.replace(/(\w)- (\p{Ll})/gu, '$1$2').replace(/(\w)- (\p{Lu})/gu, '$1-$2')))
+}
+export const asMarkdownTable = (rows: string[][]) => {
+  if (!rows.length) return ''
+  const width = Math.max(...rows.map(row => row.length))
+  const cell = (text: string) => text.replace(/\|/g, '\|')
+  const line = (row: string[]) => `| ${Array.from({ length: width }, (_, i) => cell(row[i] ?? '')).join(' | ')} |`
+  return [line(rows[0]), `| ${Array(width).fill('---').join(' | ')} |`, ...rows.slice(1).map(line)].join('\n')
+}
+
+// ── A PDF as flowing text, for reading on a phone ──
+// Each page's lines are put back into paragraphs (a new one where the gap between lines is wider than usual, or
+// where a short line ends a sentence) and headings (lines set larger than the text). Lines repeated on many pages
+// (running heads, course titles) and bare page numbers are left out. Words broken at the end of a line join again.
+export type Flow = { page: number; blocks: { heading: boolean; text: string }[] }
+export function reflowOf({ lines, body, pages }: Layout): Flow[] {
+  const seen = new Map<string, number>()
+  for (const line of lines) { const key = line.text.toLowerCase().replace(/\d+/g, '#'); seen.set(key, (seen.get(key) ?? 0) + 1) }
+  const running = (text: string) => (seen.get(text.toLowerCase().replace(/\d+/g, '#')) ?? 0) > Math.max(3, pages * 0.3)
+  const out: Flow[] = []
+  for (let page = 1; page <= pages; page++) {
+    const mine = lines.filter(line => line.page === page && !running(line.text) && !/^\s*\d{1,4}\s*$/.test(line.text))
+    const gaps = mine.slice(1).map((line, i) => line.top - mine[i].bottom).filter(gap => gap > -0.01 && gap < 0.05).sort((a, b) => a - b)
+    const usual = gaps[Math.floor(gaps.length / 2)] ?? 0.005
+    const widths = mine.map(line => line.text.length).sort((a, b) => a - b)
+    const full = widths[Math.floor(widths.length * 0.75)] ?? 60
+    const blocks: Flow['blocks'] = []
+    mine.forEach((line, i) => {
+      const heading = line.size >= body * 1.18 && line.text.length < 120
+      const before = mine[i - 1]
+      const last = blocks.at(-1)
+      const gap = before ? line.top - before.bottom : 1
+      // A heading broken over two lines stays one heading; text after a heading starts afresh.
+      const startsNew = !last || heading !== last.heading
+        || (heading && gap > usual * 3 + 0.012)
+        || gap > usual * 1.8 + 0.004 || gap < -0.01
+        || (/[.!?:”"]$/.test(before?.text ?? '') && (before?.text.length ?? 0) < full * 0.8)
+        || /^([•▪◦\-–]|\d+[.)])\s/.test(line.text)
+      if (startsNew) blocks.push({ heading, text: line.text })
+      else last!.text = /[\p{L}]-$/u.test(last!.text) ? `${last!.text.slice(0, -1)}${line.text}` : `${last!.text} ${line.text}`
+    })
+    out.push({ page, blocks })
+  }
+  return out
+}

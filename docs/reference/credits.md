@@ -58,6 +58,8 @@ Sidepage is free and open source under the GPL-3.0 licence. Its source is at [gi
 | Peek and contents found from headings | Text and positions from [PDF.js](https://github.com/mozilla/pdf.js); acronyms by the algorithm of Schwartz and Hearst (2003) | Apache-2.0 |
 | Explore a book | [sentiment](https://github.com/thisandagain/sentiment) (AFINN), [Leaflet](https://github.com/Leaflet/Leaflet) with [OpenStreetMap](https://www.openstreetmap.org) and Nominatim, [force-graph](https://github.com/vasturiano/force-graph) | MIT, BSD-2-Clause, ODbL |
 | Sound files | [Piper](https://github.com/rhasspy/piper) voices and [lamejs](https://github.com/shijinyu/lamejs) for MP3 | MIT, LGPL-3.0 |
+| Code, algebra, music and geometry in notes | [Pyodide](https://github.com/pyodide/pyodide), [nerdamer](https://github.com/jiggzson/nerdamer), [abcjs](https://github.com/paulrosen/abcjs), [JSXGraph](https://github.com/jsxgraph/jsxgraph), [PubChem](https://pubchem.ncbi.nlm.nih.gov) (online service) | MPL-2.0, Apache-2.0, MIT, LGPL-3.0 |
+| New PDFs from pages | [pdf-lib](https://github.com/Hopding/pdf-lib) | MIT |
 | Language practice | [MyMemory](https://mymemory.translated.net) (online service) for translations, [Whisper](https://github.com/openai/whisper) for saying it back, [jsdiff](https://github.com/kpdecker/jsdiff) for checking | MIT, BSD-3-Clause |
 
 ## The app

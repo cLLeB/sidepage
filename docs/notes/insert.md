@@ -82,6 +82,53 @@ sqrt(2) * 3
 
 gives `24.525 N`, `1.968503937 inch`, `300 km` and `4.242640687`. Worked out with [math.js](https://mathjs.org).
 
+### Code you can run
+
+A block marked `python` or `javascript` shows its code with **▶ Run**. Click it: what the code prints shows under it, and for Python, any matplotlib figure too.
+
+```python
+import math
+for n in range(1, 6):
+    print(n, math.factorial(n))
+```
+
+Python runs on your device (Pyodide); the first time, it is fetched (about 10 MB). JavaScript runs apart from your notes and stops after ten seconds.
+
+### Algebra
+
+A block marked `algebra` works out each line, written as mathematics:
+
+```algebra
+solve(x^2 - 5x + 6, x)
+diff(x^3 * sin(x), x)
+integrate(x * e^x, x)
+factor(x^2 - 9)
+```
+
+It knows `solve`, `diff`, `integrate`, `factor`, `expand` and `simplify` (nerdamer).
+
+### A chart from a table
+
+A block marked `chart`: a first line naming the columns, then a line for each row. The first column runs along the bottom; the next one is drawn as bars and any others as lines. Start with `pie` and a title for a pie chart.
+
+```chart
+Year, Sales, Costs
+2022, 120, 90
+2023, 180, 110
+```
+
+### Music
+
+A block marked `music` holds a tune in ABC notation; it is drawn as a score, with **▶ Play**.
+
+### Geometry you can drag
+
+A block marked `geometry`: points such as `A = (0, 0)`, then `line A B`, `segment A B`, `triangle A B C`, `polygon A B C D`, `circle A 2`, `circle A B`, `angle A B C` or a graph `y = sin(x)`. Drag the points and everything built on them follows (JSXGraph).
+
+### A molecule by its name
+
+In a `smiles` or `molecule` block, write a name such as `caffeine` or `aspirin` instead of SMILES: its structure is fetched from PubChem and drawn.
+
 ## A layout for your notes
 
 Ready made page layouts for study notes:

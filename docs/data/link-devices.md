@@ -37,6 +37,10 @@ If Ask AI on the phone shows **Connect an AI** instead, the computer is not link
 
 It opens on the other device by itself, with all its notes, highlights, bookmarks and drawings. Notes already on the other device for that book are kept; nothing is overwritten.
 
+## Carry on where the other device was
+
+While your devices are linked, each tells the other where it is reading. Pick up the other one and a card shows, such as **On your computer: Biology, p. 42**: tap **Carry on here** to open the same book at the same page. When this device does not have the book yet, tap **Get it here**: the other device sends it, with its notes.
+
 ## Unlink
 
 Open **More**, **Link devices**, and click **Unlink**. Do it on both devices to forget the link everywhere.

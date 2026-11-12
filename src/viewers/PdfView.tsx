@@ -8,7 +8,7 @@ import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
 import {
-  BookA, Languages, CircleHelp, Gauge, ListTree, SearchCode, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
+  BookA, Languages, CircleHelp, Files, WrapText, Gauge, ListTree, SearchCode, Sigma, Ruler, SquareStack, Table2, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
   ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
@@ -20,7 +20,11 @@ import { usePeek } from './Peek'
 import LectureChip from './LectureChip'
 import { KNOWN, QuestionsMenu, RecapCard, StudySheet, usePageMarks, type Sheet } from './PageStudy'
 import { hardnessOf, markKnown, noteVisit } from '../lib/pages'
-import { headingsOf, layoutOf } from '../lib/paper'
+import { asMarkdownTable, headingsOf, layoutOf, tableIn } from '../lib/paper'
+import { SelectionSheet, type Selected } from './SelectionTools'
+import { PageTools } from './PageTools'
+import Reflow from './Reflow'
+import { TextMenu } from './ReaderMenus'
 import { usePref } from '../lib/prefs'
 import { lookUp, translate } from '../Extras'
 import { Menu, Tool } from '../ui'
@@ -171,6 +175,8 @@ export default function PdfView({ file }: { file: File }) {
   // Picture cards: the same box again, and what comes out is a picture to cover labels on.
   const [carding, setCarding] = useState(false)
   const [cardImage, setCardImage] = useState<{ image: string; page: number } | null>(null)
+  // Table: the same box, and what comes out is the table in it, as a table in the notes.
+  const [tabling, setTabling] = useState(false)
   const [busy, setBusy] = useState('')
   // A scanned book made searchable: every page's words read once, in the background, and kept with the book's
   // words, so search, the study guide and its questions work on it as on any other.
@@ -261,6 +267,16 @@ export default function PdfView({ file }: { file: File }) {
     cut.height = Math.round(sh * shrink)
     cut.getContext('2d')!.drawImage(best.canvas, sx, sy, sw, sh, 0, 0, cut.width, cut.height)
     if (carding) return setCardImage({ image: cut.toDataURL('image/jpeg', 0.9), page: best.page })
+    if (tabling) {
+      const page = best.page
+      void doc!.getPage(page).then(pdfPage => tableIn(pdfPage, { x: Math.max(0, left - r.left) / r.width, y: Math.max(0, top - r.top) / r.height, w: sw / scale / r.width, h: sh / scale / r.height })).then(rows => {
+        if (rows.length < 2) { setBusy('No table found there. Draw the box round the whole table.'); setTimeout(() => setBusy(''), 5000); return }
+        sendQuote({ text: asMarkdownTable(rows), source: '', book: file.name, place: `page=${page}`, table: true })
+        setBusy(`A table of ${rows.length} rows is in your notes`)
+        setTimeout(() => setBusy(''), 5000)
+      })
+      return
+    }
     if (reading) return void readPage(best.page, { x: Math.max(0, left - r.left) / r.width, y: Math.max(0, top - r.top) / r.height, w: sw / scale / r.width, h: sh / scale / r.height })
     sendClip({ image: cut.toDataURL('image/jpeg', 0.88), source: `${baseName(file.name)}, p. ${best.page}`, book: file.name, place: `page=${best.page}` })
   }
@@ -706,6 +722,16 @@ export default function PdfView({ file }: { file: File }) {
     return () => { cancelled = true }
   }, [showHard, doc, file.name])
   const selected = () => window.getSelection()?.toString().trim().replace(/\s+/g, ' ') ?? ''
+  // Plot, convert, make gap cards: on the selected words (see SelectionTools.tsx).
+  const [picked, setPicked] = useState<Selected | null>(null)
+  const [making, setMaking] = useState(false)
+  // Reading as flowing text (phones): the pages' words set at the width of the screen (see Reflow.tsx).
+  const [flowing, setFlowing] = usePref(`reflow:${file.name}`, false)
+  const pickFor = (kind: Selected['kind']) => {
+    const text = selected()
+    const pageDiv = window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>('.page')
+    if (text) setPicked({ kind, text, place: `page=${Number(pageDiv?.dataset.pageNumber) || page}` })
+  }
   const knownHere = studied.known[`page=${page}`]
   const nextUnknown = () => {
     if (!doc) return
@@ -759,7 +785,7 @@ export default function PdfView({ file }: { file: File }) {
           {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
           {busy && <span className="viewer-pos">{busy}</span>}
           {/* What is in use shows on the bar, so it can be turned off where it was turned on. */}
-          {clipping && <Tool quiet icon={reading ? ScanText : carding ? SquareDashed : Crop} label="Stop drawing boxes" on onClick={() => setClipping(false)} />}
+          {clipping && <Tool quiet icon={reading ? ScanText : carding ? SquareDashed : tabling ? Table2 : Crop} label="Stop drawing boxes" on onClick={() => setClipping(false)} />}
           {tool === 'draw' && <Tool quiet icon={Pencil} label="Stop drawing" on onClick={() => setTool('none')} />}
           {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
@@ -767,13 +793,15 @@ export default function PdfView({ file }: { file: File }) {
           <HighlightsMenu marks={highlights} notebook={baseName(file.name)} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
           <Tool quiet icon={TextQuote} label="Quote" hint="Copy the selected text into your notes" onClick={quote} />
           <QuestionsMenu book={file.name} marks={studied} onGo={place => go(pageOf(place) - page)} />
+          {flowing && <TextMenu />}
         </>}
         <Menu quiet icon={Ellipsis} label="Tools" hint="Clip, read aloud, look up, translate, draw, page layout and more" on={mode === 'flip'}>
           {mode === 'scroll' && <>
             <p className="menu-head">On the page</p>
-            <Tool icon={Crop} label="Clip a picture into my notes" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading && !carding} onClick={() => { setReading(false); setCarding(false); setClipping(!clipping) }} />
-            <Tool icon={ScanText} label="Read the text in a box" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setReading(true); setClipping(!(clipping && reading)) }} />
-            <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setCarding(true); setClipping(!(clipping && carding)) }} />
+            <Tool icon={Crop} label="Clip a picture into my notes" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading && !carding && !tabling} onClick={() => { setReading(false); setCarding(false); setTabling(false); setClipping(!clipping) }} />
+            <Tool icon={ScanText} label="Read the text in a box" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setTabling(false); setReading(true); setClipping(!(clipping && reading)) }} />
+            <Tool icon={Table2} label="Table into my notes" hint="Drag a box round a table on the page: it goes into your notes as a table you can edit" on={clipping && tabling} onClick={() => { setReading(false); setCarding(false); setTabling(true); setClipping(!(clipping && tabling)) }} />
+            <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setTabling(false); setCarding(true); setClipping(!(clipping && carding)) }} />
             <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
             <p className="menu-head">This page</p>
             <div className="known-row" title="Mark how well you know this page: it shows on the page map, and you can come back to the pages you do not know yet">
@@ -790,6 +818,9 @@ export default function PdfView({ file }: { file: File }) {
             <Tool icon={Languages} label="Translate" hint="Translate the selected passage (sent to a free online service)" onClick={() => translate(window.getSelection()?.toString())} />
             <Tool icon={BookA} label="Where is this explained?" hint="The sentence of the book that says what the selected words are" onClick={() => { const words = selected(); if (words) setSheet({ kind: 'explained', words }) }} />
             <Tool icon={SearchCode} label="Every use in this book" hint="Each place the selected words come, with the words around them, lined up" onClick={() => { const words = selected(); if (words) setSheet({ kind: 'uses', words }) }} />
+            <Tool icon={Sigma} label="Plot this formula" hint="Draw the selected formula as a graph, with a slider for each constant" onClick={() => pickFor('plot')} />
+            <Tool icon={Ruler} label="Convert units" hint="The selected measurement (such as 25 psi) in other units" onClick={() => pickFor('units')} />
+            <Tool icon={SquareStack} label="Gap cards from this passage" hint="Flashcards from the selected passage, each with one of the book's terms hidden" onClick={() => pickFor('cloze')} />
             <Tool icon={CircleHelp} label="A question about this" hint="Note a question on the selected passage, to answer later or ask the AI" onClick={() => {
               const passage = selected()
               const pageDiv = window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>('.page')
@@ -809,10 +840,12 @@ export default function PdfView({ file }: { file: File }) {
               ))}
             </div>
           </>}
+          {mode === 'scroll' && <Tool icon={WrapText} label={flowing ? 'Back to the pages' : 'Read as flowing text'} hint="The words of the pages set at the width of the screen, in your text size and typeface: easier on a phone" on={flowing} onClick={() => setFlowing(!flowing)} />}
           <Tool icon={BookOpen} label={mode === 'flip' ? 'Back to scrolling' : 'Turn pages like paper'} on={mode === 'flip'} onClick={() => (mode === 'flip' ? leaveFlip() : (rememberFlip(true), setMode('flip')))} />
           {mode === 'scroll' && <>
             <p className="menu-head">This book</p>
             <Tool icon={TextQuote} label="Cite this book…" hint="As a reference, in your text with this page, or the selected passage with its source" onClick={() => openCite({ book: file.name, place: `page=${page}`, passage: window.getSelection()?.toString() })} />
+            <Tool icon={Files} label="New PDF from some pages" hint="Save some of its pages as a PDF of their own, or join another PDF after it" onClick={() => setMaking(true)} />
             <Tool icon={Download} label="Save a copy with my marks" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
             <Tool icon={ScanText} label="Make the whole book searchable" hint="For a scanned book: read every page's words once" onClick={() => void readScan()} />
             <Tool icon={ScanText} label="Read the text of this whole page" hint="For a scanned page: put its words into your notes" onClick={readWholePage} />
@@ -833,17 +866,20 @@ export default function PdfView({ file }: { file: File }) {
         <div
           ref={container}
           className="pdf-container"
-          style={{ visibility: mode === 'scroll' ? undefined : 'hidden' }}
+          style={{ visibility: mode === 'scroll' && !flowing ? undefined : 'hidden' }}
           {...peek.handlers}
           // A stylus touching the page means writing on it: switch to Draw without being asked.
           onPointerDownCapture={e => { if (e.pointerType === 'pen' && tool === 'none') setTool('draw') }}
         >
           <div className="pdfViewer" />
         </div>
+        {mode === 'scroll' && flowing && doc && <Reflow doc={doc} page={page} onPage={number => { setPage(number); tellPlace({ book: file.name, place: `page=${number}` }); localStorage.setItem(`sidepage:place:${file.name}`, String(number)) }} />}
         {mode === 'scroll' && peek.view}
+        {mode === 'scroll' && making && doc && <PageTools file={file} pages={doc.numPages} current={page} onClose={() => setMaking(false)} />}
+        {mode === 'scroll' && picked && <SelectionSheet book={file.name} selected={picked} onClose={() => setPicked(null)} />}
         {mode === 'scroll' && sheet && <StudySheet book={file.name} sheet={sheet} onGo={place => { setSheet(null); go(pageOf(place) - page) }} onClose={() => setSheet(null)} />}
         {mode === 'scroll' && doc && <RecapCard book={file.name} onGo={number => go(number - page)} />}
-        {mode === 'scroll' && doc && (
+        {mode === 'scroll' && doc && !flowing && (
           <PageMap
             file={file.name} pages={doc.numPages} current={page} goal={plan ? goalPage : undefined}
             highlights={highlights.map(mark => ({ page: pageOf(mark.cfi), colour: mark.color ?? '#ffd84d' }))}

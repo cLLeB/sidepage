@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { MessageAction, Room } from '@trystero-p2p/core'
-import { baseName, canRunTools, isMobile, loadNote, notebookFolder, openFileNow, saveNote, saveNoteFile } from './platform'
+import { baseName, canRunTools, fromShelf, isMobile, loadNote, notebookFolder, onPlace, openFileNow, placeNow, saveNote, saveNoteFile } from './platform'
 import { getPref, setPref } from './prefs'
 
 // Linking the reader's own devices (a phone or tablet with their computer), with no account and no server of
@@ -26,8 +26,10 @@ export const newCode = () => {
 const tidy = (code: string) => code.toLowerCase().replace(/[^a-z0-9]/g, '')
 export const validCode = (code: string) => tidy(code).length === 10
 
-export type LinkState = { code: string; status: 'off' | 'waiting' | 'linked'; other: Hello | null }
-let state: LinkState = { code: getPref('link-code', ''), status: 'off', other: null }
+// `away`: where the other device is reading, to carry on there from this one.
+export type Away = { book: string; place: string; at: number }
+export type LinkState = { code: string; status: 'off' | 'waiting' | 'linked'; other: Hello | null; away: Away | null }
+let state: LinkState = { code: getPref('link-code', ''), status: 'off', other: null, away: null }
 const listeners = new Set<() => void>()
 const change = (patch: Partial<LinkState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()) }
 export const linkNow = () => state
@@ -40,7 +42,9 @@ let peer = ''
 let actions: {
   hello: MessageAction<Hello>; ask: MessageAction<AskMessage>; line: MessageAction<Line>; done: MessageAction<Done>
   stop: MessageAction<{ id: string }>; picture: MessageAction<ArrayBuffer>; book: MessageAction<ArrayBuffer>
+  at: MessageAction<{ book: string; place: string }>; want: MessageAction<{ book: string }>
 } | null = null
+let stopTelling: (() => void) | null = null
 type Waiting = { onLine(line: string): void; finish(result: { code: number | null; errors: string }): void; next: number; early: Map<number, string>; done?: Done }
 const waiting = new Map<string, Waiting>()
 // Lines are handed on in their order; the run ends once every line before the end has come.
@@ -74,6 +78,7 @@ export async function startLink(code: string) {
     hello: joined.makeAction<Hello>('hello'), ask: joined.makeAction<AskMessage>('ask'), line: joined.makeAction<Line>('line'),
     done: joined.makeAction<Done>('done'), stop: joined.makeAction<{ id: string }>('stop'),
     picture: joined.makeAction<ArrayBuffer>('picture'), book: joined.makeAction<ArrayBuffer>('book'),
+    at: joined.makeAction<{ book: string; place: string }>('at'), want: joined.makeAction<{ book: string }>('want'),
   }
   actions = made
   joined.onPeerJoin = async id => {
@@ -87,7 +92,26 @@ export async function startLink(code: string) {
     for (const [, run] of waiting) run.finish({ code: 1, errors: 'The link to your computer was lost.' })
     waiting.clear()
   }
-  made.hello.onMessage = (hello, { peerId }) => { peer = peerId; change({ status: 'linked', other: hello }) }
+  made.hello.onMessage = (hello, { peerId }) => {
+    peer = peerId
+    change({ status: 'linked', other: hello })
+    const now = placeNow()
+    if (now) void made.at.send({ book: now.book, place: now.place }, { target: peerId })
+  }
+
+  // ── Carrying on from the other device: where each is reading, told to the other as pages turn ──
+  made.at.onMessage = ({ book, place }) => change({ away: { book: String(book), place: String(place), at: Date.now() } })
+  let telling = 0
+  stopTelling?.()
+  stopTelling = onPlace(now => {
+    clearTimeout(telling)
+    telling = window.setTimeout(() => { if (peer) void made.at.send({ book: now.book, place: now.place }, { target: peer }) }, 1500)
+  })
+  // The other device asks for a book it does not have: it is sent with its notes.
+  made.want.onMessage = async ({ book }) => {
+    const file = await fromShelf(String(book))
+    if (file) await sendBook(file).catch(() => {})
+  }
 
   // ── On the computer: the other device asks its AI app ──
   made.ask.onMessage = async (asked, { peerId }) => {
@@ -135,8 +159,9 @@ export async function startLink(code: string) {
 export async function stopLink(keepCode = false) {
   const leaving = room
   room = null; actions = null; peer = ''
+  stopTelling?.(); stopTelling = null
   if (!keepCode) setPref('link-code', '')
-  change({ code: keepCode ? state.code : '', status: 'off', other: null })
+  change({ code: keepCode ? state.code : '', status: 'off', other: null, away: null })
   await leaving?.leave().catch(() => {})
 }
 
@@ -173,3 +198,7 @@ export async function sendBook(book: File, onProgress?: (share: number) => void)
   await actions.book.send(bundle.buffer.slice(bundle.byteOffset, bundle.byteOffset + bundle.byteLength) as ArrayBuffer,
     { target: peer, metadata: { name: `${baseName(book.name)}.${BUNDLE_EXTENSION}` }, onProgress: share => onProgress?.(share) })
 }
+
+// Asks the other device for a book this one does not have; it comes with its notes, as when sent.
+export const askForBook = (book: string) => { if (actions && peer) void actions.want.send({ book }, { target: peer }) }
+export const forgetAway = () => change({ away: null })

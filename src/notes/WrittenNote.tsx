@@ -13,6 +13,7 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { imageBlockSchema } from '@milkdown/kit/component/image-block'
 import { insert, replaceAll } from '@milkdown/kit/utils'
 import { HistoryDialog, keepVersion } from './History'
+import PhotoPage from './PhotoPage'
 import { Proofread } from './Proofread'
 import { SPOKEN } from '../lib/transcribe'
 import { uiLanguage } from '../lib/language'
@@ -269,6 +270,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
   // Whether what is on the page has reached storage: shown in the bar, so there is never a doubt.
   const [saved, setSaved] = useState<'saved' | 'saving' | 'failed'>('saved')
   const [history, setHistory] = useState<string | null>(null)
+  // Text from a photo of a printed page (see PhotoPage.tsx).
+  const [photo, setPhoto] = useState(false)
   const openHistory = () => setHistory(editorRef.current?.getMarkdown() ?? '')
   const play = async (name: string, at: number) => {
     const sound = await loadNoteFile(notebook, name)
@@ -725,6 +728,8 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           {Object.entries(DRAWINGS).map(([name, [kind, text]]) => (
             <button key={name} className="menu-item" onClick={() => put('\n```' + kind + '\n' + text + '\n```\n')}>{name}</button>
           ))}
+          <p className="menu-head">From paper</p>
+          <button className="menu-item" onClick={() => setPhoto(true)}>Text from a photo of a page</button>
           <p className="menu-head">Layouts</p>
           {Object.keys(TEMPLATES).map(name => (
             <button key={name} className="menu-item" onClick={() => put(TEMPLATES[name as keyof typeof TEMPLATES])}>{name}</button>
@@ -827,6 +832,10 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
           {soundNote && <span className="viewer-pos">{soundNote}</span>}
         </div>
       )}
+      {photo && <PhotoPage onPut={markdown => put(`
+${markdown}
+
+`)} onClose={() => setPhoto(false)} />}
       {proofing && <Proofread crepe={editorRef.current} onClose={() => setProofing(false)} />}
       {history !== null && (
         <HistoryDialog

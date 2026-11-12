@@ -5,7 +5,7 @@ import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
   Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
   CircleHelp, RefreshCw, MonitorSmartphone, Gauge, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
-  Languages, Brain, Telescope,
+  Languages, Brain, Telescope, Users,
 } from 'lucide-react'
 import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
@@ -129,7 +129,10 @@ const LinkView = lazy(() => import('./notes/LinkView'))
 const PracticeView = lazy(() => import('./notes/PracticeView'))
 const MethodsView = lazy(() => import('./notes/MethodsView'))
 const ExploreView = lazy(() => import('./notes/ExploreView'))
+const TogetherView = lazy(() => import('./notes/TogetherView'))
+const CarryOn = lazy(() => import('./notes/CarryOn'))
 const SpeedRead = lazy(() => import('./notes/SpeedRead'))
+const TogetherPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><TogetherView /></Suspense></ErrorBoundary>
 const ExplorePanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><ExploreView /></Suspense></ErrorBoundary>
 const MethodsPanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><MethodsView /></Suspense></ErrorBoundary>
 const PracticePanel = () => <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><PracticeView /></Suspense></ErrorBoundary>
@@ -263,7 +266,7 @@ function UpdateCard() {
   )
 }
 
-const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel, files: FilesPanel, link: LinkPanel, practice: PracticePanel, methods: MethodsPanel, explore: ExplorePanel }
+const components = { doc: DocPanel, note: NotePanel, graph: GraphPanel, review: ReviewPanel, highlights: HighlightsPanel, guide: GuidePanel, compare: ComparePanel, papers: PapersPanel, ai: AskPanel, files: FilesPanel, link: LinkPanel, practice: PracticePanel, methods: MethodsPanel, explore: ExplorePanel, together: TogetherPanel }
 
 export default function App() {
   const api = useRef<DockviewApi | null>(null)
@@ -273,6 +276,8 @@ export default function App() {
   const theme = useThemeChoice()
   // A short message after something has been done out of sight (a backup made, notes restored).
   const [notice, setNotice] = useState('')
+  // A link to the reader's other device, made now or before (it can carry on from where that one was reading).
+  const [linkCode] = usePref('link-code', '')
   // Speed reading, over everything (see notes/SpeedRead.tsx).
   const [speeding, setSpeeding] = useState(false)
   useEffect(() => { const open = () => setSpeeding(true); window.addEventListener('sidepage:speed', open); return () => window.removeEventListener('sidepage:speed', open) }, [])
@@ -649,6 +654,8 @@ export default function App() {
   const openMethods = useCallback(() => openSide('methods', 'Study methods'), [openSide])
   // The book from above: its people, mood, phrases, places and style (see notes/ExploreView.tsx).
   const openExplore = useCallback(() => openSide('explore', 'Explore this book'), [openSide])
+  // A room for a study group (see notes/TogetherView.tsx).
+  const openTogether = useCallback(() => openSide('together', 'Study together'), [openSide])
   useEffect(() => {
     window.addEventListener('sidepage:link', openLink)
     if (getPref('link-code', '')) void import('./lib/link').then(link => link.resumeLink())
@@ -887,6 +894,7 @@ export default function App() {
     { group: 'Study', name: 'Language practice on this page', icon: Languages, run: openPractice },
     { group: 'Study', name: 'Study methods: memorise, blurt, SQ3R, mnemonics, past papers', icon: Brain, run: openMethods },
     { group: 'Study', name: 'Explore this book: people, mood, phrases, places, style', icon: Telescope, run: openExplore },
+    { group: 'Study', name: 'Study together: a room for your study group, quiz duels', icon: Users, run: openTogether },
     { group: 'Keep', name: 'Link devices: phone or tablet with computer', icon: MonitorSmartphone, run: openLink },
     { group: 'Study', name: 'Compare two books, word by word', icon: ArrowLeftRight, run: openCompare },
     { group: 'Study', name: 'All highlights', icon: Highlighter, run: openHighlights },
@@ -974,6 +982,7 @@ export default function App() {
             <Tool icon={Share2} label="Graph of your notes" hint="How your books' notes link to each other" onClick={openGraph} />
             <Tool icon={Gauge} label="Speed reading" hint="Read the book from this page one word at a time, at the pace you set" disabled={empty} onClick={() => setSpeeding(true)} />
             <Tool icon={Telescope} label="Explore this book" hint="Its people and who meets whom, its mood from start to end, the phrases it repeats, its places on a map, how it is written" disabled={empty} onClick={openExplore} />
+            <Tool icon={Users} label="Study together" hint="A room for your study group: see where each is reading, follow someone, send a few words, play a quiz duel" onClick={openTogether} />
             <Tool icon={Brain} label="Study methods" hint="Memorise a passage, blurt it out, questions before reading, learn in order, mnemonics, past exam papers" onClick={openMethods} />
             <Tool icon={Languages} label="Language practice" hint="Learn the language a book is written in: new words, translation, dictation, saying it back" disabled={empty} onClick={openPractice} />
             <Tool icon={Timer} label="Study timer" hint="Study for a stretch, then take a break" onClick={() => setTimeout(() => window.dispatchEvent(new Event('sidepage:timer')), 0)} />
@@ -1097,6 +1106,8 @@ export default function App() {
       <UpdateCard />
       {palette && <Palette commands={commands()} onClose={() => setPalette(false)} />}
       {notice && <div className="notice" role="status" onClick={() => setNotice('')}>{notice}</div>}
+      {/* Carrying on from the linked device, where it was reading (see notes/CarryOn.tsx). */}
+      {linkCode && <Suspense fallback={null}><CarryOn /></Suspense>}
       <main className="workspace">
         <DockviewReact components={components} onReady={onReady} theme={reading ? PANELS_READING : PANELS} defaultRenderer="always" rightHeaderActionsComponent={SideActions} />
         {empty && (
