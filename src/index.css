@@ -586,7 +586,7 @@ html, body { touch-action: pan-x pan-y; }
 .review { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; background: var(--bg); }
 .review-count, .review-note { margin: 0; color: var(--muted); font-size: 12.5px; letter-spacing: 0.02em; }
 .review-card { width: min(560px, 100%); padding: 28px; background: var(--panel); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
-.review-front { font: 18px/1.55 Georgia, 'Times New Roman', serif; }
+.review-front { font: 18px/1.55 Georgia, 'Times New Roman', serif; white-space: pre-line; }
 .review-back { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); line-height: 1.55; white-space: pre-wrap; }
 .review-grades { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .review-grades button { min-width: 84px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border); }
@@ -1441,3 +1441,48 @@ button.viewer-pos { font-weight: 500; }
 .known-row button { padding: 6px 9px; border-radius: 8px; font-size: 12.5px; background: var(--bg); }
 .known-row button.on { color: #fff; }
 .contents-found { margin: 4px 10px; }
+
+/* Language practice beside the book. */
+.practice-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+.practice-head .eyebrow { margin: 0; }
+.practice-into { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.practice-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.practice-tabs .chip { padding: 7px 12px; border-radius: 999px; font-size: 13px; }
+.practice-tabs .chip.on { color: var(--panel); }
+.practice-text { font: 17px/1.75 Georgia, 'Times New Roman', serif; }
+.practice-text p { margin: 0 0 4px; display: inline; }
+.practice-word { display: inline; padding: 0 1px; margin: 0; border-radius: 4px; font: inherit; color: inherit; background: none; box-shadow: none; }
+.practice-word:hover { background: var(--hover); }
+.word-new { background: color-mix(in srgb, #2f6fed 16%, transparent); }
+.word-learning { background: color-mix(in srgb, #f5a524 26%, transparent); }
+.practice-score span { padding: 1px 6px; border-radius: 4px; margin-left: 4px; font-size: 12px; }
+.practice-score { margin: 0; font-weight: 600; }
+.practice-card { position: sticky; bottom: 8px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+.practice-card b { font-size: 16px; }
+.practice-card span { color: var(--muted); }
+.practice-parts { display: flex; align-items: center; gap: 10px; margin-top: 14px; color: var(--muted); }
+.practice-parts button.soft { padding: 8px 12px; }
+.word-list { display: flex; flex-direction: column; width: 100%; }
+.word-row { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.word-row > div { flex: 1; min-width: 0; }
+.word-row p { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.word-count { color: var(--muted); font-size: 12px; margin-right: 6px; }
+.word-meaning { color: var(--text); font-size: 13px; margin-left: 4px; }
+.word-row .question-tools button { font-size: 16px; line-height: 1; min-width: 28px; }
+.both { gap: 12px !important; }
+.both-pair p { margin: 0; line-height: 1.55; }
+.both-pair p:first-child { font: 16px/1.6 Georgia, 'Times New Roman', serif; }
+.both-under { color: var(--muted); font-size: 13.5px; padding-left: 10px; border-left: 2px solid var(--border); margin-top: 2px !important; }
+.drill { width: 100%; }
+.drill form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.drill textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: 16px/1.5 Georgia, serif; resize: vertical; }
+.drill form button { align-self: flex-start; padding: 8px 16px; }
+.drill .study-sheet-row button { display: inline-flex; align-items: center; gap: 6px; }
+.practice-slow { display: flex; align-items: center; gap: 6px; }
+.drill-result { width: 100%; padding: 10px 12px; border-radius: 12px; background: var(--bg); }
+.drill-result p { margin: 0 0 6px; }
+.drill-marked { font: 16px/1.6 Georgia, serif; }
+.drill-missed { color: #e5484d; text-decoration: underline wavy; text-underline-offset: 4px; }
+.drill-extra { color: var(--muted); text-decoration: line-through; }
+.drill-answer { color: var(--muted); font-size: 13px; }
+button.recording { background: #e5484d !important; color: #fff !important; }

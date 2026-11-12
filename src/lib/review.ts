@@ -1,3 +1,4 @@
+import { savedWords } from './practice'
 import { createEmptyCard, fsrs, Rating, type Card, type Grade } from 'ts-fsrs'
 import { baseName, loadNote, saveNote, shelf } from './platform'
 import { pictureCardsOf, type Box } from '../notes/PictureCards'
@@ -59,6 +60,12 @@ export async function allCards(): Promise<Flashcard[]> {
       const answer = lines.slice(i + 1).find(Boolean)?.match(/^A[:.]\s*(.+)/i)?.[1]
       if (question && answer) cards.push({ id: idOf(`${book.name}|Q|${question}`), book: book.name, front: question, back: answer })
     })
+    // Words saved while reading in another language: the word in its sentence, then what it means.
+    for (const saved of await savedWords(book.name)) {
+      if (saved.meaning) cards.push({ id: idOf(`${book.name}|V|${saved.word.toLowerCase()}`), book: book.name, front: `${saved.word}
+
+“${saved.sentence}”`, back: saved.meaning, place: saved.place })
+    }
     for (const set of await pictureCardsOf(notebook)) {
       set.boxes.forEach((box, ask) => cards.push({
         id: idOf(`${book.name}|P|${set.id}|${ask}`), book: book.name, front: set.source, back: box.label ?? '', place: set.place,

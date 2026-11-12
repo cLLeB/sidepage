@@ -27,7 +27,7 @@ function sentencesOfLine(text: string): string[] {
 
 // Which language a page is in, told from its commonest little words: enough to give French text a French voice
 // and English text an English one, without asking.
-const COMMON: Record<string, string[]> = {
+export const COMMON: Record<string, string[]> = {
   fr: ['le', 'la', 'les', 'des', 'est', 'une', 'et', 'du', 'que', 'dans', 'pour', 'pas', 'sur', 'qui', 'avec', 'sont', 'au', 'ce', 'ces', 'nous'],
   en: ['the', 'and', 'of', 'to', 'is', 'in', 'that', 'it', 'for', 'with', 'as', 'are', 'this', 'be', 'on', 'by', 'which', 'from', 'was', 'not'],
   es: ['el', 'la', 'los', 'las', 'de', 'que', 'y', 'en', 'un', 'una', 'es', 'por', 'con', 'para', 'del', 'se', 'no', 'su', 'al', 'lo'],
