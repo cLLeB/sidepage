@@ -5,7 +5,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend'
 import { FolderClosed, BookImage, BookOpen, ChevronDown, ChevronLeft, ChevronRight, File as FileIcon, FileText, FolderOpen, FolderPlus, Globe, Image, Plus, Presentation, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { extensionOf, onPlace, openFileNow, placeNow } from '../lib/platform'
 import { usePref } from '../lib/prefs'
-import { addFilesTo, addFolder, askLeave, canLinkFolders, countFiles, filesIn, folders as savedFolders, listFolder, needsLeave, openEntry, removeFolder, type Entry, type Folder } from '../lib/folders'
+import { addFilesTo, addFolder, askLeave, bookNameOf, canLinkFolders, countFiles, filesIn, folders as savedFolders, listFolder, needsLeave, openEntry, removeFolder, type Entry, type Folder } from '../lib/folders'
 
 // One drag handler for every file tree: the tree's own would make a second one when a Files panel reopens
 // before the first is gone, and the page allows only one ("Cannot have two HTML5 backends").
@@ -62,13 +62,13 @@ export default function FilesView() {
   useEffect(() => { void load(folder) }, [folder?.id, load]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const files = useMemo(() => filesIn(entries ?? []), [entries])
-  const currentFile = files.find(file => file.name === openName)?.id ?? (folder ? lastOpened[folder.id] : undefined)
+  const currentFile = files.find(file => bookNameOf(file, files) === openName)?.id ?? (folder ? lastOpened[folder.id] : undefined)
   // Where the open book stands in the folder, for the small stepper shown over the book when this list is out of
   // sight (on a phone, the list is a tab of its own).
   const panel = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const tell = () => {
-      const index = files.findIndex(file => file.name === openName)
+      const index = files.findIndex(file => bookNameOf(file, files) === openName)
       window.dispatchEvent(new CustomEvent('sidepage:folder-position', { detail: { index, total: files.length, shown: !!panel.current && panel.current.offsetWidth > 0 } }))
     }
     tell()
@@ -80,10 +80,11 @@ export default function FilesView() {
   const open = useCallback(async (id: string) => {
     if (!folder) return
     try {
-      openFileNow(await openEntry(folder, id))
+      const entry = files.find(file => file.id === id)
+      openFileNow(await openEntry(folder, id, entry ? bookNameOf(entry, files) : undefined))
       setLastOpened({ ...lastOpened, [folder.id]: id })
     } catch (error) { setProblem(String((error as Error)?.message ?? error)) }
-  }, [folder, lastOpened, setLastOpened])
+  }, [folder, files, lastOpened, setLastOpened])
 
   const step = useCallback((by: number) => {
     if (!files.length) return

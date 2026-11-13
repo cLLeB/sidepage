@@ -126,7 +126,29 @@ export async function listFolder(folder: Folder): Promise<Entry[]> {
 }
 const order = (a: Entry, b: Entry) => (a.children ? 0 : 1) - (b.children ? 0 : 1) || a.name.localeCompare(b.name, undefined, { numeric: true })
 
-export async function openEntry(folder: Folder, id: string): Promise<File> {
+// The name a file opens under. Sidepage knows a book by its name (its notes, chats, text and place), and course
+// folders often repeat one (a "02 - Slides.pdf" in every chapter): such a file takes the folder it is in, and more of
+// its path if that is not enough, so each is a book of its own. A file whose name is its own keeps it.
+export function bookNameOf(entry: Entry, all: Entry[]): string {
+  const twins = all.filter(other => other.name === entry.name)
+  if (twins.length < 2) return entry.name
+  const dirs = (id: string) => id.split('/').slice(0, -1)
+  const dot = entry.name.lastIndexOf('.')
+  const [base, ext] = dot > 0 ? [entry.name.slice(0, dot), entry.name.slice(dot)] : [entry.name, '']
+  const mine = dirs(entry.id)
+  for (let depth = 1; depth <= mine.length; depth++) {
+    const tail = (id: string) => dirs(id).slice(-depth).join(' · ')
+    if (twins.every(other => other.id === entry.id || tail(other.id) !== tail(entry.id)))
+      return `${base} · ${tail(entry.id)}${ext}`
+  }
+  return entry.name
+}
+
+export async function openEntry(folder: Folder, id: string, as?: string): Promise<File> {
+  const file = await readEntry(folder, id)
+  return as && as !== file.name ? new File([file], as, { type: file.type, lastModified: file.lastModified }) : file
+}
+async function readEntry(folder: Folder, id: string): Promise<File> {
   const name = id.split('/').pop() ?? id
   if (folder.kind === 'path') {
     const { invoke } = await import('@tauri-apps/api/core')
