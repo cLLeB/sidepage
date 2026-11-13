@@ -14,7 +14,7 @@ type Part = keyof typeof PARTS
 
 export default function ExploreView() {
   const [here, setHere] = useState<Place | null>(placeNow)
-  useEffect(() => onPlace(setHere), [])
+  useEffect(() => { const stop = onPlace(setHere); setHere(placeNow()); return stop }, [])
   const [part, setPart] = usePref<Part>('explore-part', 'people')
   const book = here?.book
   const go = (place: string) => { if (book) goToPlace({ book, place }) }

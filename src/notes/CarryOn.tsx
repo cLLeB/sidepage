@@ -10,7 +10,7 @@ export default function CarryOn() {
   const link = useLink()
   const [here, setHere] = useState(placeNow)
   const [have, setHave] = useState<string | null | undefined>(undefined)
-  useEffect(() => onPlace(setHere), [])
+  useEffect(() => { const stop = onPlace(setHere); setHere(placeNow()); return stop }, [])
   const away = link.away
   useEffect(() => {
     setHave(undefined)

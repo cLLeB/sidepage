@@ -18,7 +18,7 @@ const CHUNK = 14
 
 export default function PracticeView() {
   const [here, setHere] = useState<Place | null>(placeNow)
-  useEffect(() => onPlace(setHere), [])
+  useEffect(() => { const stop = onPlace(setHere); setHere(placeNow()); return stop }, [])
   const [tab, setTab] = usePref<Tab>('practice-tab', 'read')
   const [text, setText] = useState<string | null>(null)
   useEffect(() => {

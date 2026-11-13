@@ -214,7 +214,7 @@ export default function GuideView() {
     sendQuote({ text: `| Term | What it is |\n| --- | --- |\n${rows.join('\n')}`, source: `Glossary of ${baseName(here.book)}`, book: here.book, place: here.place, table: true })
   }
 
-  useEffect(() => onPlace(setHere), [])
+  useEffect(() => { const stop = onPlace(setHere); setHere(placeNow()); return stop }, [])
   const level = useReadingLevel(here?.book, here?.place)
 
   // The terms belong to the book; they are worked out once for each book opened.

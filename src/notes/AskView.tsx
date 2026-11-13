@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import 'katex/dist/katex.min.css'
 import { ArrowUp, Check, Copy, ExternalLink, KeyRound, Laptop, NotebookPen, RotateCcw, Square } from 'lucide-react'
 import type { ModelMessage } from 'ai'
@@ -11,18 +11,50 @@ import { aiPossible as appOnThisDevice, bookText, installedTools, prepareBook, r
 import { askDirect, connect, connected, connection, OWN_APPS, pageToPaste, plainError, SERVICES, type Connection, type Service } from '../lib/directai'
 
 type Message = { from: 'reader' | 'ai'; text: string; status?: string; error?: boolean; done?: boolean }
-// `session` carries on a conversation with an AI app (Claude Code resumes it: it remembers what was said);
-// `history` one with an AI reached with a key. `started` names the chat in the list of earlier ones.
-type Chat = { id: string; started: string; messages: Message[]; session: string; history: ModelMessage[] }
-const newChat = (): Chat => ({ id: Date.now().toString(36), started: new Date().toISOString(), messages: [], session: '', history: [] })
+// `session` carries on a conversation with Claude's app (resumed, it remembers what was said) and `covered` counts
+// the messages that session has seen; `history` carries one with an AI reached with a key. `started` names the chat.
+type Chat = { id: string; started: string; messages: Message[]; session: string; covered?: number; history: ModelMessage[] }
+let made = 0
+const newChat = (): Chat => ({ id: `${Date.now().toString(36)}${(++made).toString(36)}`, started: new Date().toISOString(), messages: [], session: '', history: [] })
 
 // Each book's conversations are kept with its notes (ai-chats.json), the latest last, so closing Sidepage loses
-// nothing: the book opens again on its latest chat, and earlier ones can be brought back.
+// nothing. While Sidepage runs they live here, outside the panel, one shelf per book: an answer goes on being
+// written into the chat it was asked in, whatever book or chat the panel shows meanwhile, even with the panel closed.
 const CHATS_FILE = 'ai-chats.json'
 const KEEP = 40
-async function loadChats(book: string): Promise<Chat[]> {
-  try { return JSON.parse((await loadNote(baseName(book), CHATS_FILE)) ?? '[]') as Chat[] } catch { return [] }
+type Shelf = { chats: Chat[]; current: string }
+const shelves = new Map<string, Shelf>()
+const loading = new Map<string, Promise<Shelf>>()
+// The chats being answered, each with what stops it.
+const running = new Map<string, () => void>()
+const drafts = new Map<string, string>()
+const listeners = new Set<() => void>()
+let version = 0
+const changed = () => { version++; listeners.forEach(listener => listener()) }
+const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
+
+// An answer cut short when Sidepage closed shows as stopped, not as one still coming.
+const settled = (chat: Chat): Chat => ({
+  ...chat,
+  messages: chat.messages.map(message => message.from === 'ai' && !message.done
+    ? { ...message, done: true, status: undefined, ...(message.text.trim() ? {} : { text: STOPPED, error: true }) } : message),
+})
+const STOPPED = 'Stopped before an answer came.'
+function shelfOf(book: string): Promise<Shelf> {
+  const had = shelves.get(book)
+  if (had) return Promise.resolve(had)
+  if (!loading.has(book)) loading.set(book, (async () => {
+    let chats: Chat[] = []
+    try { chats = (JSON.parse((await loadNote(baseName(book), CHATS_FILE)) ?? '[]') as Chat[]).map(settled) } catch { chats = [] }
+    const shelf: Shelf = { chats, current: chats.at(-1)?.id ?? '' }
+    if (!chats.length) { const fresh = newChat(); shelf.chats = [fresh]; shelf.current = fresh.id }
+    shelves.set(book, shelf)
+    changed()
+    return shelf
+  })())
+  return loading.get(book)!
 }
+
 // Pictures sent along with a question are left out: they are large, and the answers say what they showed.
 const storable = (chat: Chat): Chat => ({
   ...chat,
@@ -30,16 +62,139 @@ const storable = (chat: Chat): Chat => ({
   history: chat.history.map(message => message.role === 'user' && Array.isArray(message.content)
     ? { ...message, content: message.content.filter(part => part.type !== 'image') } as ModelMessage : message),
 })
-async function saveChat(book: string, chat: Chat) {
-  if (!chat.messages.length) return
-  const all = (await loadChats(book)).filter(other => other.id !== chat.id)
-  await saveNote(baseName(book), CHATS_FILE, JSON.stringify([...all, storable(chat)].slice(-KEEP)))
+// A book's chats are written whole, one write after another, a moment after they change (not at every word).
+const writing = new Map<string, Promise<unknown>>()
+const timers = new Map<string, number>()
+function save(book: string, now = false) {
+  clearTimeout(timers.get(book))
+  const write = () => {
+    const shelf = shelves.get(book)
+    if (!shelf) return
+    const text = JSON.stringify(shelf.chats.filter(chat => chat.messages.length).slice(-KEEP).map(storable))
+    writing.set(book, (writing.get(book) ?? Promise.resolve()).then(() => saveNote(baseName(book), CHATS_FILE, text)).catch(() => {}))
+  }
+  if (now) write()
+  else timers.set(book, window.setTimeout(write, 700))
 }
+function putChat(book: string, chat: Chat, now = false) {
+  const shelf = shelves.get(book)
+  if (!shelf) return
+  shelf.chats = shelf.chats.some(other => other.id === chat.id) ? shelf.chats.map(other => other.id === chat.id ? chat : other) : [...shelf.chats, chat]
+  changed()
+  save(book, now)
+}
+// A new chat, unless the one shown is still empty.
+function startChat(book: string) {
+  const shelf = shelves.get(book)
+  if (!shelf) return
+  if (shelf.chats.find(chat => chat.id === shelf.current)?.messages.length === 0) return
+  const fresh = newChat()
+  shelf.chats = [...shelf.chats.filter(chat => chat.messages.length || running.has(chat.id)), fresh]
+  shelf.current = fresh.id
+  changed()
+}
+function showChat(book: string, id: string) {
+  const shelf = shelves.get(book)
+  if (!shelf) return
+  // An empty chat left behind is dropped.
+  shelf.chats = shelf.chats.filter(chat => chat.id === id || chat.messages.length || running.has(chat.id))
+  shelf.current = id
+  changed()
+}
+
 // A chat's name in the list: its first question, and when it began.
 const chatName = (chat: Chat) => {
   const first = chat.messages.find(message => message.from === 'reader')?.text.replace(/\s+/g, ' ') ?? ''
   const when = new Date(chat.started).toLocaleDateString(uiLocale(), { day: 'numeric', month: 'short' })
   return `${when} · ${first.length > 48 ? `${first.slice(0, 48)}…` : first}`
+}
+
+// What an AI that does not remember the chat needs to follow it: the questions and answers so far.
+const clipped = (text: string, most: number) => text.length > most ? `${text.slice(0, most)}…` : text
+const transcript = (messages: Message[]) => {
+  const said = messages.filter(message => message.text.trim() && !message.error).slice(-12)
+  return said.length ? `Our conversation so far:\n\n${said.map(message => `${message.from === 'reader' ? 'Me' : 'You'}: ${clipped(message.text, 2500)}`).join('\n\n')}` : ''
+}
+
+// What a tool is doing, said plainly, from a tool call in Claude's stream.
+const doing = (call: { name?: string; input?: { pattern?: string; file_path?: string } }) =>
+  call.name === 'Grep' ? `Searching the book for “${call.input?.pattern ?? ''}”…` : call.name === 'Read' ? (call.input?.file_path?.endsWith('notes.md') ? 'Reading your notes…' : 'Reading the book…') : 'Looking through the book…'
+
+type Way = { withKey: boolean; tool: Tool; viaComputer: boolean; place: string; onSignedOut(): void }
+// One question in one chat of one book. Everything it writes goes to that chat, by its id, and nowhere else.
+async function ask(book: string, chatId: string, text: string, way: Way) {
+  const shelf = await shelfOf(book)
+  const start = shelf.chats.find(chat => chat.id === chatId)
+  if (!start || running.has(chatId) || !text.trim()) return
+  const earlier = start.messages
+  let chat: Chat = { ...start, messages: [...earlier, { from: 'reader', text }, { from: 'ai', text: '', status: 'Opening the book…' }] }
+  const last = () => chat.messages.at(-1)!
+  const change = (patch: Partial<Message>, now = false) => { chat = { ...chat, messages: [...chat.messages.slice(0, -1), { ...last(), ...patch }] }; putChat(book, chat, now) }
+  let stopped = false
+  running.set(chatId, () => { stopped = true })
+  putChat(book, chat)
+  try {
+    if (way.withKey) {
+      const halt = new AbortController()
+      running.set(chatId, () => { stopped = true; halt.abort() })
+      try {
+        const history = await askDirect(book, way.place, text, chat.history, written => change({ text: written, status: '' }), status => change({ status }), halt.signal)
+        chat = { ...chat, history }
+        if (!last().text.trim()) change({ text: 'No answer came back.', error: true })
+      } catch (error) {
+        if (!stopped) change({ text: plainError(error), error: true })
+      }
+      return
+    }
+    const folder = await prepareBook(book, baseName(book))
+    const pictured = await snapPage(baseName(book), book)
+    const where = [way.place ? `I am on ${placeName(way.place) || way.place} of the book.` : '', pictured ? 'this-page.png shows the page I am looking at, taken just now.' : ''].filter(Boolean).join(' ')
+    const text_ = way.viaComputer ? await bookText(book) : undefined
+    // Claude's app remembers a chat it has had (the session); what it has not seen, and everything for the others,
+    // is told again.
+    let session = way.tool === 'claude' ? chat.session : ''
+    const attempt = async (resume: string, before: Message[]) => {
+      let streamed = ''
+      let failed = ''
+      const said = transcript(before)
+      const input = [said, where, said ? `My new question: ${text}` : text].filter(Boolean).join('\n\n')
+      const result = await runTool(way.tool, 'ask', input, { cwd: folder ?? '', system: systemPrompt(baseName(book), way.viaComputer), resume, ...(text_ !== undefined ? { book, text: text_ } : {}) }, line => {
+        if (way.tool !== 'claude') { streamed += `${line}\n`; change({ text: streamed, status: '' }); return }
+        let event: { type: string; session_id?: string; event?: { type: string; delta?: { type: string; text?: string } }; message?: { content?: { type: string; name?: string; input?: object }[] }; result?: string; is_error?: boolean }
+        try { event = JSON.parse(line) } catch { return }
+        if (event.session_id) session = event.session_id
+        if (event.type === 'stream_event' && event.event?.type === 'content_block_delta' && event.event.delta?.type === 'text_delta') {
+          streamed += event.event.delta.text ?? ''
+          change({ text: streamed, status: '' })
+        } else if (event.type === 'assistant') {
+          const call = event.message?.content?.find(part => part.type === 'tool_use')
+          if (call) { streamed += streamed && !streamed.endsWith('\n\n') ? '\n\n' : ''; change({ status: doing(call as never) }) }
+        } else if (event.type === 'result') {
+          if (event.is_error) failed = event.result || 'The AI could not answer.'
+          else change({ text: event.result || streamed, status: '' })
+        }
+      }, stop => running.set(chatId, () => { stopped = true; stop() }))
+      return { ...result, failed }
+    }
+    const resumable = !!session
+    let result = await attempt(session, resumable ? earlier.slice(chat.covered ?? earlier.length) : earlier)
+    // A session Claude no longer has (another folder, cleared): the chat so far is told instead.
+    if (resumable && !stopped && /no conversation found|session.*not found|could not resume/i.test(`${result.failed}\n${result.errors}`)) {
+      session = ''
+      change({ text: '', status: 'Opening the book…' })
+      result = await attempt('', earlier)
+    }
+    if (stopped) return
+    if (result.failed) change({ text: result.failed, error: true, status: '' })
+    else if (!last().text.trim()) change({ text: result.code === 0 ? 'No answer came back.' : (result.errors.trim().split('\n').slice(-3).join('\n') || 'The AI could not answer.'), error: result.code !== 0, status: '' })
+    if (last().error && /log ?in|sign ?in|auth|credential|api key/i.test(last().text)) way.onSignedOut()
+    if (way.tool === 'claude' && session) chat = { ...chat, session, covered: chat.messages.length }
+  } catch (error) {
+    if (!stopped) change({ text: String((error as Error)?.message ?? error), error: true })
+  } finally {
+    running.delete(chatId)
+    change({ done: true, status: '', ...(last().text.trim() ? {} : { text: STOPPED, error: true }) }, true)
+  }
 }
 
 // An answer written in Markdown, made safe before it is shown (it comes from outside the app).
@@ -72,9 +227,6 @@ function Answer({ text }: { text: string }) {
 
 const STARTERS = ['Explain this page simply', 'Sum up this part in five points', 'Quiz me on this page', 'What should I remember from this?']
 
-// What a tool is doing, said plainly, from a tool call in Claude's stream.
-const doing = (call: { name?: string; input?: { pattern?: string; file_path?: string } }) =>
-  call.name === 'Grep' ? `Searching the book for “${call.input?.pattern ?? ''}”…` : call.name === 'Read' ? (call.input?.file_path?.endsWith('notes.md') ? 'Reading your notes…' : 'Reading the book…') : 'Looking through the book…'
 
 // Connecting an AI with a key: the service, the key (kept on this device), and for some, the model and address.
 function Connect({ onDone, onCancel, onApp, book, place }: { onDone: (value: Connection | null) => void; onCancel?: () => void; onApp?: () => void; book: string; place: string }) {
@@ -151,7 +303,6 @@ export default function AskView() {
   const [tools, setTools] = useState<Tool[] | null>(null)
   const [tool, setTool] = usePref<Tool>('ai-tool', 'claude')
   const [ready, setReady] = useState<boolean | null>(null)
-  const [chat, setChat] = useState<Chat>(newChat)
   // With the AI's app on this computer, or with a key (the only way on phones, tablets and the web).
   const [via, setVia] = usePref<'app' | 'key'>('ai-via', 'app')
   // The AI's app: on this computer, or on the reader's computer linked to this phone or tablet.
@@ -161,40 +312,38 @@ export default function AskView() {
   const withKey = !aiPossible || via === 'key'
   const [linked, setLinked] = useState(connection)
   const [changing, setChanging] = useState(false)
-  const [question, setQuestion] = useState('')
-  const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(-1)
-  const stop = useRef<() => void>(() => {})
-  const end = useRef<HTMLDivElement>(null)
   const book = here?.book ?? ''
+  const bookNow = useRef(book)
+  bookNow.current = book
 
-  useEffect(() => onPlace(setHere), [])
-  // A question sent from the book (an open question on a passage) is typed in, ready to send.
-  useEffect(() => onAskAi(setQuestion), [])
-  // The book's chats: the latest is shown again when the book opens.
-  const [earlier, setEarlier] = useState<Chat[]>([])
-  const shownFor = useRef('')
-  useEffect(() => {
-    shownFor.current = ''
-    setChat(newChat())
-    setEarlier([])
-    if (!book) return
-    let cancelled = false
-    void loadChats(book).then(all => {
-      if (cancelled) return
-      setEarlier(all)
-      if (all.length) setChat(all[all.length - 1])
-      shownFor.current = book
-    })
-    return () => { cancelled = true }
-  }, [book])
-  // Kept as it changes, a moment after each change (so after an answer is written, not at every word).
-  useEffect(() => {
-    if (!book || shownFor.current !== book || !chat.messages.length) return
-    const timer = setTimeout(() => void saveChat(book, chat).then(() => loadChats(book)).then(setEarlier), 700)
-    return () => clearTimeout(timer)
-  }, [book, chat])
-  useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [chat])
+  // Following the book in front; one brought to the front while the panel was still loading counts too.
+  useEffect(() => { const stop = onPlace(setHere); setHere(placeNow()); return stop }, [])
+  // The chats of the book in front, from their shelf (which every answer being written keeps up to date).
+  useSyncExternalStore(subscribe, () => version)
+  useEffect(() => { if (book) void shelfOf(book) }, [book])
+  const shelf = book ? shelves.get(book) : undefined
+  const blank = useMemo(newChat, [])
+  const chat = shelf?.chats.find(other => other.id === shelf.current) ?? blank
+  const busy = running.has(chat.id)
+  const kept = shelf?.chats.filter(other => other.messages.length) ?? []
+
+  // What is being typed, kept for each book.
+  const [question, setTyped] = useState('')
+  const setQuestion = (text: string) => { drafts.set(bookNow.current, text); setTyped(text) }
+  useEffect(() => { setTyped(drafts.get(book) ?? '') }, [book])
+  // A question sent from the book (an open question on a passage) is typed in, ready to send, for that book.
+  useEffect(() => onAskAi(text => {
+    const from = placeNow()?.book ?? bookNow.current
+    drafts.set(from, text)
+    if (from === bookNow.current) setTyped(text)
+  }), [])
+
+  // The newest words stay in view while an answer is written, unless the reader scrolled up to read.
+  const list = useRef<HTMLDivElement>(null)
+  const pinned = useRef(true)
+  useLayoutEffect(() => { pinned.current = true; setCopied(-1) }, [book, chat.id])
+  useLayoutEffect(() => { if (pinned.current && list.current) list.current.scrollTop = list.current.scrollHeight }, [book, chat])
 
   const look = async () => {
     const found = await installedTools()
@@ -205,63 +354,12 @@ export default function AskView() {
   }
   useEffect(() => { if (aiPossible && !withKey) void look() }, [withKey, aiPossible]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ask = async (text: string) => {
-    if (!text.trim() || busy || !book) return
+  const send = (text: string) => {
+    if (!text.trim() || busy || !book || !shelf) return
     setQuestion('')
-    setBusy(true)
-    const asked: Message = { from: 'reader', text }
-    const answer: Message = { from: 'ai', text: '', status: 'Opening the book…' }
-    let messages = [...chat.messages, asked, answer]
-    let session = chat.session
-    let history = chat.history
-    const show = () => setChat({ ...chat, messages: [...messages], session, history })
-    const change = (patch: Partial<Message>) => { messages = [...messages.slice(0, -1), { ...messages.at(-1)!, ...patch }]; show() }
-    show()
-    if (withKey) {
-      const halt = new AbortController()
-      stop.current = () => halt.abort()
-      try {
-        history = await askDirect(book, here?.place ?? '', text, history, written => change({ text: written }), status => change({ status }), halt.signal)
-        if (!messages.at(-1)!.text.trim()) change({ text: 'No answer came back.', error: true })
-        change({ done: true, status: '' })
-      } catch (error) {
-        const stopped = halt.signal.aborted
-        change(stopped ? { done: true, status: '' } : { text: plainError(error), error: true, status: '', done: true })
-      }
-      setBusy(false)
-      return
-    }
-    try {
-      const folder = await prepareBook(book, baseName(book))
-      const pictured = await snapPage(baseName(book), book)
-      const where = [here?.place ? `I am on ${placeName(here.place) || here.place} of the book.` : '', pictured ? 'this-page.png shows the page I am looking at.' : ''].filter(Boolean).join(' ')
-      let streamed = ''
-      const { code, errors } = await runTool(tool, 'ask', `${where}\n\n${text}`, { cwd: folder ?? '', system: systemPrompt(baseName(book), viaComputer), resume: session, ...(viaComputer ? { book, text: await bookText(book) } : {}) }, line => {
-        if (tool !== 'claude') { streamed += `${line}\n`; change({ text: streamed, status: '' }); return }
-        let event: { type: string; subtype?: string; session_id?: string; event?: { type: string; delta?: { type: string; text?: string } }; message?: { content?: { type: string; name?: string; input?: object }[] }; result?: string; is_error?: boolean }
-        try { event = JSON.parse(line) } catch { return }
-        if (event.session_id) session = event.session_id
-        if (event.type === 'stream_event' && event.event?.type === 'content_block_delta' && event.event.delta?.type === 'text_delta') {
-          streamed += event.event.delta.text ?? ''
-          change({ text: streamed, status: '' })
-        } else if (event.type === 'assistant') {
-          const call = event.message?.content?.find(part => part.type === 'tool_use')
-          if (call) { streamed += streamed && !streamed.endsWith('\n\n') ? '\n\n' : ''; change({ status: doing(call as never) }) }
-        } else if (event.type === 'result') {
-          change(event.is_error ? { text: event.result || 'The AI could not answer.', error: true, status: '' } : { text: event.result ?? streamed, status: '' })
-        }
-      }, halt => { stop.current = halt })
-      const last = messages.at(-1)!
-      if (!last.text.trim()) change({ text: code === 0 ? 'No answer came back.' : (errors.trim().split('\n').slice(-3).join('\n') || 'The AI could not answer.'), error: code !== 0, status: '' })
-      if (/log ?in|sign ?in|auth|credential|api key/i.test(messages.at(-1)!.text) && messages.at(-1)!.error) setReady(false)
-      change({ done: true, status: '' })
-    } catch (error) {
-      change({ text: String((error as Error)?.message ?? error), error: true, status: '', done: true })
-    }
-    setBusy(false)
+    void ask(book, chat.id, text, { withKey, tool, viaComputer, place: here?.book === book ? here.place : '', onSignedOut: () => setReady(false) })
   }
-
-  const fresh = () => setChat(newChat())
+  const fresh = () => { if (book) startChat(book) }
   const useApp = aiPossible ? () => { setVia('app'); setChanging(false); fresh() } : undefined
   if (withKey && (changing || !connected(linked))) {
     return <Connect book={book} place={here?.place ?? ''} onDone={value => { setLinked(value); setChanging(false); fresh() }} onCancel={changing && connected(linked) ? () => setChanging(false) : undefined} onApp={useApp} />
@@ -290,8 +388,8 @@ export default function AskView() {
       <div className="ai-bar">
         {withKey ? <>
           <b>{linked?.service === 'other' ? linked.model : SERVICES[linked!.service].name}</b>
-          <button className="soft" disabled={busy} onClick={() => setChanging(true)}>Change</button>
-          {useApp && <button className="soft" disabled={busy} onClick={useApp}>Use the AI app</button>}
+          <button className="soft" onClick={() => setChanging(true)}>Change</button>
+          {useApp && <button className="soft" onClick={useApp}>Use the AI app</button>}
         </> : <>
         {tools && tools.length > 1
           ? <select value={tool} onChange={e => { setTool(e.target.value as Tool); setReady(null); void signedIn(e.target.value as Tool).then(setReady) }}>
@@ -302,24 +400,24 @@ export default function AskView() {
         {ready === false && !viaComputer && <button className="primary" onClick={() => void signIn(tool).then(() => signedIn(tool)).then(setReady)}>Sign in with your {TOOL_NAMES[tool]} account</button>}
         {ready === false && viaComputer && <span className="ai-fine">Sign in to {TOOL_NAMES[tool]} on the computer first.</span>}
         {ready && <span className="ai-ready"><Check size={14} aria-hidden /> Signed in</span>}
-        {aiPossible && <button className="soft" disabled={busy} onClick={() => { setVia('key'); fresh() }}>Use a key</button>}
+        {aiPossible && <button className="soft" onClick={() => { setVia('key'); fresh() }}>Use a key</button>}
         </>}
         <span className="ai-spacer" />
-        {earlier.length > 1 && (
-          <select className="ai-earlier" aria-label="Earlier chats" title="Earlier chats about this book" disabled={busy} value={chat.id}
-            onChange={e => { const picked = earlier.find(other => other.id === e.target.value); if (picked) setChat(picked) }}>
-            {!earlier.some(other => other.id === chat.id) && <option value={chat.id}>New chat</option>}
-            {[...earlier].reverse().map(other => <option key={other.id} value={other.id}>{chatName(other)}</option>)}
+        {kept.some(other => other.id !== chat.id) && (
+          <select className="ai-earlier" aria-label="Earlier chats" title="Earlier chats about this book" value={chat.id}
+            onChange={e => showChat(book, e.target.value)}>
+            {!kept.some(other => other.id === chat.id) && <option value={chat.id}>New chat</option>}
+            {[...kept].reverse().map(other => <option key={other.id} value={other.id}>{running.has(other.id) ? '… ' : ''}{chatName(other)}</option>)}
           </select>
         )}
-        {chat.messages.length > 0 && <button className="soft" disabled={busy} onClick={fresh}>New chat</button>}
+        {chat.messages.length > 0 && <button className="soft" onClick={fresh}>New chat</button>}
       </div>
 
-      <div className="ai-messages">
+      <div className="ai-messages" ref={list} onScroll={e => { const box = e.currentTarget; pinned.current = box.scrollHeight - box.scrollTop - box.clientHeight < 80 }}>
         {!chat.messages.length && (
           <div className="ai-welcome">
             <p>{book ? `Ask anything about ${baseName(book)}. The AI reads the book itself and says which pages it used.` : 'Open a book, then ask anything about it.'}</p>
-            {book && <div className="ai-starters">{STARTERS.map(text => <button key={text} className="chip" onClick={() => void ask(text)}>{text}</button>)}</div>}
+            {book && <div className="ai-starters">{STARTERS.map(text => <button key={text} className="chip" onClick={() => send(text)}>{text}</button>)}</div>}
           </div>
         )}
         {chat.messages.map((message, i) => message.from === 'reader'
@@ -338,15 +436,14 @@ export default function AskView() {
               )}
             </div>
           ))}
-        <div ref={end} />
       </div>
 
-      <form className="ai-compose" onSubmit={e => { e.preventDefault(); void ask(question) }}>
+      <form className="ai-compose" onSubmit={e => { e.preventDefault(); send(question) }}>
         <textarea rows={2} value={question} disabled={!book} placeholder={book ? 'Ask about this book…' : 'Open a book first'}
           onChange={e => setQuestion(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(question) } }} />
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(question) } }} />
         {busy
-          ? <button type="button" className="ai-send" onClick={() => stop.current()} title="Stop" aria-label="Stop"><Square size={16} aria-hidden /></button>
+          ? <button type="button" className="ai-send" onClick={() => running.get(chat.id)?.()} title="Stop" aria-label="Stop"><Square size={16} aria-hidden /></button>
           : <button className="ai-send" disabled={!question.trim() || !book} title="Ask (Enter)" aria-label="Ask"><ArrowUp size={18} aria-hidden /></button>}
       </form>
     </div>

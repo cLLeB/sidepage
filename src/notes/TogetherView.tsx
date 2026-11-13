@@ -13,7 +13,7 @@ export default function TogetherView() {
   const [message, setMessage] = useState('')
   const [here, setHere] = useState(placeNow)
   const [trouble, setTrouble] = useState('')
-  useEffect(() => onPlace(setHere), [])
+  useEffect(() => { const stop = onPlace(setHere); setHere(placeNow()); return stop }, [])
 
   if (room.status === 'off') return (
     <div className="note link-devices">

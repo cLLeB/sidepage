@@ -25,7 +25,7 @@ type Method = keyof typeof METHODS
 
 export default function MethodsView() {
   const [here, setHere] = useState<Place | null>(placeNow)
-  useEffect(() => onPlace(setHere), [])
+  useEffect(() => { const stop = onPlace(setHere); setHere(placeNow()); return stop }, [])
   const [method, setMethod] = usePref<Method>('method', 'memorise')
   const [language, setLanguage] = useState('en')
   useEffect(() => { if (here) void stretchesOf(here.book).then(all => setLanguage(languageOf(all.slice(0, 5).map(stretch => stretch.text).join(' ')))) }, [here?.book]) // eslint-disable-line react-hooks/exhaustive-deps

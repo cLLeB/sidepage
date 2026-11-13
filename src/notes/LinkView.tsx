@@ -10,7 +10,7 @@ export default function LinkView() {
   const [typed, setTyped] = useState('')
   const [here, setHere] = useState(placeNow)
   const [sending, setSending] = useState('')
-  useEffect(() => onPlace(setHere), [])
+  useEffect(() => { const stop = onPlace(setHere); setHere(placeNow()); return stop }, [])
   const book = here?.book ?? ''
   const other = link.other?.device ?? 'other device'
 

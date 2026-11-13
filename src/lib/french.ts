@@ -1228,6 +1228,8 @@ export const FRENCH: Record<string, string> = {
   "Read aloud, and how the pages turn": "Lecture à voix haute, et façon de tourner les pages",
   "Page layout, clipping, study marks, this book": "Mise en page, découpes, marques d’étude, ce livre",
   "This book, practice, your library, together": "Ce livre, exercices, votre bibliothèque, ensemble",
+  // ── Ask AI ──
+  "Stopped before an answer came.": "Arrêté avant l’arrivée d’une réponse.",
 }
 
 // Text with a number or a name in it, by pattern.

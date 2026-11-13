@@ -44,7 +44,7 @@ export default function FilesView() {
   const [size, setSize] = useState({ width: 280, height: 400 })
   const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
 
-  useEffect(() => onPlace(here => setOpenName(here.book)), [])
+  useEffect(() => { const stop = onPlace(here => setOpenName(here.book)); setOpenName(placeNow()?.book ?? ''); return stop }, [])
   useEffect(() => {
     const el = host.current
     if (!el) return
