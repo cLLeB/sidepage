@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Tree, type NodeRendererProps } from 'react-arborist'
+import { createDragDropManager } from 'dnd-core'
+import { HTML5Backend } from 'react-dnd-html5-backend'
 import { FolderClosed, BookImage, BookOpen, ChevronDown, ChevronLeft, ChevronRight, File as FileIcon, FileText, FolderOpen, FolderPlus, Globe, Image, Plus, Presentation, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { extensionOf, onPlace, openFileNow, placeNow } from '../lib/platform'
 import { usePref } from '../lib/prefs'
 import { addFilesTo, addFolder, askLeave, canLinkFolders, countFiles, filesIn, folders as savedFolders, listFolder, needsLeave, openEntry, removeFolder, type Entry, type Folder } from '../lib/folders'
+
+// One drag handler for every file tree: the tree's own would make a second one when a Files panel reopens
+// before the first is gone, and the page allows only one ("Cannot have two HTML5 backends").
+const dragManager = createDragDropManager(HTML5Backend)
 
 // A file's look, from its kind.
 const iconOf = (name: string) => {
@@ -164,7 +170,7 @@ export default function FilesView() {
             ? <Tree<Entry> data={entries} idAccessor="id" childrenAccessor={entry => entry.children ?? null} openByDefault={files.length < 60}
                 width={size.width} height={size.height} rowHeight={touch ? 44 : 34} indent={16} padding={4}
                 searchTerm={search} searchMatch={(node, term) => node.data.name.toLowerCase().includes(term.toLowerCase())}
-                disableDrag disableDrop disableEdit disableMultiSelection selection={currentFile}
+                dndManager={dragManager} disableDrag disableDrop disableEdit disableMultiSelection selection={currentFile}
                 onActivate={node => { if (node.isLeaf) void open(node.id) }}>
                 {Row}
               </Tree>
