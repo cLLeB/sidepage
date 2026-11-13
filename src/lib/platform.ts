@@ -333,6 +333,9 @@ export const tellPlace = (place: Here) => {
   sayPlace(place)
 }
 export const placeNow = () => latestPlace
+// The reader showing a book. Hidden tabs keep their size, so "the first reader on screen" is not the book in front.
+export const viewerOf = (book: string) =>
+  [...document.querySelectorAll<HTMLElement>('.viewer-of')].find(mark => mark.dataset.book === book)?.parentElement?.querySelector<HTMLElement>('.viewer') ?? null
 export const onPlace = onPlaceSaid
 
 // A hash link: editors and sanitisers leave it alone, and it is harmless if the note is opened elsewhere.

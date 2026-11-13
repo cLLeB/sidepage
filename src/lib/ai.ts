@@ -1,4 +1,4 @@
-import { canRunTools, extensionOf, fromShelf, isTauri, notebookFolder, saveNote, saveNoteFile } from './platform'
+import { canRunTools, extensionOf, fromShelf, isTauri, notebookFolder, saveNote, saveNoteFile, viewerOf } from './platform'
 import { stretchesOf } from './insight'
 import { placeName } from './library'
 
@@ -91,11 +91,11 @@ const READABLE = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'md', 'mark
 export async function snapPage(notebook: string, book = ''): Promise<boolean> {
   const linked = await computer()
   if (linked) {
-    const picture = await (await import('./directai')).pagePicture()
+    const picture = await (await import('./directai')).pagePicture(book)
     if (picture) await linked.sendPicture(book, picture)
     return !!picture
   }
-  const panel = [...document.querySelectorAll<HTMLElement>('.viewer')].find(viewer => viewer.offsetWidth > 0)
+  const panel = viewerOf(book)
   if (!panel) return false
   const seen = (element: HTMLElement) => { const box = element.getBoundingClientRect(); return box.width * box.height > 40000 && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth }
   const candidates = [...panel.querySelectorAll<HTMLCanvasElement | HTMLImageElement>('canvas, img')].filter(seen)
@@ -136,6 +136,6 @@ export const systemPrompt = (book: string, fromOtherDevice = false) => [
   `You are the reading companion inside Sidepage, a reader's app. The reader has "${book}" open beside you.`,
   'Its full text is in book.md in the current folder, with a heading for each page (p. 12) or part. Their own notes are in notes.md.',
   'Answer from the book first and say which pages you used, like (p. 12). For a long book, search it with Grep before reading.',
-  'When book.md has little or no text (a scan, pictures, a comic), read the file itself if it is here (book.pdf, book.png and so on), and this-page.png, a picture of the page the reader is looking at now.',
+  'When book.md has little or no text (a scan, pictures, a comic), read the file itself if it is here (book.pdf, book.png and so on). A picture of the page the reader is looking at, this-page.png, counts only when their question says it was just taken.',
   'Be clear and concise. Answer in the language the reader writes in. Use Markdown for lists, tables and formulas.',
 ].join(' ')

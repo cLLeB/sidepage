@@ -111,7 +111,11 @@ const Loading = () => <div className="viewer-message">Loading…</div>
 function DocPanel({ params }: IDockviewPanelProps<{ file: File }>) {
   const Viewer = viewerFor(params.file.name)
   if (!Viewer) return <div className="viewer-message">Sidepage does not recognise this file, so it cannot open it yet.</div>
-  return <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><Viewer file={params.file} /></Suspense></ErrorBoundary>
+  // The mark says which book this panel holds, so its page can be found when the panel is not the first one open.
+  return <>
+    <span className="viewer-of" data-book={params.file.name} hidden />
+    <ErrorBoundary FallbackComponent={Broken}><Suspense fallback={<Loading />}><Viewer file={params.file} /></Suspense></ErrorBoundary>
+  </>
 }
 
 function NotePanel({ params }: IDockviewPanelProps<{ kind: NoteKind; notebook: string }>) {

@@ -1,5 +1,5 @@
 import type { ModelMessage } from 'ai'
-import { baseName, loadNote } from './platform'
+import { baseName, loadNote, viewerOf } from './platform'
 import { askBooks, stretchesOf } from './insight'
 import { placeName } from './library'
 import { webFetch } from './net'
@@ -37,8 +37,8 @@ async function modelOf(value: Connection) {
 }
 
 // The page the reader is looking at, as a picture: for what has no text (a scan, a comic, a photo, a diagram).
-export async function pagePicture(): Promise<Blob | null> {
-  const panel = [...document.querySelectorAll<HTMLElement>('.viewer')].find(viewer => viewer.offsetWidth > 0)
+export async function pagePicture(book: string): Promise<Blob | null> {
+  const panel = viewerOf(book)
   if (!panel) return null
   const seen = (element: HTMLElement) => { const box = element.getBoundingClientRect(); return box.width * box.height > 40000 && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth }
   const area = (element: HTMLElement) => { const box = element.getBoundingClientRect(); return Math.max(0, Math.min(box.bottom, innerHeight) - Math.max(box.top, 0)) * box.width }
@@ -110,7 +110,7 @@ export async function askDirect(book: string, place: string, question: string, h
   const lead = stretches.length
     ? here ? `I am on ${name}. Its text:\n\n${clip(here.text, 6000)}` : name ? `I am on ${name}.` : ''
     : 'The text of this book could not be read (it may be a scan).'
-  const picture = !here || here.text.trim().length < 200 ? await pagePicture() : null
+  const picture = !here || here.text.trim().length < 200 ? await pagePicture(book) : null
   const asked: ModelMessage = {
     role: 'user',
     content: [
