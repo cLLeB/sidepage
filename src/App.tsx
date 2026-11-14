@@ -11,7 +11,7 @@ import { bookmarksFile } from './lib/reading'
 import NotesSearch from './notes/NotesSearch'
 import { coverOf } from './lib/reading'
 import Home from './Home'
-import { canUpdateInPlace, findUpdate, restart, updatesByThemselves, updatesHere, type Update } from './lib/update'
+import { canUpdateInPlace, fetchesItself, findUpdate, restart, updatesByThemselves, updatesHere, type Update } from './lib/update'
 import { Comfort, FocusClock, LookUp, Palette, SittingCard, Soundscape, StudyTimer, Translator, VoiceSettings, useScreenOn, type Command } from './Extras'
 import { beginSitting, endSitting, type Sitting } from './lib/session'
 import { ACCENTS, applyAccent, usePref, type Accent, getPref, setPref } from './lib/prefs'
@@ -254,20 +254,28 @@ function UpdateCard() {
     return () => { clearTimeout(timer); window.removeEventListener('sidepage:check-updates', ask) }
   }, [look])
   if (!update || state === 'hidden') return null
+  // On Android the new version, once fetched, goes straight to Android's installer (the notes saved first).
+  const putInPlace = async () => {
+    await finishSaving()
+    try { await update.apply?.() } catch { setState('failed') }
+  }
   const fetchNow = async () => {
-    if (!canUpdateInPlace) return void update.install(() => {}).then(() => setState('hidden'))
+    if (!fetchesItself) return void update.install(() => {}).then(() => setState('hidden'))
     setState('fetching')
-    try { await update.install(setShare); setState('ready') } catch { setState('failed') }
+    try { await update.install(setShare); setState('ready') } catch { setState('failed'); return }
+    if (update.apply) void putInPlace()
   }
   return (
     <div className="update-card" role="status">
       <Sparkles size={18} aria-hidden />
       <div className="update-text">
         <b>{state === 'ready' ? `Sidepage ${update.version} is ready` : `Sidepage ${update.version} is out`}</b>
-        <span>{state === 'fetching' ? `Fetching it… ${Math.round(share * 100)}%` : state === 'ready' ? 'Start again to use it. Your notes are saved.' : state === 'failed' ? 'The download broke off. Try again later.' : canUpdateInPlace ? 'Fetch it now; it is used when Sidepage starts again.' : 'Download it; it installs over this one and keeps your notes.'}</span>
+        <span>{state === 'fetching' ? `Fetching it… ${Math.round(share * 100)}%` : state === 'ready' ? (update.apply ? 'Confirm on Android’s screen to install it. Your notes are saved.' : 'Start again to use it. Your notes are saved.') : state === 'failed' ? 'The download broke off. Try again later.' : canUpdateInPlace ? 'Fetch it now; it is used when Sidepage starts again.' : fetchesItself ? 'Fetch it now; it installs over this one and keeps your notes.' : 'Download it; it installs over this one and keeps your notes.'}</span>
       </div>
-      {state === 'ready' && <button className="primary" onClick={() => { void finishSaving().then(() => restart()) }}>Restart now</button>}
-      {state === 'offered' && <button className="primary" onClick={() => void fetchNow()}>{canUpdateInPlace ? 'Update' : 'Download'}</button>}
+      {state === 'ready' && (update.apply
+        ? <button className="primary" onClick={() => void putInPlace()}>Install</button>
+        : <button className="primary" onClick={() => { void finishSaving().then(() => restart()) }}>Restart now</button>)}
+      {(state === 'offered' || state === 'failed') && <button className="primary" onClick={() => void fetchNow()}>{state === 'failed' ? 'Try again' : fetchesItself ? 'Update' : 'Download'}</button>}
       {state !== 'fetching' && <button className="soft" onClick={() => setState('hidden')}>Not now</button>}
     </div>
   )

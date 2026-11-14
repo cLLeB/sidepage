@@ -1230,6 +1230,11 @@ export const FRENCH: Record<string, string> = {
   "This book, practice, your library, together": "Ce livre, exercices, votre bibliothèque, ensemble",
   // ── Ask AI ──
   "Stopped before an answer came.": "Arrêté avant l’arrivée d’une réponse.",
+  // ── Updates on Android ──
+  "Confirm on Android’s screen to install it. Your notes are saved.": "Confirmez sur l’écran d’Android pour l’installer. Vos notes sont enregistrées.",
+  "Fetch it now; it installs over this one and keeps your notes.": "Récupérez-la maintenant ; elle s’installe par-dessus celle-ci et garde vos notes.",
+  "Install": "Installer",
+  "Try again": "Réessayer",
 }
 
 // Text with a number or a name in it, by pattern.

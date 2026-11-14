@@ -8,10 +8,14 @@ import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import org.json.JSONArray
+import org.json.JSONObject
 
 // Sidepage's Android screen. The release workflow copies this over the one Tauri generates.
 class MainActivity : TauriActivity() {
@@ -55,6 +59,7 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     web = webView
     webView.addJavascriptInterface(Files(), "SidepageAndroid")
+    webView.addJavascriptInterface(Updates(), "SidepageUpdates")
     // The device's "font size" setting would stretch the writing but not the paper's rules under it.
     // Sidepage has its own text sizes, for books and for notes.
     webView.settings.textZoom = 100
@@ -89,6 +94,66 @@ class MainActivity : TauriActivity() {
         ?.use { found -> if (found.moveToFirst()) found.getString(0) ?: "" else "" } ?: ""
     } catch (e: Exception) {
       ""
+    }
+  }
+  // A new version of Sidepage, fetched here like on a computer, then handed to Android's installer. It carries the
+  // same signature as this copy, so it installs over it and keeps everything. Android asks the person to confirm.
+  inner class Updates {
+    private val apk get() = File(File(cacheDir, "update"), "Sidepage.apk")
+
+    private fun tell(what: JSONObject) {
+      web?.post { web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('sidepage:android-update', { detail: $what }))", null) }
+    }
+
+    @JavascriptInterface
+    fun download(url: String) {
+      Thread {
+        try {
+          val file = apk
+          file.parentFile?.apply { mkdirs(); listFiles()?.forEach { it.delete() } }
+          val part = File(file.parentFile, "Sidepage.part")
+          val connection = URL(url).openConnection() as HttpURLConnection
+          connection.instanceFollowRedirects = true
+          connection.connectTimeout = 20000
+          connection.readTimeout = 30000
+          if (connection.responseCode !in 200..299) throw Exception("The download answered ${connection.responseCode}.")
+          val total = connection.contentLengthLong
+          connection.inputStream.use { input ->
+            part.outputStream().use { output ->
+              val buffer = ByteArray(64 * 1024)
+              var got = 0L
+              var told = 0L
+              while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                output.write(buffer, 0, read)
+                got += read
+                if (total > 0 && got - told >= total / 100) {
+                  told = got
+                  tell(JSONObject().put("state", "progress").put("share", got.toDouble() / total))
+                }
+              }
+            }
+          }
+          if (!part.renameTo(file)) throw Exception("The download could not be kept.")
+          tell(JSONObject().put("state", "done"))
+        } catch (e: Exception) {
+          tell(JSONObject().put("state", "failed").put("message", e.message ?: "The download broke off."))
+        }
+      }.start()
+    }
+
+    // Opens Android's installer on the version fetched. The first time, Android asks to let Sidepage install apps.
+    @JavascriptInterface
+    fun install(): Boolean = try {
+      val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.fileprovider", apk)
+      val open = Intent(Intent.ACTION_VIEW)
+        .setDataAndType(uri, "application/vnd.android.package-archive")
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+      runOnUiThread { startActivity(open) }
+      apk.exists()
+    } catch (e: Exception) {
+      false
     }
   }
 }
