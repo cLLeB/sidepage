@@ -76,8 +76,9 @@ async function picturesOf(page: pdfjs.PDFPageProxy, viewport: pdfjs.PageViewport
 }
 
 // The page made as wide as its column, less a sliver at each side: PDF.js's own fit to the width keeps some forty
-// points free for a scrollbar, which shows as a wide empty margin beside the page.
-function fillWidth(viewer: PDFViewer, column: HTMLElement, room = 6) {
+// points free for a scrollbar, which shows as a wide empty margin beside the page. In Focus there is no sliver:
+// the page meets the edges of the screen.
+function fillWidth(viewer: PDFViewer, column: HTMLElement, room = column.closest('.app.focus') ? 0 : 6) {
   const view = viewer.getPageView(Math.max(0, viewer.currentPageNumber - 1))
   const width = column.clientWidth - room * 2
   if (!view || width <= 0) return void (viewer.currentScaleValue = 'page-width')
