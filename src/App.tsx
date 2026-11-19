@@ -381,6 +381,7 @@ export default function App() {
   // Reading two books side by side, full screen (see readSideBySide).
   const [reading, setReading] = useState(false)
   const [autoUpdate, setAutoUpdate] = usePref('auto-update', true)
+  const [notesWithBook, setNotesWithBook] = usePref('notes-with-book', true)
   useEffect(() => { if (!focus) setReading(false) }, [focus])
   // The books refit themselves once the room has settled, on the way in and on the way out.
   useEffect(() => {
@@ -551,7 +552,8 @@ export default function App() {
         : note ? { referencePanel: note.id, direction: besideNotes() }
         : dock.getPanel('files') && window.innerWidth >= 700 ? { referencePanel: 'files', direction: 'right' } : undefined,
     })
-    openNote('written', book)
+    // The book's notes open beside it, unless the reader chose to open them only when asked (Settings, Look).
+    if (getPref('notes-with-book', true)) openNote('written', book)
     dock.getPanel(id)?.api.setActive()
     // The folder's files stay a narrow column beside the book.
     const files = dock.getPanel('files')
@@ -1154,6 +1156,9 @@ export default function App() {
                   <select value={layout} onChange={e => setLayout(e.target.value as Layout)}>
                     {(Object.keys(LAYOUTS) as Layout[]).map(key => <option key={key} value={key}>{LAYOUTS[key]}</option>)}
                   </select>
+                </label>
+                <label className="menu-row stay" title="When off, a book opens alone; open its notes with Notes in the top bar">Open notes with each book
+                  <input type="checkbox" checked={notesWithBook} onChange={e => setNotesWithBook(e.target.checked)} />
                 </label>
               </>}
               {settingsTab === 'reading' && <>

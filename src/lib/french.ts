@@ -1239,6 +1239,9 @@ export const FRENCH: Record<string, string> = {
   "On this device": "Sur cet appareil",
   "Sidepage cannot read this folder any more. Open it again.": "Sidepage ne peut plus lire ce dossier. Ouvrez-le à nouveau.",
   "This file is not in the folder any more.": "Ce fichier n’est plus dans le dossier.",
+  // ── Notes with each book ──
+  "Open notes with each book": "Ouvrir les notes avec chaque livre",
+  "When off, a book opens alone; open its notes with Notes in the top bar": "Désactivé, un livre s’ouvre seul ; ouvrez ses notes avec Notes dans la barre du haut",
 }
 
 // Text with a number or a name in it, by pattern.

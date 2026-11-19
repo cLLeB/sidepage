@@ -17,6 +17,7 @@
 | Look | Theme | Follow the device, Light, Sepia, Dark, Black | [Language, theme and paper](/settings/look) |
 | Look | Paper | Blank, Lined, Grid, Dots | [Language, theme and paper](/settings/look) |
 | Look | Layout | Automatic, Side by side, Book above notes, One at a time | [Language, theme and paper](/settings/look) |
+| Look | Open notes with each book | On (notes open beside each book), Off (books open alone) | [Language, theme and paper](/settings/look) |
 | Reading | Text in pictures | English, French, both, German, Spanish, Portuguese, Italian, Dutch | [Scanned pages](/reading/scanned-pages) |
 | Reading | Daily goal | None, 15 minutes to 2 hours | [Reading plans](/study/plans) |
 | Voices | Kind of voice | Device voice, Natural voice | [Read aloud](/reading/read-aloud) |

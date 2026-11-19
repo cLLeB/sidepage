@@ -47,6 +47,15 @@ This applies to every note. For the colour of the paper, the ink and the size of
 
 Shortcut: <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd> goes round the layouts.
 
+## Open notes with each book
+
+A book opens with its notes beside it. To open books alone:
+
+1. Open **More**, then **Settings**, **Look**.
+2. Turn off **Open notes with each book**.
+
+A book then opens on its own. To write about it, click **Notes** in the top bar.
+
 ## Comfort
 
 **Warmth**, **Dim**, **Reading ruler** and **Keep the screen on** are described in [Focus and reading comfort](/reading/focus-and-comfort).
