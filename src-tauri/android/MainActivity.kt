@@ -3,11 +3,13 @@ package io.github.clleb.sidepage
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -22,6 +24,42 @@ class MainActivity : TauriActivity() {
   // Books handed to Sidepage by another app ("Open with", Share) and not yet taken by the page.
   private val opened = mutableListOf<Uri>()
   private var web: WebView? = null
+
+  // A folder the reader picks in Android's own folder picker. Sidepage keeps the leave to read it (and what is
+  // inside, folders within folders too), so it is read where it is, like a folder on a computer.
+  private val pickTree = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+    val told = JSONObject()
+    if (uri != null) {
+      try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (e: Exception) { }
+      told.put("uri", uri.toString()).put("name", treeName(uri))
+    }
+    web?.post { web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('sidepage:android-folder', { detail: $told }))", null) }
+  }
+
+  private fun treeName(tree: Uri): String = try {
+    val root = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+    contentResolver.query(root, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)
+      ?.use { found -> if (found.moveToFirst()) found.getString(0) ?: "" else "" } ?: ""
+  } catch (e: Exception) {
+    ""
+  }.ifBlank { DocumentsContract.getTreeDocumentId(tree).substringAfterLast(':').substringAfterLast('/').ifBlank { "Folder" } }
+
+  private data class Item(val id: String, val name: String, val folder: Boolean, val size: Long)
+
+  private fun childrenOf(tree: Uri, documentId: String): List<Item> {
+    val items = mutableListOf<Item>()
+    val kids = DocumentsContract.buildChildDocumentsUriUsingTree(tree, documentId)
+    val columns = arrayOf(
+      DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+      DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE,
+    )
+    contentResolver.query(kids, columns, null, null, null)?.use { found ->
+      while (found.moveToNext()) {
+        items.add(Item(found.getString(0), found.getString(1) ?: "", found.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR, if (found.isNull(3)) 0 else found.getLong(3)))
+      }
+    }
+    return items
+  }
 
   private fun remember(intent: Intent?) {
     val uri = when (intent?.action) {
@@ -60,6 +98,7 @@ class MainActivity : TauriActivity() {
     web = webView
     webView.addJavascriptInterface(Files(), "SidepageAndroid")
     webView.addJavascriptInterface(Updates(), "SidepageUpdates")
+    webView.addJavascriptInterface(Folders(), "SidepageFolders")
     // The device's "font size" setting would stretch the writing but not the paper's rules under it.
     // Sidepage has its own text sizes, for books and for notes.
     webView.settings.textZoom = 100
@@ -154,6 +193,59 @@ class MainActivity : TauriActivity() {
       apk.exists()
     } catch (e: Exception) {
       false
+    }
+  }
+  inner class Folders {
+    @JavascriptInterface
+    fun pick() { runOnUiThread { pickTree.launch(null) } }
+
+    // Whether Sidepage still has the leave to read the folder.
+    @JavascriptInterface
+    fun has(reference: String): Boolean = contentResolver.persistedUriPermissions.any { it.uri.toString() == reference && it.isReadPermission }
+
+    @JavascriptInterface
+    fun forget(reference: String) {
+      try { contentResolver.releasePersistableUriPermission(Uri.parse(reference), Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (e: Exception) { }
+    }
+
+    // The folder's files of the kinds asked for, as a tree: [{ id: "path/within/it", name, size, children? }].
+    @JavascriptInterface
+    fun list(reference: String, kinds: String): String {
+      val tree = Uri.parse(reference)
+      val wanted = JSONArray(kinds).let { list -> (0 until list.length()).map { list.getString(it) }.toSet() }
+      var budget = 5000
+      fun walk(documentId: String, prefix: String, depth: Int): JSONArray {
+        val found = JSONArray()
+        for (item in childrenOf(tree, documentId)) {
+          if (budget <= 0 || item.name.startsWith(".")) continue
+          val id = if (prefix.isEmpty()) item.name else "$prefix/${item.name}"
+          if (item.folder) {
+            if (depth < 8) {
+              val inside = walk(item.id, id, depth + 1)
+              if (inside.length() > 0) found.put(JSONObject().put("id", id).put("name", item.name).put("size", 0).put("children", inside))
+            }
+          } else if (item.name.substringAfterLast('.', "").lowercase() in wanted) {
+            budget--
+            found.put(JSONObject().put("id", id).put("name", item.name).put("size", item.size))
+          }
+        }
+        return found
+      }
+      return try { walk(DocumentsContract.getTreeDocumentId(tree), "", 0).toString() } catch (e: Exception) { "" }
+    }
+
+    // One file of the folder, by its path within it, copied into the app's own space to be opened. Gives its path.
+    @JavascriptInterface
+    fun read(reference: String, path: String): String = try {
+      val tree = Uri.parse(reference)
+      var documentId = DocumentsContract.getTreeDocumentId(tree)
+      for (part in path.split('/')) documentId = childrenOf(tree, documentId).first { it.name == part }.id
+      val folder = File(cacheDir, "folder").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
+      val copy = File(folder, path.substringAfterLast('/').replace(Regex("[\\\\/:*?\"<>|]"), "_"))
+      contentResolver.openInputStream(DocumentsContract.buildDocumentUriUsingTree(tree, documentId))?.use { input -> copy.outputStream().use { input.copyTo(it) } }
+      copy.absolutePath
+    } catch (e: Exception) {
+      ""
     }
   }
 }

@@ -180,7 +180,7 @@ export default function Home({ books, covers, favourites, goal, onOpen, onBrowse
                 <button key={folder.id} className="home-folder" onClick={() => onFolder(folder.id)}>
                   <FolderOpen size={22} aria-hidden />
                   <span className="home-folder-name">{folder.name}</span>
-                  <span className="home-folder-kind">{folder.kind === 'kept' ? 'Kept in Sidepage' : folder.kind === 'path' ? 'On this computer' : 'In this browser'}</span>
+                  <span className="home-folder-kind">{folder.kind === 'kept' ? 'Kept in Sidepage' : folder.kind === 'path' ? 'On this computer' : folder.kind === 'tree' ? 'On this device' : 'In this browser'}</span>
                 </button>
               ))}
             </div>

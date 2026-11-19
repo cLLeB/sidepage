@@ -12,13 +12,21 @@ Open a folder of lectures, papers or slides once. Sidepage keeps it: open any fi
 
 The **Files** panel opens on the left of the book, with the folder's files as a tree. Subfolders are included, and only files Sidepage can read are shown.
 
-**On a phone or tablet:**
-
-Phones and tablets do not let apps keep a folder, so you choose the files you want together, and Sidepage keeps them as one folder.
+**On an Android phone or tablet:**
 
 1. Tap **Files** in the top bar (the icon with two pages), or **Folder** on Home.
+2. Tap **Open a folder**.
+3. Android's folder picker opens. Go into the folder you want and tap **Use this folder**, then **Allow**.
+
+Sidepage reads the folder where it is, subfolders included, just as on a computer.
+
+**On an iPhone or iPad, or in Safari:**
+
+These do not let apps keep a folder, so you choose the files you want together, and Sidepage keeps them as one folder.
+
+1. Tap **Files** in the top bar, or **Folder** on Home.
 2. Tap **Choose files to keep together**.
-3. Select all the files you want (press and hold the first, then tap the others) and tap **Select** or **Open**.
+3. Select all the files you want and tap **Open**.
 
 To add more files to it later, open the folder in **Files** and tap **+** (Add files to this folder).
 
@@ -47,7 +55,7 @@ All your folders are also listed on **Home**, under **Your folders**. Click one 
 
 ## New files in a folder
 
-Folders on a computer are read where they are. When you add files to the folder, click **↻** (Look again for new files) at the top of the Files panel.
+Folders on a computer or an Android device are read where they are. When you add files to the folder, click **↻** (Look again for new files) at the top of the Files panel.
 
 In a browser, after the browser restarts, Sidepage may ask once more for leave to read the folder: click **Let Sidepage into "…" again**.
 
@@ -56,7 +64,7 @@ In a browser, after the browser restarts, Sidepage may ask once more for leave t
 1. Click the folder's name at the top of the Files panel.
 2. Click the bin beside the folder.
 
-Sidepage forgets the folder. **The files themselves are not touched.** For files kept on a phone or tablet, Sidepage's own copies are removed; the originals stay where they were.
+Sidepage forgets the folder. **The files themselves are not touched.** For files kept together on an iPhone, an iPad or in Safari, Sidepage's own copies are removed; the originals stay where they were.
 
 ## Related
 

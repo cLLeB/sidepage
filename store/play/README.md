@@ -61,7 +61,7 @@ The screenshots show a sample document written for them (`sample/the-living-cell
 | Privacy policy | https://clleb.github.io/sidepage/docs/privacy-policy |
 | App access | All functionality is available without special access (no login) |
 | Ads | No, the app does not contain ads |
-| Content rating | Fill in the questionnaire: category **Reference, News, or Educational**; answer **No** to violence, sexuality, language, controlled substances, gambling. Users can interact or exchange content: **No**. Shares location: **No**. Unrestricted internet (the app can open any web page the reader types): **Yes**. Expected rating: Everyone / PEGI 3 |
+| Content rating | Fill in the questionnaire: category **Reference, News, or Educational**; answer **No** to violence, sexuality, language, controlled substances, gambling. Users can interact or exchange content: **Yes** (Study together: people in a room with its code send each other short messages). Shares location: **No**. Unrestricted internet (the app can open any web page the reader types): **Yes**. Expected rating: Everyone / PEGI 3 |
 | Target audience | 13 and over (it is a study tool for students and adults; choosing ages under 13 brings extra Families policy requirements) |
 | News app | No |
 | Data safety | See below |
@@ -77,6 +77,7 @@ The screenshots show a sample document written for them (`sample/the-living-cell
 | Is all data encrypted in transit? | **Yes** (every service is reached over HTTPS) |
 | Can users ask for data to be deleted? | Nothing is kept by us; answer **No** to providing a deletion request method, or explain that no account exists |
 | Data types | **App activity, Other user-generated content**: collected, **not shared**, **processed ephemerally**, **optional**, purpose **App functionality** |
+| Messages: **Other in-app messages** | **Collected** (Study together sends a room's messages and the name each person writes to the others in the room, encrypted with the room's code, through public relays), **not shared**, **processed ephemerally** (nothing is kept once the room is left), **optional**, purpose **App functionality** |
 | Audio | **Not collected** (recordings and speech to text stay on the device) |
 | Personal info, location, contacts, photos, files, identifiers | **Not collected** |
 

@@ -1235,6 +1235,10 @@ export const FRENCH: Record<string, string> = {
   "Fetch it now; it installs over this one and keeps your notes.": "Récupérez-la maintenant ; elle s’installe par-dessus celle-ci et garde vos notes.",
   "Install": "Installer",
   "Try again": "Réessayer",
+  // ── Folders on Android ──
+  "On this device": "Sur cet appareil",
+  "Sidepage cannot read this folder any more. Open it again.": "Sidepage ne peut plus lire ce dossier. Ouvrez-le à nouveau.",
+  "This file is not in the folder any more.": "Ce fichier n’est plus dans le dossier.",
 }
 
 // Text with a number or a name in it, by pattern.

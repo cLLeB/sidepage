@@ -4,9 +4,11 @@ import { getPref, setPref } from './prefs'
 // Folders of books and documents, opened once and gone back to whenever they are wanted.
 //   • "path":   a folder on a computer, read where it is (the installed app), so new files show up by themselves
 //   • "handle": a folder a browser was let into (Chrome and Edge on a computer), asked for again after a restart
-//   • "kept":   files chosen together on a phone or tablet, which do not let apps keep a folder: Sidepage keeps
-//               a copy of them, as one folder
-export type Folder = { id: string; name: string; kind: 'path' | 'handle' | 'kept'; path?: string; added: number }
+//   • "tree":   a folder on an Android phone or tablet, picked in Android's folder picker, which lets Sidepage
+//               keep reading it where it is (its address is kept in `path`)
+//   • "kept":   files chosen together where a folder cannot be kept (an iPhone, Safari, Android before 0.41.7):
+//               Sidepage keeps a copy of them, as one folder
+export type Folder = { id: string; name: string; kind: 'path' | 'handle' | 'tree' | 'kept'; path?: string; added: number }
 export type Entry = { id: string; name: string; children?: Entry[]; size: number }
 
 const KINDS = BOOK_EXTENSIONS.filter(kind => kind !== 'zip' && kind !== 'sidepage')
@@ -19,7 +21,17 @@ type DirectoryHandle = FileSystemDirectoryHandle & {
   queryPermission(options: { mode: 'read' }): Promise<PermissionState>
   requestPermission(options: { mode: 'read' }): Promise<PermissionState>
 }
-export const canLinkFolders = (isTauri && !isMobile) || (!isTauri && 'showDirectoryPicker' in window)
+// What Sidepage's Android screen offers for folders (src-tauri/android/MainActivity.kt).
+type AndroidFolders = { pick(): void; has(uri: string): boolean; forget(uri: string): void; list(uri: string, kinds: string): string; read(uri: string, path: string): string }
+const androidFolders = () => (window as unknown as { SidepageFolders?: AndroidFolders }).SidepageFolders
+export const canLinkFolders = (isTauri && !isMobile) || (!isTauri && 'showDirectoryPicker' in window) || !!androidFolders()
+
+// Android's folder picker: the folder chosen (its address and name), or nothing.
+const pickTree = (android: AndroidFolders) => new Promise<{ uri?: string; name?: string }>(resolve => {
+  const heard = (event: Event) => { window.removeEventListener('sidepage:android-folder', heard); resolve((event as CustomEvent).detail ?? {}) }
+  window.addEventListener('sidepage:android-folder', heard)
+  android.pick()
+})
 
 // Asks for a folder (or, where folders cannot be kept, for files to keep together) and remembers it.
 export async function addFolder(): Promise<Folder | null> {
@@ -29,6 +41,10 @@ export async function addFolder(): Promise<Folder | null> {
     const path = await open({ directory: true, multiple: false })
     if (typeof path !== 'string') return null
     folder = { id: newId(), name: path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || path, kind: 'path', path, added: Date.now() }
+  } else if (androidFolders()) {
+    const { uri, name } = await pickTree(androidFolders()!)
+    if (!uri) return null
+    folder = { id: newId(), name: name || 'Folder', kind: 'tree', path: uri, added: Date.now() }
   } else if (!isTauri && 'showDirectoryPicker' in window) {
     const handle = await (window as unknown as { showDirectoryPicker(o: object): Promise<DirectoryHandle> }).showDirectoryPicker({ mode: 'read' }).catch(() => null)
     if (!handle) return null
@@ -42,7 +58,7 @@ export async function addFolder(): Promise<Folder | null> {
     folder = { id: newId(), name, kind: 'kept', added: Date.now() }
     await keep(folder, files)
   }
-  save([folder, ...folders().filter(old => !(old.kind === 'path' && old.path === folder!.path && folder!.kind === 'path'))])
+  save([folder, ...folders().filter(old => !((old.kind === 'path' || old.kind === 'tree') && old.kind === folder!.kind && old.path === folder!.path))])
   return folder
 }
 
@@ -105,6 +121,14 @@ export async function listFolder(folder: Folder): Promise<Entry[]> {
     return invoke<Entry[]>('list_folder', { path: folder.path, kinds: KINDS })
   }
   if (folder.kind === 'kept') return (await (await import('idb-keyval')).get<Entry[]>(`kept:${folder.id}`)) ?? []
+  if (folder.kind === 'tree') {
+    const android = androidFolders()
+    if (!android) return []
+    const listed = android.list(folder.path!, JSON.stringify(KINDS))
+    if (!listed) throw new Error('Sidepage cannot read this folder any more. Open it again.')
+    const sorted = (entries: Entry[]): Entry[] => entries.map(entry => entry.children ? { ...entry, children: sorted(entry.children) } : entry).sort(order)
+    return sorted(JSON.parse(listed) as Entry[])
+  }
   const handle = await handleOf(folder)
   if (!handle) return []
   let budget = 5000
@@ -156,6 +180,12 @@ async function readEntry(folder: Folder, id: string): Promise<File> {
     const bytes = await invoke<ArrayBuffer>('read_path', { path: `${folder.path}${separator}${id.split('/').join(separator)}` })
     return new File([bytes], name)
   }
+  if (folder.kind === 'tree') {
+    const copy = androidFolders()?.read(folder.path!, id)
+    if (!copy) throw new Error('This file is not in the folder any more.')
+    const { invoke } = await import('@tauri-apps/api/core')
+    return new File([await invoke<ArrayBuffer>('read_path', { path: copy })], name)
+  }
   if (folder.kind === 'kept') {
     const blob = await (await import('idb-keyval')).get<Blob>(`kept:${folder.id}:${id}`)
     if (!blob) throw new Error('This file is not kept any more.')
@@ -169,6 +199,7 @@ async function readEntry(folder: Folder, id: string): Promise<File> {
 
 export async function removeFolder(folder: Folder) {
   save(folders().filter(other => other.id !== folder.id))
+  if (folder.kind === 'tree' && !folders().some(other => other.path === folder.path)) androidFolders()?.forget(folder.path!)
   const { del, get } = await import('idb-keyval')
   await del(`folder-handle:${folder.id}`)
   for (const entry of (await get<Entry[]>(`kept:${folder.id}`)) ?? []) await del(`kept:${folder.id}:${entry.id}`)
