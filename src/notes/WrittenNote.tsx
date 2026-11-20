@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { uiLocale } from '../lib/language'
-import {
-  ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic,
-  List, ListChecks, ListOrdered, Minus, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2,
-  AlignVerticalJustifyCenter, SpellCheck, Footprints, Presentation, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, BookDown, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X,
-} from 'lucide-react'
+import { ALargeSmall, AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, CalendarDays, Heading1, Heading2, Heading3, Highlighter, ImagePlus, Italic, List, ListChecks, ListOrdered, Minus, Pilcrow, Plus, Printer, Quote, Redo2, RemoveFormatting, Strikethrough, Table, Underline, Undo2, AlignVerticalJustifyCenter, SpellCheck, Footprints, Presentation, History as HistoryIcon, Mic, ArrowDown, ArrowUp, ClipboardCopy, CopyPlus, Ellipsis, Trash2, FileType, BookDown, Globe, Link2, Omega, Replace, Square, Subscript, Superscript, Volume2, X, Pause, Play } from 'lucide-react'
 import { Menu, Tool } from '../ui'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
@@ -754,6 +750,7 @@ export default function WrittenNote({ notebook }: { notebook: string }) {
             <Tool icon={HistoryIcon} label="Versions" hint="See how the note looked before, and bring a version back" onClick={openHistory} />
             <Tool icon={AlignVerticalJustifyCenter} label="Typewriter" hint="Keep the line you are writing at the same height" on={typewriter} onClick={() => setTypewriter(!typewriter)} />
             {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} hint="Read this note aloud" on={voice.speaking} onClick={readAloud} />}
+            {voice.speaking && <Tool icon={voice.paused ? Play : Pause} label={voice.paused ? 'Resume reading' : 'Pause reading'} on={voice.paused} onClick={voice.paused ? voice.resume : voice.pause} />}
           </div>
           <p className="menu-head">With the book</p>
           <div className="menu-tiles">

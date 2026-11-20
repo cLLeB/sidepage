@@ -4,7 +4,7 @@ import 'foliate-js/view.js'
 import { Overlayer } from 'foliate-js/overlayer.js'
 import { useTheme, type Theme } from '../lib/theme'
 import SearchBox, { type SearchHit } from './SearchBox'
-import { BookA, Languages, Link2, MessageCircleQuestion, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2, Ellipsis } from 'lucide-react'
+import { BookA, Languages, Link2, MessageCircleQuestion, BookOpen, ChevronLeft, ChevronRight, ScrollText, Square, TextQuote, Volume2, Ellipsis, Pause, Play } from 'lucide-react'
 import { lookUp, translate } from '../Extras'
 import { keepFacts, openCite } from './Cite'
 import { Tool, Menu } from '../ui'
@@ -428,6 +428,7 @@ export default function BookView({ file }: { file: File }) {
         />
         {canCurl && <HighlightsMenu marks={highlights} notebook={baseName(file.name)} onHighlight={color => void highlight(color)} onGo={cfi => void viewRef.current?.goTo(cfi)} onChange={changeHighlight} onRemove={removeHighlight} />}
         {canCurl && <TextMenu />}
+        {voice.speaking && <Tool quiet icon={voice.paused ? Play : Pause} label={voice.paused ? 'Resume reading' : 'Pause reading'} on={voice.paused} onClick={voice.paused ? voice.resume : voice.pause} />}
         {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
         <Menu quiet icon={Ellipsis} label="Tools" hint="Read aloud, and how the pages turn" on={scrolled || curl}>
           {canCurl && canSpeak && !turning && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} on={voice.speaking} onClick={readAloud} />}

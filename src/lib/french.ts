@@ -1242,6 +1242,9 @@ export const FRENCH: Record<string, string> = {
   // ── Notes with each book ──
   "Open notes with each book": "Ouvrir les notes avec chaque livre",
   "When off, a book opens alone; open its notes with Notes in the top bar": "Désactivé, un livre s’ouvre seul ; ouvrez ses notes avec Notes dans la barre du haut",
+  // ── Pause reading aloud ──
+  "Pause reading": "Mettre la lecture en pause",
+  "Resume reading": "Reprendre la lecture",
 }
 
 // Text with a number or a name in it, by pattern.

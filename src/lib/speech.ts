@@ -68,38 +68,83 @@ const say = (sentence: string) => new Promise<void>(resolve => {
   speechSynthesis.speak(utterance)
 })
 
-// A sentence made by a natural voice, played at the chosen pace (pitch kept).
-let playing: HTMLAudioElement | null = null
+// A sentence made by a natural voice, played at the chosen pace (pitch kept). Paused, it waits where it is.
+let playing: { audio: HTMLAudioElement; finish(): void } | null = null
 const play = (sound: Blob) => new Promise<void>(resolve => {
   const audio = new Audio(URL.createObjectURL(sound))
   audio.playbackRate = getPref('voice-rate', 1)
   audio.preservesPitch = true
-  const done = () => { URL.revokeObjectURL(audio.src); if (playing === audio) playing = null; resolve() }
-  audio.onended = audio.onerror = audio.onpause = done
-  playing = audio
+  const done = () => { URL.revokeObjectURL(audio.src); if (playing?.audio === audio) playing = null; resolve() }
+  audio.onended = audio.onerror = done
+  playing = { audio, finish: done }
   void audio.play().catch(done)
 })
+// Whatever is being said, cut off.
+const silence = () => {
+  if (deviceSpeech) speechSynthesis.cancel()
+  if (playing) { playing.audio.pause(); playing.finish() }
+}
 
 // `start(next)` speaks whatever `next()` hands over, again and again, until it returns null (the end of the
 // book) or `stop()` is called. A reader's `next` returns the page that is open, then turns to the following one.
+// `pause()` holds the reading where it is and `resume()` carries on from there: a natural voice from the very word,
+// the device's own voice from the start of the sentence (it cannot be relied on to carry on within one).
 export function useReadAloud() {
   const [speaking, setSpeaking] = useState(false)
+  const [paused, setPaused] = useState(false)
   const run = useRef(0)
+  const holding = useRef(false)
+  const release = useRef<(() => void) | null>(null)
+  // The device's voice was cut off by a pause partway through a sentence: that sentence is said again.
+  const cut = useRef(false)
+  const held = () => holding.current ? new Promise<void>(resolve => { release.current = resolve }) : Promise.resolve()
 
   const stop = useCallback(() => {
     run.current++
-    if (deviceSpeech) speechSynthesis.cancel()
-    playing?.pause()
+    holding.current = false
+    release.current?.()
+    release.current = null
+    silence()
+    setPaused(false)
     setSpeaking(false)
+  }, [])
+
+  const pause = useCallback(() => {
+    if (holding.current) return
+    holding.current = true
+    setPaused(true)
+    if (playing) playing.audio.pause()
+    else if (deviceSpeech && speechSynthesis.speaking) { cut.current = true; speechSynthesis.cancel() }
+  }, [])
+
+  const resume = useCallback(() => {
+    if (!holding.current) return
+    holding.current = false
+    setPaused(false)
+    if (playing) void playing.audio.play().catch(() => playing?.finish())
+    release.current?.()
+    release.current = null
   }, [])
 
   const start = useCallback(async (next: () => Promise<string | null>, onSentence?: (sentence: string | null) => void) => {
     if (!canSpeak) return
-    if (deviceSpeech) speechSynthesis.cancel()
-    playing?.pause()
+    silence()
     let natural = useNatural()
     const mine = ++run.current
+    holding.current = false
+    setPaused(false)
     setSpeaking(true)
+    // One sentence, waiting first while the reading is paused, and said again if a pause cut it off.
+    const utter = async (sentence: string, sound: Blob | null) => {
+      for (;;) {
+        await held()
+        if (mine !== run.current) return
+        cut.current = false
+        if (sound) await play(sound)
+        else await say(sentence)
+        if (mine !== run.current || !cut.current) return
+      }
+    }
     // Falling asleep to a book: the voice stops by itself after the time chosen.
     const sleep = getPref('voice-sleep', 0)
     if (sleep) setTimeout(() => { if (mine === run.current) stop() }, sleep * 60_000)
@@ -127,15 +172,14 @@ export function useReadAloud() {
           if (mine !== run.current) return
           ahead = natural && i + 1 < list.length ? make(list[i + 1]) : null
           onSentence?.(list[i])
-          if (sound) await play(sound)
-          else await say(list[i])
+          await utter(list[i], sound)
           if (mine !== run.current) return
         }
         continue
       }
       for (const sentence of list) {
         onSentence?.(sentence)
-        await say(sentence)
+        await utter(sentence, null)
         if (mine !== run.current) return
       }
     }
@@ -146,5 +190,5 @@ export function useReadAloud() {
   // Closing the book stops the voice.
   useEffect(() => stop, [stop])
 
-  return { speaking, start, stop }
+  return { speaking, paused, start, stop, pause, resume }
 }

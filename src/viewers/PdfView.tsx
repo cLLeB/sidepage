@@ -7,9 +7,7 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
-import {
-  BookA, Languages, CircleHelp, MessageCircleQuestion, Link2, Files, WrapText, Gauge, ListTree, SearchCode, Sigma, Ruler, SquareStack, Table2, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote,
-  ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis } from 'lucide-react'
+import { BookA, Languages, CircleHelp, MessageCircleQuestion, Link2, Files, WrapText, Gauge, ListTree, SearchCode, Sigma, Ruler, SquareStack, Table2, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote, ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis, Pause, Play } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
 import { readableText } from '../lib/insight'
@@ -806,6 +804,7 @@ export default function PdfView({ file }: { file: File }) {
           {/* What is in use shows on the bar, so it can be turned off where it was turned on. */}
           {clipping && <Tool quiet icon={reading ? ScanText : carding ? SquareDashed : tabling ? Table2 : Crop} label="Stop drawing boxes" on onClick={() => setClipping(false)} />}
           {tool === 'draw' && <Tool quiet icon={Pencil} label="Stop drawing" on onClick={() => setTool('none')} />}
+          {voice.speaking && <Tool quiet icon={voice.paused ? Play : Pause} label={voice.paused ? 'Resume reading' : 'Pause reading'} on={voice.paused} onClick={voice.paused ? voice.resume : voice.pause} />}
           {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
           <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
           <SearchBox onSearch={find} onClear={clearFind} status={matches} />

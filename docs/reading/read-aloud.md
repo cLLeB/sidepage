@@ -8,7 +8,9 @@ Sidepage can read a book, or your notes, aloud. The sentence being read is lit o
 2. Click **⋯ Tools** in the book's bar, then **Read aloud**.
 3. Sidepage reads from that page on, turning the pages as it goes.
 
-To stop, click **■** (Stop reading) in the book's bar.
+To pause, click **❚❚** (Pause reading) in the book's bar, and **▶** (Resume reading) to carry on from where it stopped. A natural voice carries on from the very word; the device's own voice starts the sentence it was on again.
+
+To stop, click **■** (Stop reading). The next time, reading starts from the page that is open.
 
 Running heads, page numbers and copyright lines repeated on every page are skipped.
 
