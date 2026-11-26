@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import 'katex/dist/katex.min.css'
 import { ArrowUp, Check, Copy, ExternalLink, KeyRound, Laptop, NotebookPen, RotateCcw, Square } from 'lucide-react'
 import type { ModelMessage } from 'ai'
-import { baseName, loadNote, onAskAi, onPlace, openOutside, placeNow, saveNote, sendQuote } from '../lib/platform'
+import { baseName, extensionOf, loadNote, onAskAi, onPlace, openOutside, placeNow, saveNote, sendQuote } from '../lib/platform'
 import { uiLocale } from '../lib/language'
 import { placeName } from '../lib/library'
 import { usePref } from '../lib/prefs'
@@ -55,12 +55,12 @@ function shelfOf(book: string): Promise<Shelf> {
   return loading.get(book)!
 }
 
-// Pictures sent along with a question are left out: they are large, and the answers say what they showed.
+// Pictures and PDFs sent along with a question are left out: they are large, and the answers say what they showed.
 const storable = (chat: Chat): Chat => ({
   ...chat,
   messages: chat.messages.map(message => ({ ...message, status: undefined })),
   history: chat.history.map(message => message.role === 'user' && Array.isArray(message.content)
-    ? { ...message, content: message.content.filter(part => part.type !== 'image') } as ModelMessage : message),
+    ? { ...message, content: message.content.filter(part => part.type !== 'image' && part.type !== 'file') } as ModelMessage : message),
 })
 // A book's chats are written whole, one write after another, a moment after they change (not at every word).
 const writing = new Map<string, Promise<unknown>>()
@@ -168,7 +168,10 @@ async function ask(book: string, chatId: string, text: string, way: Way) {
       let failed = ''
       let unread = false
       const said = transcript(before)
-      const enclosed = given ? `The book's text (the same as book.md${whole.length > RESCUE_MOST ? ', its first part only' : ''}):\n\n<book>\n${whole.slice(0, RESCUE_MOST)}\n</book>` : ''
+      // Words alone miss what a PDF shows: Claude's app reads PDFs, and the PDF itself is in the folder beside book.md.
+      const seeing = given && way.tool === 'claude' && extensionOf(book) === 'pdf'
+        ? '\n\nThe PDF itself is in this folder as book.pdf: look at it when the question is about a figure, a table, a diagram or how a page is laid out.' : ''
+      const enclosed = given ? `The book's text (the same as book.md${whole.length > RESCUE_MOST ? ', its first part only' : ''}):\n\n<book>\n${whole.slice(0, RESCUE_MOST)}\n</book>${seeing}` : ''
       const input = [enclosed, said, where, said || enclosed ? `My question: ${text}` : text].filter(Boolean).join('\n\n')
       const result = await runTool(way.tool, 'ask', input, { cwd: folder ?? '', system: systemPrompt(baseName(book), way.viaComputer), resume, ...(text_ !== undefined ? { book, text: text_ } : {}) }, line => {
         if (way.tool !== 'claude') { streamed += `${line}\n`; change({ text: streamed, status: '' }); return }

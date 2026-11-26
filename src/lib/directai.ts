@@ -1,5 +1,5 @@
 import type { ModelMessage } from 'ai'
-import { baseName, loadNote, viewerOf } from './platform'
+import { baseName, extensionOf, fromShelf, loadNote, viewerOf } from './platform'
 import { askBooks, stretchesOf } from './insight'
 import { placeName } from './library'
 import { webFetch } from './net'
@@ -60,6 +60,7 @@ const instructions = (book: string) => [
   'Answer from the book first, using your tools: search_book to find where something is said, read_part to read a page or part, read_notes for the reader\'s own notes.',
   'The page the reader is on is given with their question. Say which pages you used, like (p. 12).',
   'When a page has no text (a scan, pictures, a comic), a picture of it may be given: read it from the picture.',
+  'When the PDF itself is given, read its figures, tables, diagrams and layout from it, not only its words.',
   'Be clear and concise. Answer in the language the reader writes in. Use Markdown for lists, tables and formulas.',
 ].join(' ')
 
@@ -68,6 +69,14 @@ const clip = (text: string, most: number) => text.length > most ? `${text.slice(
 // What a step is doing, said plainly.
 const doing = (name: string, input: { query?: string; part?: string }) =>
   name === 'search_book' ? `Searching the book for “${input.query ?? ''}”…` : name === 'read_notes' ? 'Reading your notes…' : `Reading ${input.part ?? 'the book'}…`
+
+// The PDF to give the AI whole, when it is short enough for every service to take: up to 100 pages and 15 MB.
+async function pdfToGive(book: string, pages: number): Promise<Uint8Array | null> {
+  if (extensionOf(book) !== 'pdf' || pages > 100) return null
+  const file = await fromShelf(book)
+  if (!file || file.size > 15 * 1024 * 1024) return null
+  return new Uint8Array(await file.arrayBuffer())
+}
 
 // One question: the answer comes as it is written to `onText`, what the AI is doing to `onStatus`. The history
 // (the conversation so far, in the AI's own form) is returned with the question and answer added.
@@ -111,10 +120,14 @@ export async function askDirect(book: string, place: string, question: string, h
     ? here ? `I am on ${name}. Its text:\n\n${clip(here.text, 6000)}` : name ? `I am on ${name}.` : ''
     : 'The text of this book could not be read (it may be a scan).'
   const picture = !here || here.text.trim().length < 200 ? await pagePicture(book) : null
+  // A short PDF (a handout, slides, a paper) is given whole with the first question: the AI then sees its figures,
+  // tables and diagrams as they are, not only the words taken from them. It stays in the conversation from then on.
+  const pdf = !history.length && value.service !== 'other' ? await pdfToGive(book, stretches.length) : null
   const asked: ModelMessage = {
     role: 'user',
     content: [
-      { type: 'text', text: `${lead}\n\n${question}`.trim() },
+      { type: 'text', text: `${pdf ? 'The PDF itself is given with this question.\n\n' : ''}${lead}\n\n${question}`.trim() },
+      ...(pdf ? [{ type: 'file' as const, data: pdf, mediaType: 'application/pdf', filename: book }] : []),
       ...(picture ? [{ type: 'image' as const, image: new Uint8Array(await picture.arrayBuffer()), mediaType: 'image/jpeg' }] : []),
     ],
   }
