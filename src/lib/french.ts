@@ -1245,6 +1245,8 @@ export const FRENCH: Record<string, string> = {
   // ── Pause reading aloud ──
   "Pause reading": "Mettre la lecture en pause",
   "Resume reading": "Reprendre la lecture",
+  // ── Ask AI rescue ──
+  "Giving the AI the book’s text…": "Le texte du livre est donné à l’IA…",
 }
 
 // Text with a number or a name in it, by pattern.

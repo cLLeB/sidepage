@@ -120,6 +120,11 @@ const transcript = (messages: Message[]) => {
 const doing = (call: { name?: string; input?: { pattern?: string; file_path?: string } }) =>
   call.name === 'Grep' ? `Searching the book for “${call.input?.pattern ?? ''}”…` : call.name === 'Read' ? (call.input?.file_path?.endsWith('notes.md') ? 'Reading your notes…' : 'Reading the book…') : 'Looking through the book…'
 
+// A book up to this long (about 15,000 words) is put in the question itself; a longer one is read from book.md,
+// and only if that fails is as much of it as fits put in the question.
+const INLINE_MOST = 90_000
+const RESCUE_MOST = 400_000
+
 type Way = { withKey: boolean; tool: Tool; viaComputer: boolean; place: string; onSignedOut(): void }
 // One question in one chat of one book. Everything it writes goes to that chat, by its id, and nowhere else.
 async function ask(book: string, chatId: string, text: string, way: Way) {
@@ -149,20 +154,30 @@ async function ask(book: string, chatId: string, text: string, way: Way) {
     const folder = await prepareBook(book, baseName(book))
     const pictured = await snapPage(baseName(book), book)
     const where = [way.place ? `I am on ${placeName(way.place) || way.place} of the book.` : '', pictured ? 'this-page.png shows the page I am looking at, taken just now.' : ''].filter(Boolean).join(' ')
-    const text_ = way.viaComputer ? await bookText(book) : undefined
+    const whole = await bookText(book)
+    const text_ = way.viaComputer ? whole : undefined
     // Claude's app remembers a chat it has had (the session); what it has not seen, and everything for the others,
     // is told again.
     let session = way.tool === 'claude' ? chat.session : ''
-    const attempt = async (resume: string, before: Message[]) => {
+    // A short book (a handout, slides, a paper) goes into the question itself, so the answer never hangs on the AI's
+    // app being able to open book.md; a long one is read and searched from the file, which is what lets it scale.
+    // Claude remembers a book it was given at the start of a session; the others are given it every time.
+    const short = whole.trim().length > 0 && whole.length <= INLINE_MOST
+    const attempt = async (resume: string, before: Message[], given: boolean) => {
       let streamed = ''
       let failed = ''
+      let unread = false
       const said = transcript(before)
-      const input = [said, where, said ? `My new question: ${text}` : text].filter(Boolean).join('\n\n')
+      const enclosed = given ? `The book's text (the same as book.md${whole.length > RESCUE_MOST ? ', its first part only' : ''}):\n\n<book>\n${whole.slice(0, RESCUE_MOST)}\n</book>` : ''
+      const input = [enclosed, said, where, said || enclosed ? `My question: ${text}` : text].filter(Boolean).join('\n\n')
       const result = await runTool(way.tool, 'ask', input, { cwd: folder ?? '', system: systemPrompt(baseName(book), way.viaComputer), resume, ...(text_ !== undefined ? { book, text: text_ } : {}) }, line => {
         if (way.tool !== 'claude') { streamed += `${line}\n`; change({ text: streamed, status: '' }); return }
-        let event: { type: string; session_id?: string; event?: { type: string; delta?: { type: string; text?: string } }; message?: { content?: { type: string; name?: string; input?: object }[] }; result?: string; is_error?: boolean }
+        let event: { type: string; session_id?: string; event?: { type: string; delta?: { type: string; text?: string } }; message?: { content?: { type: string; name?: string; input?: object; is_error?: boolean }[] }; result?: string; is_error?: boolean; permission_denials?: unknown[] }
         try { event = JSON.parse(line) } catch { return }
         if (event.session_id) session = event.session_id
+        // A file the AI's app was not let read, or could not open.
+        if (event.type === 'user' && event.message?.content?.some(part => part.type === 'tool_result' && part.is_error)) unread = true
+        if (event.type === 'result' && event.permission_denials?.length) unread = true
         if (event.type === 'stream_event' && event.event?.type === 'content_block_delta' && event.event.delta?.type === 'text_delta') {
           streamed += event.event.delta.text ?? ''
           change({ text: streamed, status: '' })
@@ -174,15 +189,25 @@ async function ask(book: string, chatId: string, text: string, way: Way) {
           else change({ text: event.result || streamed, status: '' })
         }
       }, stop => running.set(chatId, () => { stopped = true; stop() }))
-      return { ...result, failed }
+      // The AI says it could not get at the book (or gave nothing after a file it was refused): that is no answer.
+      const answer = last().text.slice(0, 800)
+      const couldNot = /(couldn[’']?t|could not|can[’']?t|cannot|wasn[’']?t (able|allowed)|unable|not (able|allowed)|blocked|refused|denied)[^.\n]{0,80}\b(read|open|access|see)\b/i.test(answer)
+        && /book\.md|notes\.md|\bfiles?\b|\bpdf\b|the book/i.test(answer)
+      return { ...result, failed, unread: !given && (couldNot || (unread && !answer.trim())) }
     }
     const resumable = !!session
-    let result = await attempt(session, resumable ? earlier.slice(chat.covered ?? earlier.length) : earlier)
+    let result = await attempt(session, resumable ? earlier.slice(chat.covered ?? earlier.length) : earlier, short && (way.tool !== 'claude' || !resumable))
     // A session Claude no longer has (another folder, cleared): the chat so far is told instead.
     if (resumable && !stopped && /no conversation found|session.*not found|could not resume/i.test(`${result.failed}\n${result.errors}`)) {
       session = ''
       change({ text: '', status: 'Opening the book…' })
-      result = await attempt('', earlier)
+      result = await attempt('', earlier, short)
+    }
+    // The AI's app could not read the book's files: asked once more, in a fresh session, with the text in the question.
+    if (!stopped && result.unread && whole.trim()) {
+      session = ''
+      change({ text: '', error: false, status: 'Giving the AI the book’s text…' })
+      result = await attempt('', earlier, true)
     }
     if (stopped) return
     if (result.failed) change({ text: result.failed, error: true, status: '' })
