@@ -62,7 +62,7 @@ fn args_for(tool: &str, mode: &str, system: &str, resume: &str) -> Result<Vec<St
   Ok(match (tool, mode) {
     ("claude", "ask") => {
       let mut args = owned(&["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-        "--tools", "Read", "Grep", "Glob", "--permission-mode", "dontAsk", "--strict-mcp-config", "--append-system-prompt"]);
+        "--tools", "Read", "Grep", "Glob", "--allowedTools", "Read", "Grep", "Glob", "--permission-mode", "dontAsk", "--strict-mcp-config", "--append-system-prompt"]);
       args.push(system.to_string());
       if !resume.is_empty() { args.push("--resume".into()); args.push(resume.to_string()); }
       args
@@ -77,6 +77,31 @@ fn args_for(tool: &str, mode: &str, system: &str, resume: &str) -> Result<Vec<St
   })
 }
 
+// The folder a tool is started in, by a name in plain letters. A book's folder takes the book's name, accents
+// and all, and a name made on a phone or a Mac may write "é" as an "e" followed by an accent mark: Claude Code then
+// looks for the file under the other spelling and cannot open it. Such a folder is reached through a link of
+// its own in the temporary folder (a junction on Windows, which needs no special rights).
+fn plain_dir(cwd: &str) -> String {
+  if cwd.is_ascii() { return cwd.to_string(); }
+  use std::hash::{Hash, Hasher};
+  let mut hasher = std::collections::hash_map::DefaultHasher::new();
+  cwd.hash(&mut hasher);
+  let link = std::env::temp_dir().join("sidepage-ai").join(format!("{:016x}", hasher.finish()));
+  if !link.exists() {
+    let _ = std::fs::create_dir_all(link.parent().unwrap_or(&link));
+    #[cfg(windows)]
+    {
+      use std::os::windows::process::CommandExt;
+      let _ = Command::new("cmd").arg("/C").arg("mklink").arg("/J").arg(&link).arg(cwd).creation_flags(0x0800_0000).output();
+    }
+    #[cfg(unix)]
+    {
+      let _ = std::os::unix::fs::symlink(cwd, &link);
+    }
+  }
+  if link.join(".").exists() && link.to_str().map_or(false, |path| path.is_ascii()) { link.to_string_lossy().into_owned() } else { cwd.to_string() }
+}
+
 // Starts a request; its output comes back line by line as "ai-line" events, then one "ai-done".
 #[tauri::command]
 pub fn ai_start(app: AppHandle, running: State<Running>, id: String, tool: String, mode: String, input: String,
@@ -84,7 +109,7 @@ pub fn ai_start(app: AppHandle, running: State<Running>, id: String, tool: Strin
   if !TOOLS.contains(&tool.as_str()) { return Err("unknown tool".into()); }
   let path = find(&tool).ok_or_else(|| format!("{tool} is not installed"))?;
   let mut command = command(&path, &args_for(&tool, &mode, &system, &resume)?);
-  if !cwd.is_empty() { command.current_dir(&cwd); }
+  if !cwd.is_empty() { command.current_dir(plain_dir(&cwd)); }
   let mut child = command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| e.to_string())?;
   if let Some(mut stdin) = child.stdin.take() {
     let _ = stdin.write_all(input.as_bytes());
