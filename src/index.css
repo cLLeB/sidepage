@@ -1663,3 +1663,38 @@ button.recording { background: #e5484d !important; color: #fff !important; }
 .settings-body .menu-head { margin: 12px 0 2px; }
 .settings-body .tool { justify-content: flex-start; }
 @media (max-width: 700px) { .settings-window { position: fixed; left: 0; right: 0; bottom: 0; width: auto; max-height: 88vh; border-radius: 22px 22px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); } }
+
+/* Small phones: every row of tools stays one row and slides sideways, nothing wraps a word, and the chrome
+   round the page takes as little height as it can. */
+@media (max-width: 700px) {
+  .topbar { min-height: 48px; padding: 4px 6px 2px; gap: 2px; }
+  .topbar .brand { display: inline-flex; padding: 4px; margin-right: 0; }
+  .topbar .brand .brand-mark { display: block; width: 26px; height: 26px; }
+  .topbar > .tool, .topbar > .menu-anchor > .tool, .topbar .jump { padding-inline: 8px; }
+  .topbar .jump { min-width: 0; margin-right: 0; background: transparent; box-shadow: none; }
+  .viewer-bar, .note-bar, .page-bar { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; min-height: 0; padding: 3px 4px; }
+  .viewer-bar::-webkit-scrollbar, .note-bar::-webkit-scrollbar, .page-bar::-webkit-scrollbar { display: none; }
+  .viewer-bar > *, .note-bar > *, .page-bar > * { flex-shrink: 0; }
+  .home-actions { gap: 8px; }
+  .home-actions button { white-space: nowrap; min-width: 0; padding-inline: 10px; gap: 6px; }
+  .home-actions > .menu-anchor { flex: none; }
+  .hero { align-items: flex-start; }
+  .hero { padding: 12px; gap: 12px; }
+  .hero .cover.large { width: 64px; }
+  .hero-go { padding: 8px 11px; gap: 6px; font-size: 13px; line-height: 1.25; }
+  .app .dv-tabs-and-actions-container { padding: 0 2px; }
+  .dv-tab { max-width: 60vw; }
+  .bookcase { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 16px 12px; }
+  .bookcase :is(.book-star, .book-remove, .book-plan, .book-shelve) { width: 26px; height: 26px; top: 5px; }
+  .bookcase :is(.book-star, .book-remove, .book-plan, .book-shelve) svg { width: 14px; height: 14px; }
+  .bookcase .book-plan { top: 35px; right: 5px; }
+  .bookcase .book-shelve { top: 65px; right: 5px; }
+  .bookcase .book-star { right: 5px; }
+  .bookcase .book-remove { left: 5px; }
+}
+@media (max-width: 700px) and (pointer: coarse) {
+  .viewer-bar button, .note-bar button, .page-bar button { padding-inline: 10px; }
+}
+@media (max-width: 380px) {
+  .home-actions button { font-size: 13.5px; padding-inline: 8px; }
+}
