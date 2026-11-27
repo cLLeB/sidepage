@@ -445,27 +445,34 @@ export default function PdfView({ file }: { file: File }) {
     // and shrink for real as the fingers move, toward the spot between them (PDF.js only resizes what is drawn,
     // and draws it again, sharp, once the fingers rest), so nothing jumps when they lift.
     const surface = container.current!
-    let pinchFrom = 0, pinchFitted = false, pinchFrame = 0, pinchNext: { scale: number; at: { x: number; y: number } } | null = null
+    let pinchFrom = 0, pinchFitted = false, pinchFrame = 0
+    let pinchNext: { scale: number; at: { x: number; y: number } } | null = null, panned = { x: 0, y: 0 }
     const zoomTo = () => {
       pinchFrame = 0
-      if (!pinchNext || !viewer.pdfDocument) return
+      const pan: [number, number] = [panned.x, panned.y]
+      panned = { x: 0, y: 0 }
+      if (!viewer.pdfDocument) return
+      if (!pinchNext) { if (pan[0] || pan[1]) viewer.panBy(pan[0], pan[1]); return }
       const { scale, at } = pinchNext
       pinchNext = null
       const target = Math.max(0.3, Math.min(5, pinchFrom * scale))
       const factor = target / viewer.currentScale
-      if (Math.abs(factor - 1) < 0.004) return
+      if (Math.abs(factor - 1) < 0.004) { if (pan[0] || pan[1]) viewer.panBy(pan[0], pan[1]); return }
       // PDF.js measures the spot from the scroller's offset corner; the fingers are measured on the screen.
       const box = surface.getBoundingClientRect()
       const [top, left] = viewer.containerTopLeft
-      viewer.updateScale({ scaleFactor: factor, origin: [at.x - box.left + left, at.y - box.top + top], drawingDelay: 250 })
+      viewer.updateScale({ scaleFactor: factor, origin: [at.x - box.left + left, at.y - box.top + top], pan, drawingDelay: 250 })
     }
+    const soon = () => { if (!pinchFrame) pinchFrame = requestAnimationFrame(zoomTo) }
     const stopPinch = onPinch(surface, {
-      move: (scale, at) => {
+      move: (scale, at, pan) => {
         if (!viewer.pdfDocument) return
         if (!pinchFrom) { pinchFrom = viewer.currentScale; pinchFitted = fitted.current; fitted.current = false }
         pinchNext = { scale, at }
-        if (!pinchFrame) pinchFrame = requestAnimationFrame(zoomTo)
+        panned = { x: panned.x + pan.x, y: panned.y + pan.y }
+        soon()
       },
+      pan: by => { panned = { x: panned.x + by.x, y: panned.y + by.y }; soon() },
       end: (scale, at) => {
         // A pinch given up (the fingers back where they began) leaves the page as it was.
         if (pinchFrom) { cancelAnimationFrame(pinchFrame); pinchNext = { scale, at }; zoomTo() }

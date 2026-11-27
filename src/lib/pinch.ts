@@ -7,13 +7,21 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 // pinch as it happens by stretching what is already drawn (see `stretch`), and are drawn again, sharp, only at the
 // end: drawing a page again at every step makes it blink.
 export type Focus = { x: number; y: number }
-export type Pinch = { move(scale: number, at: Focus): void; end(scale: number, at: Focus): void }
-// On a touch screen the page under two fingers follows them as they move (the screen's own two-finger scroll does
-// that, never stopped here), and zooms only once the fingers have clearly spread or closed: two fingers scrolling
-// side by side never zoom by accident. `at` is always where the fingers are now, so the page zooms toward them.
+export type Pinch = {
+  move(scale: number, at: Focus, pan: Focus): void
+  end(scale: number, at: Focus): void
+  // Two fingers moving together: how far the page should follow them since last time.
+  pan?(by: Focus): void
+}
+// On a touch screen the page follows two fingers as they move, and zooms only once they have clearly spread or
+// closed: two fingers scrolling side by side never zoom by accident. `at` is always where the fingers are now, so
+// the page zooms toward them; `pan` is how far they moved since the last step. Android's web view does not scroll
+// a page under two fingers by itself, so the following is done here (and the screen's own handling stopped).
 const DEAD_ZONE = 14
+const none: Focus = { x: 0, y: 0 }
 export function onPinch(surface: HTMLElement | Document, pinch: Pinch): () => void {
   let start = 0, first = 0, scale = 1, at: Focus = { x: 0, y: 0 }, pinching = false
+  const follow = pinch.pan ?? ((by: Focus) => { if (surface instanceof HTMLElement) { surface.scrollLeft -= by.x; surface.scrollTop -= by.y } })
   // Ctrl and the wheel (and a touchpad pinch) come as many small steps: one pinch is the steps close together.
   let wheelEnds = 0
   const onWheel = (e: Event) => {
@@ -24,7 +32,7 @@ export function onPinch(surface: HTMLElement | Document, pinch: Pinch): () => vo
     if (!wheelEnds) scale = 1
     at = { x: wheel.clientX, y: wheel.clientY }
     scale = Math.max(0.2, Math.min(6, scale * Math.exp(-Math.max(-60, Math.min(60, step)) * 0.01)))
-    pinch.move(scale, at)
+    pinch.move(scale, at, none)
     clearTimeout(wheelEnds)
     wheelEnds = window.setTimeout(() => { wheelEnds = 0; pinch.end(scale, at) }, 180)
   }
@@ -44,15 +52,19 @@ export function onPinch(surface: HTMLElement | Document, pinch: Pinch): () => vo
   const onTouchMove = (e: Event) => {
     const touch = e as TouchEvent
     if (!first || touch.touches.length !== 2) return
-    const now = spread(touch)
+    // Once the screen has begun a scroll of its own, it carries the page; otherwise the page is moved here.
+    const own = touch.cancelable
+    if (own) touch.preventDefault()
+    const now = spread(touch), was = at
     at = middle(touch)
+    const pan = own ? { x: at.x - was.x, y: at.y - was.y } : none
     if (!pinching) {
-      if (Math.abs(now - first) < DEAD_ZONE) return
+      if (Math.abs(now - first) < DEAD_ZONE) { if (pan.x || pan.y) follow(pan); return }
       pinching = true
       start = now
     }
     scale = Math.max(0.2, Math.min(6, now / start))
-    pinch.move(scale, at)
+    pinch.move(scale, at, pan)
   }
   const onTouchEnd = (e: Event) => {
     if (!first || (e as TouchEvent).touches.length >= 2) return
@@ -60,7 +72,7 @@ export function onPinch(surface: HTMLElement | Document, pinch: Pinch): () => vo
   }
   surface.addEventListener('wheel', onWheel, { passive: false })
   surface.addEventListener('touchstart', onTouchStart, { passive: true })
-  surface.addEventListener('touchmove', onTouchMove, { passive: true })
+  surface.addEventListener('touchmove', onTouchMove, { passive: false })
   surface.addEventListener('touchend', onTouchEnd)
   surface.addEventListener('touchcancel', onTouchEnd)
   return () => {
@@ -125,7 +137,7 @@ export function usePinchZoom(body: RefObject<HTMLElement | null>, ready?: unknow
     if (!el) return
     const inside = () => [...el.children] as HTMLElement[]
     return onPinch(el, {
-      move: (scale, at) => { const limited = Math.max(0.4, Math.min(5, now.current * scale)) / now.current; for (const child of inside()) stretch(child, limited, at) },
+      move: (scale, at, pan) => { el.scrollLeft -= pan.x; el.scrollTop -= pan.y; const limited = Math.max(0.4, Math.min(5, now.current * scale)) / now.current; for (const child of inside()) stretch(child, limited, at) },
       end: (scale, at) => { for (const child of inside()) unstretch(child); if (scale !== 1) set(now.current * scale, at) },
     })
   }, [body, ready]) // eslint-disable-line react-hooks/exhaustive-deps
