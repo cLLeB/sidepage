@@ -27,6 +27,67 @@ fn read_path(path: String) -> Result<tauri::ipc::Response, String> {
   std::fs::read(path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
 }
 
+// Sharing a book: a copy is put under its own name in Sidepage's cache, where the phone's share sheet (Android)
+// or the clipboard (a computer) can hand it to WhatsApp, an email or anything else. Its path is given back.
+#[tauri::command]
+fn share_file(app: tauri::AppHandle, request: tauri::ipc::Request) -> Result<String, String> {
+  use tauri::Manager;
+  let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("no file given".into()) };
+  let name = request.headers().get("name").and_then(|v| v.to_str().ok()).unwrap_or("book");
+  let name = percent_decode(name).replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+  let dir = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("share");
+  let _ = std::fs::remove_dir_all(&dir);
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = dir.join(if name.trim().is_empty() { "book".to_string() } else { name });
+  std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+  Ok(path.to_string_lossy().into_owned())
+}
+fn percent_decode(text: &str) -> String {
+  let bytes = text.as_bytes();
+  let mut out = Vec::with_capacity(bytes.len());
+  let mut i = 0;
+  while i < bytes.len() {
+    if bytes[i] == b'%' && i + 2 < bytes.len() {
+      if let Ok(byte) = u8::from_str_radix(&text[i + 1..i + 3], 16) { out.push(byte); i += 3; continue; }
+    }
+    out.push(bytes[i]);
+    i += 1;
+  }
+  String::from_utf8_lossy(&out).into_owned()
+}
+
+// On a computer, the file itself is put on the clipboard, as the file manager's Copy does: pasted into WhatsApp,
+// an email or a chat, it arrives as the file.
+#[cfg(desktop)]
+#[tauri::command]
+fn copy_file(path: String) -> Result<(), String> {
+  use std::process::Command;
+  #[cfg(windows)]
+  let done = {
+    use std::os::windows::process::CommandExt;
+    Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-Command", "Set-Clipboard -LiteralPath $env:SIDEPAGE_SHARE"])
+      .env("SIDEPAGE_SHARE", &path).creation_flags(0x0800_0000).status().map(|s| s.success()).unwrap_or(false)
+  };
+  #[cfg(target_os = "macos")]
+  let done = Command::new("osascript").args(["-e", "on run argv", "-e", "set the clipboard to (POSIX file (item 1 of argv))", "-e", "end run", &path])
+    .status().map(|s| s.success()).unwrap_or(false);
+  #[cfg(all(unix, not(target_os = "macos")))]
+  let done = {
+    use std::io::Write;
+    use std::process::Stdio;
+    let list = format!("file://{}
+", path.replace(' ', "%20"));
+    let tries: [(&str, &[&str]); 2] = [("wl-copy", &["-t", "text/uri-list"]), ("xclip", &["-selection", "clipboard", "-t", "text/uri-list", "-i"])];
+    tries.iter().any(|(tool, args)| {
+      Command::new(tool).args(*args).stdin(Stdio::piped()).spawn().ok().map(|mut child| {
+        let _ = child.stdin.take().map(|mut input| input.write_all(list.as_bytes()));
+        child.wait().map(|s| s.success()).unwrap_or(false)
+      }).unwrap_or(false)
+    })
+  };
+  if done { Ok(()) } else { Err("the clipboard could not take the file".into()) }
+}
+
 // A folder the reader opened in Sidepage: its readable files and subfolders, as a tree (hidden folders and the
 // usual heaps of program files left out, at most a few thousand entries).
 #[derive(serde::Serialize)]
@@ -66,11 +127,11 @@ fn list_folder(path: String, kinds: Vec<String>) -> Result<Vec<Entry>, String> {
 // The AI commands exist on computers only: a phone cannot start other programs.
 #[cfg(desktop)]
 fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool {
-  tauri::generate_handler![take_opened, read_path, list_folder, ai::ai_tools, ai::ai_start, ai::ai_stop]
+  tauri::generate_handler![take_opened, read_path, list_folder, share_file, copy_file, ai::ai_tools, ai::ai_start, ai::ai_stop]
 }
 #[cfg(mobile)]
 fn handlers() -> impl Fn(tauri::ipc::Invoke) -> bool {
-  tauri::generate_handler![take_opened, read_path, list_folder]
+  tauri::generate_handler![take_opened, read_path, list_folder, share_file]
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

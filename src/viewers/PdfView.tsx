@@ -412,11 +412,14 @@ export default function PdfView({ file }: { file: File }) {
     // they are drawn again at their new size once the dragging stops.
     const pages = () => container.current?.querySelector<HTMLElement>('.pdfViewer')
     let settled = 0, widthDrawn = 0
-    const refit = () => {
+    // A page that fills the width keeps filling it as the panel changes; a zoom the reader chose is kept, as in
+    // other readers. Only when the book first opens does a page too wide for its panel shrink to fit.
+    const refit = (opening = false) => {
       const width = container.current?.clientWidth ?? 0
       const page = container.current?.querySelector<HTMLElement>('.page')
       const held = pages()
       if (held) unstretch(held)
+      if (!opening && !fitted.current) { widthDrawn = 0; return }
       if (reading()) return fillColumn()
       if (fitted.current || (page && page.offsetWidth > width - 8)) {
         fitted.current = true
@@ -427,7 +430,7 @@ export default function PdfView({ file }: { file: File }) {
     const resize = new ResizeObserver(() => {
       const width = container.current?.clientWidth ?? 0
       if (!viewer.pdfDocument || !width || Math.abs(width - lastWidth) < 2) return
-      if (!lastWidth) { lastWidth = width; return refit() }
+      if (!lastWidth) { lastWidth = width; return refit(true) }
       if (!widthDrawn) widthDrawn = lastWidth
       lastWidth = width
       const held = pages()
@@ -436,7 +439,7 @@ export default function PdfView({ file }: { file: File }) {
         stretch(held, width / widthDrawn, { x: box.left, y: box.top })
       }
       clearTimeout(settled)
-      settled = window.setTimeout(refit, 160)
+      settled = window.setTimeout(() => refit(), 160)
     })
     resize.observe(container.current!)
     const stopReading = () => window.removeEventListener('sidepage:reading', onReading)

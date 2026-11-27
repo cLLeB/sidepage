@@ -3,7 +3,7 @@ import { DockviewReact, type DockviewApi, type DockviewTheme, type DockviewReady
 import { ErrorBoundary } from 'react-error-boundary'
 import {
   Coffee, MoonStar, Columns2, Ellipsis, FolderCog, FolderOpen, LayoutDashboard, Moon, NotebookPen, Package, PanelTop, PenLine, Rows2,
-  Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Sun, SunMoon, Workflow, Command as CommandIcon,
+  Archive, ArchiveRestore, Highlighter, FileDown, GraduationCap, Maximize2, Minimize2, Share2, Send, Sun, SunMoon, Workflow, Command as CommandIcon,
   CircleHelp, RefreshCw, MonitorSmartphone, Gauge, ChevronDown, Timer, ChevronLeft, ChevronRight, Folders, MessageCircleQuestion, Network, ArrowLeftRight, BookOpen, CalendarPlus, Globe, BookMarked, BookOpenText, Home as HomeIcon, NotebookText, Ruler, Sparkles,
   Languages, Brain, Telescope, Users, Settings2, X, FileText,
 } from 'lucide-react'
@@ -34,6 +34,7 @@ import { withDetectedType } from './lib/sniff'
 import { deviceIsDark, setTheme, THEME_CHOICES, useThemeChoice, type ThemeChoice } from './lib/theme'
 import { BACKUP_EXTENSION, packBackup, restoreBackup } from './lib/backup'
 import { addReadingTime, addSpent, asTime } from './lib/reading'
+import { shareFile } from './lib/share'
 
 // The panels float a little apart, each a sheet of its own.
 const PANELS: DockviewTheme = { name: 'sidepage', className: 'dockview-theme-light', gap: 4, dndOverlayMounting: 'absolute', dndPanelOverlay: 'group' }
@@ -812,6 +813,22 @@ export default function App() {
     await saveFileAs(`${baseName(file.name)}.${BUNDLE_EXTENSION}`, await packBundle(file))
   }, [notebook])
 
+  // Sharing the book in front with WhatsApp, an email or any other app (see lib/share.ts).
+  const shareBook = useCallback(async () => {
+    const dock = api.current
+    const file = (dock?.activePanel?.params as { file?: File } | undefined)?.file
+      ?? (dock?.panels.map(p => (p.params as { file?: File } | undefined)?.file).find(f => f && baseName(f.name) === notebook))
+    if (!file) return setNotice('Open the book first: Share sends the book in front.')
+    try {
+      const how = await shareFile(file)
+      const paste = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘V' : 'Ctrl+V'
+      if (how === 'copied') setNotice(`${file.name.replace(/^.*[\\/]/, '')} is copied. Paste it (${paste}) into WhatsApp, an email or a chat to send it.`)
+      if (how === 'saved') setNotice('The book is saved in your downloads: attach it from there.')
+    } catch {
+      setNotice('The book could not be shared. Save as one file, then send that file instead.')
+    }
+  }, [notebook])
+
   const browse = useCallback(async () => {
     const file = await pickFile()
     if (file) void openFile(file)
@@ -944,6 +961,7 @@ export default function App() {
     ...(Object.keys(LAYOUTS) as Layout[]).map(key => ({ group: 'View', name: `Layout: ${LAYOUTS[key]}`, icon: LAYOUT_ICONS[key], run: () => setLayout(key) })),
     ...THEME_CHOICES.map(choice => ({ group: 'View', name: `Theme: ${THEME_NAMES[choice]}`, icon: THEME_ICONS[choice], run: () => setTheme(choice) })),
     ...PAPERS.map(kind => ({ group: 'View', name: `Paper: ${kind}`, icon: NotebookPen, run: () => setPaper(kind) })),
+    { group: 'Keep', name: 'Share this book: WhatsApp, email, another app', icon: Send, run: () => void shareBook() },
     { group: 'Keep', name: 'Save the book and its notes as one file', icon: Package, run: () => void saveWhole() },
     { group: 'Keep', name: 'Export this book\'s notes', icon: FileDown, run: () => void exportNotes() },
     { group: 'Study', name: 'Make a study pack for this book', icon: BookMarked, run: () => void makeStudyPack() },
@@ -1066,6 +1084,7 @@ export default function App() {
           <div className="menu-backdrop" onClick={() => setMore(false)} />
           <div className="menu settings" onClick={e => { if ((e.target as HTMLElement).closest('button:not(.stay)')) setMore(false) }}>
             <p className="menu-head">This book</p>
+            <Tool icon={Send} label="Share" hint="Send this book to WhatsApp, an email or another app" disabled={empty} onClick={() => void shareBook()} />
             <Tool icon={Package} label="Save as one file" hint="Save the book and all its notes together as one .sidepage file" disabled={empty} onClick={() => void saveWhole()} />
             <Tool icon={FileDown} label="Export notes" hint="Save this book's notes, highlights and bookmarks as one Markdown file" disabled={empty} onClick={() => void exportNotes()} />
             <Tool icon={BookMarked} label="Make a study pack" hint="Notes, highlights, glossary and questions for this book, as one document to print" disabled={empty} onClick={() => void makeStudyPack()} />

@@ -101,6 +101,7 @@ class MainActivity : TauriActivity() {
     webView.addJavascriptInterface(Files(), "SidepageAndroid")
     webView.addJavascriptInterface(Updates(), "SidepageUpdates")
     webView.addJavascriptInterface(Folders(), "SidepageFolders")
+    webView.addJavascriptInterface(Share(), "SidepageShare")
     // The device's "font size" setting would stretch the writing but not the paper's rules under it.
     // Sidepage has its own text sizes, for books and for notes.
     webView.settings.textZoom = 100
@@ -195,6 +196,24 @@ class MainActivity : TauriActivity() {
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
       runOnUiThread { startActivity(open) }
       apk.exists()
+    } catch (e: Exception) {
+      false
+    }
+  }
+  // Sharing: Android's own share sheet, with the book (put in the cache by Sidepage) as a file WhatsApp, Gmail,
+  // Drive or any other app can take.
+  inner class Share {
+    @JavascriptInterface
+    fun share(path: String, type: String, title: String): Boolean = try {
+      val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.fileprovider", File(path))
+      val send = Intent(Intent.ACTION_SEND)
+        .setType(type.ifBlank { "application/octet-stream" })
+        .putExtra(Intent.EXTRA_STREAM, uri)
+        .putExtra(Intent.EXTRA_TITLE, title)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      send.clipData = android.content.ClipData.newRawUri(title, uri)
+      runOnUiThread { startActivity(Intent.createChooser(send, title).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
+      true
     } catch (e: Exception) {
       false
     }

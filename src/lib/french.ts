@@ -1247,11 +1247,19 @@ export const FRENCH: Record<string, string> = {
   "Resume reading": "Reprendre la lecture",
   // ── Ask AI rescue ──
   "Giving the AI the book’s text…": "Le texte du livre est donné à l’IA…",
+  // ── Share ──
+  "Share": "Partager",
+  "Send this book to WhatsApp, an email or another app": "Envoyer ce livre sur WhatsApp, par e-mail ou vers une autre app",
+  "Share this book: WhatsApp, email, another app": "Partager ce livre : WhatsApp, e-mail, une autre app",
+  "Open the book first: Share sends the book in front.": "Ouvrez d’abord le livre : Partager envoie le livre affiché.",
+  "The book is saved in your downloads: attach it from there.": "Le livre est enregistré dans vos téléchargements : joignez-le depuis là.",
+  "The book could not be shared. Save as one file, then send that file instead.": "Le livre n’a pas pu être partagé. Enregistrez-le en un seul fichier, puis envoyez ce fichier.",
 }
 
 // Text with a number or a name in it, by pattern.
 const COLOURS: Record<string, string> = { Red: 'rouge', Orange: 'orange', Green: 'vert', Blue: 'bleu', Grey: 'gris', Yellow: 'jaune', Pink: 'rose' }
 export const FRENCH_PATTERNS: [RegExp, string | ((...parts: string[]) => string)][] = [
+  [/^(.+) is copied\. Paste it \((.+)\) into WhatsApp, an email or a chat to send it\.$/, (name, keys) => `${name} est copié. Collez-le (${keys}) dans WhatsApp, un e-mail ou une discussion pour l’envoyer.`],
   [/^Not understood: (.+)$/, 'Pas compris : $1'],
   [/^Bars: (.+) · Lines: (.+)$/, 'Barres : $1 · Lignes : $2'],
   [/^A table of (\d+) rows is in your notes$/, 'Un tableau de $1 lignes est dans vos notes'],
