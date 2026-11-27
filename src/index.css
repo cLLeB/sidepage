@@ -1698,3 +1698,9 @@ button.recording { background: #e5484d !important; color: #fff !important; }
 @media (max-width: 380px) {
   .home-actions button { font-size: 13.5px; padding-inline: 8px; }
 }
+/* Touch screens: a narrow panel's tools stay one row that slides sideways, never a stack of rows. */
+@media (pointer: coarse) {
+  .viewer-bar, .note-bar, .page-bar { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .viewer-bar::-webkit-scrollbar, .note-bar::-webkit-scrollbar, .page-bar::-webkit-scrollbar { display: none; }
+  .viewer-bar > *, .note-bar > *, .page-bar > * { flex-shrink: 0; }
+}
