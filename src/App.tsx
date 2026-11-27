@@ -957,6 +957,12 @@ export default function App() {
   const onReady = (event: DockviewReadyEvent) => {
     api.current = event.api
     const sync = () => setEmpty(event.api.panels.length === 0)
+    // A panel squeezed by the divider stops at a width that still reads (a third of a narrow screen at most),
+    // instead of shrinking to a sliver.
+    const roomy = (group: { api: { setConstraints(value: { minimumWidth?: number; minimumHeight?: number }): void } }) =>
+      group.api.setConstraints({ minimumWidth: Math.min(240, Math.round(window.innerWidth / 3)), minimumHeight: Math.min(180, Math.round(window.innerHeight / 4)) })
+    for (const group of event.api.groups) roomy(group)
+    event.api.onDidAddGroup(roomy)
     event.api.onDidAddPanel(panel => {
       sync()
       if (panel.id.startsWith('doc:')) beginSitting(panel.id.slice(4))

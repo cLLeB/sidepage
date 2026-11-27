@@ -8,8 +8,12 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 // end: drawing a page again at every step makes it blink.
 export type Focus = { x: number; y: number }
 export type Pinch = { move(scale: number, at: Focus): void; end(scale: number, at: Focus): void }
+// On a touch screen the page under two fingers follows them as they move (the screen's own two-finger scroll does
+// that, never stopped here), and zooms only once the fingers have clearly spread or closed: two fingers scrolling
+// side by side never zoom by accident. `at` is always where the fingers are now, so the page zooms toward them.
+const DEAD_ZONE = 14
 export function onPinch(surface: HTMLElement | Document, pinch: Pinch): () => void {
-  let start = 0, scale = 1, at: Focus = { x: 0, y: 0 }
+  let start = 0, first = 0, scale = 1, at: Focus = { x: 0, y: 0 }, pinching = false
   // Ctrl and the wheel (and a touchpad pinch) come as many small steps: one pinch is the steps close together.
   let wheelEnds = 0
   const onWheel = (e: Event) => {
@@ -17,7 +21,8 @@ export function onPinch(surface: HTMLElement | Document, pinch: Pinch): () => vo
     if (!wheel.ctrlKey && !wheel.metaKey) return
     wheel.preventDefault()
     const step = wheel.deltaMode === 1 ? wheel.deltaY * 16 : wheel.deltaY
-    if (!wheelEnds) { scale = 1; at = { x: wheel.clientX, y: wheel.clientY } }
+    if (!wheelEnds) scale = 1
+    at = { x: wheel.clientX, y: wheel.clientY }
     scale = Math.max(0.2, Math.min(6, scale * Math.exp(-Math.max(-60, Math.min(60, step)) * 0.01)))
     pinch.move(scale, at)
     clearTimeout(wheelEnds)
@@ -25,25 +30,37 @@ export function onPinch(surface: HTMLElement | Document, pinch: Pinch): () => vo
   }
   const spread = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
   const middle = (e: TouchEvent) => ({ x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 })
+  const finish = () => {
+    const was = pinching
+    start = first = 0
+    pinching = false
+    if (was) pinch.end(Math.abs(scale - 1) > 0.02 ? scale : 1, at)
+  }
   const onTouchStart = (e: Event) => {
     const touch = e as TouchEvent
-    if (touch.touches.length === 2) { start = spread(touch); scale = 1; at = middle(touch) }
+    if (touch.touches.length === 2) { first = spread(touch); start = 0; scale = 1; pinching = false; at = middle(touch) }
+    else if (touch.touches.length > 2) finish()
   }
   const onTouchMove = (e: Event) => {
     const touch = e as TouchEvent
-    if (!start || touch.touches.length !== 2) return
-    touch.preventDefault()
-    scale = Math.max(0.2, Math.min(6, spread(touch) / start))
+    if (!first || touch.touches.length !== 2) return
+    const now = spread(touch)
+    at = middle(touch)
+    if (!pinching) {
+      if (Math.abs(now - first) < DEAD_ZONE) return
+      pinching = true
+      start = now
+    }
+    scale = Math.max(0.2, Math.min(6, now / start))
     pinch.move(scale, at)
   }
   const onTouchEnd = (e: Event) => {
-    if (!start || (e as TouchEvent).touches.length >= 2) return
-    start = 0
-    pinch.end(Math.abs(scale - 1) > 0.02 ? scale : 1, at)
+    if (!first || (e as TouchEvent).touches.length >= 2) return
+    finish()
   }
   surface.addEventListener('wheel', onWheel, { passive: false })
   surface.addEventListener('touchstart', onTouchStart, { passive: true })
-  surface.addEventListener('touchmove', onTouchMove, { passive: false })
+  surface.addEventListener('touchmove', onTouchMove, { passive: true })
   surface.addEventListener('touchend', onTouchEnd)
   surface.addEventListener('touchcancel', onTouchEnd)
   return () => {

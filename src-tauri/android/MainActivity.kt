@@ -20,6 +20,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 // Sidepage's Android screen. The release workflow copies this over the one Tauri generates.
+private const val TEST_BUILD = false
+
 class MainActivity : TauriActivity() {
   // Books handed to Sidepage by another app ("Open with", Share) and not yet taken by the page.
   private val opened = mutableListOf<Uri>()
@@ -102,6 +104,8 @@ class MainActivity : TauriActivity() {
     // The device's "font size" setting would stretch the writing but not the paper's rules under it.
     // Sidepage has its own text sizes, for books and for notes.
     webView.settings.textZoom = 100
+    // Test builds (never a release) can be inspected from a computer, to try touches on a real screen.
+    if (TEST_BUILD) WebView.setWebContentsDebuggingEnabled(true)
   }
 
   // Android's file picker hands a book over as an internal reference ("document:19111"), not by name.

@@ -1,4 +1,4 @@
-import { keepUnder, onPinch, stretch, unstretch } from '../lib/pinch'
+import { onPinch, stretch, unstretch } from '../lib/pinch'
 import { useEffect, useRef, useState } from 'react'
 import * as pdfjs from 'pdfjs-dist'
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
@@ -441,20 +441,36 @@ export default function PdfView({ file }: { file: File }) {
     resize.observe(container.current!)
     const stopReading = () => window.removeEventListener('sidepage:reading', onReading)
 
-    // Pinching the page zooms it: two fingers on the screen or the touchpad, or Ctrl and the wheel. While the
-    // fingers move, the pages drawn already are stretched (smooth); they are drawn again, sharp, when they lift.
+    // Pinching the page zooms it: two fingers on the screen or the touchpad, or Ctrl and the wheel. The pages grow
+    // and shrink for real as the fingers move, toward the spot between them (PDF.js only resizes what is drawn,
+    // and draws it again, sharp, once the fingers rest), so nothing jumps when they lift.
     const surface = container.current!
-    const limit = (scale: number) => Math.max(0.3, Math.min(5, viewer.currentScale * scale)) / viewer.currentScale
+    let pinchFrom = 0, pinchFitted = false, pinchFrame = 0, pinchNext: { scale: number; at: { x: number; y: number } } | null = null
+    const zoomTo = () => {
+      pinchFrame = 0
+      if (!pinchNext || !viewer.pdfDocument) return
+      const { scale, at } = pinchNext
+      pinchNext = null
+      const target = Math.max(0.3, Math.min(5, pinchFrom * scale))
+      const factor = target / viewer.currentScale
+      if (Math.abs(factor - 1) < 0.004) return
+      // PDF.js measures the spot from the scroller's offset corner; the fingers are measured on the screen.
+      const box = surface.getBoundingClientRect()
+      const [top, left] = viewer.containerTopLeft
+      viewer.updateScale({ scaleFactor: factor, origin: [at.x - box.left + left, at.y - box.top + top], drawingDelay: 250 })
+    }
     const stopPinch = onPinch(surface, {
-      move: (scale, at) => { const held = pages(); if (viewer.pdfDocument && held) stretch(held, limit(scale), at) },
+      move: (scale, at) => {
+        if (!viewer.pdfDocument) return
+        if (!pinchFrom) { pinchFrom = viewer.currentScale; pinchFitted = fitted.current; fitted.current = false }
+        pinchNext = { scale, at }
+        if (!pinchFrame) pinchFrame = requestAnimationFrame(zoomTo)
+      },
       end: (scale, at) => {
-        const held = pages()
-        if (held) unstretch(held)
-        if (!viewer.pdfDocument || scale === 1) return
-        fitted.current = false
-        const ratio = limit(scale)
-        viewer.currentScale = viewer.currentScale * ratio
-        keepUnder(surface, ratio, at)
+        // A pinch given up (the fingers back where they began) leaves the page as it was.
+        if (pinchFrom) { cancelAnimationFrame(pinchFrame); pinchNext = { scale, at }; zoomTo() }
+        if (scale === 1) fitted.current = pinchFitted
+        pinchFrom = 0
       },
     })
 
@@ -559,7 +575,7 @@ export default function PdfView({ file }: { file: File }) {
       cancelled = true
       resize.disconnect()
       stopReading()
-      stopPinch()
+      stopPinch(); cancelAnimationFrame(pinchFrame)
       task?.destroy()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

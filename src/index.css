@@ -490,7 +490,7 @@ button.primary:hover:not(:disabled) { background: var(--accent); filter: brightn
 /* The divider's grab area reaches a little into the panels, but not over the page bar beside a PDF (see .page-map);
    on a touch screen, where fingers are wide, it reaches further. */
 .dv-sash::before { content: ''; position: absolute; inset: -3px; }
-@media (pointer: coarse) { .dv-sash::before { inset: -7px; } }
+@media (pointer: coarse) { .dv-sash::before { inset: -12px; } .dv-sash { -webkit-touch-callout: none; } }
 .dv-sash::after {
   content: ''; position: absolute; inset: 0; margin: auto;
   width: 4px; height: 44px; border-radius: 4px; background: var(--border);
@@ -1001,7 +1001,7 @@ button.viewer-pos { font-weight: 500; }
 .page-map .map-bookmark { left: 0; right: 50%; background: #e5484d; }
 .page-map .map-goal { left: -2px; right: -2px; height: 2px; background: #2f9e44; }
 .page-map .map-here { left: -2px; right: -2px; height: 14px; margin-top: -7px; border-radius: 5px; background: color-mix(in srgb, var(--text) 55%, transparent); }
-@media (pointer: coarse) { .page-map { width: 8px; opacity: 0.9; } }
+@media (pointer: coarse) { .page-map { width: 8px; right: 14px; opacity: 0.9; } }
 
 /* Read along: the sentence being spoken, lit on the page */
 .pdfViewer .textLayer span.speaking { background: color-mix(in srgb, #ffd84d 55%, transparent); border-radius: 2px; color: transparent; }
