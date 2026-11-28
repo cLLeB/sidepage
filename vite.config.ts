@@ -18,7 +18,7 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'excalidraw/**/*', 'libarchive/*', 'djvu/*'],
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2,wasm}'],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         // The speech and meaning engine (ONNX Runtime, 27 MB) is fetched only when those are first used.
         globIgnores: ['**/ort-wasm*', 'docs/**'],
         // The documentation under docs/ is its own site: the app must not answer for its pages.
