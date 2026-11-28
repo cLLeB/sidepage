@@ -203,6 +203,40 @@ class MainActivity : TauriActivity() {
   // Sharing: Android's own share sheet, with the book (put in the cache by Sidepage) as a file WhatsApp, Gmail,
   // Drive or any other app can take.
   inner class Share {
+    // The book arrives in pieces (base64), as the web view can hand over only text, and is written to the cache.
+    private var writing: java.io.FileOutputStream? = null
+    private var written: File? = null
+
+    @JavascriptInterface
+    fun begin(name: String): Boolean = try {
+      writing?.close()
+      val dir = File(cacheDir, "share")
+      dir.deleteRecursively()
+      dir.mkdirs()
+      val plain = name.replace(Regex("[/\\\\:*?\"<>|]"), "_").ifBlank { "book" }
+      written = File(dir, plain)
+      writing = java.io.FileOutputStream(written)
+      true
+    } catch (e: Exception) {
+      false
+    }
+
+    @JavascriptInterface
+    fun add(piece: String): Boolean = try {
+      writing?.write(android.util.Base64.decode(piece, android.util.Base64.DEFAULT))
+      writing != null
+    } catch (e: Exception) {
+      false
+    }
+
+    @JavascriptInterface
+    fun send(type: String, title: String): Boolean {
+      try { writing?.close() } catch (e: Exception) {}
+      writing = null
+      val file = written ?: return false
+      return share(file.absolutePath, type, title)
+    }
+
     @JavascriptInterface
     fun share(path: String, type: String, title: String): Boolean = try {
       val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.fileprovider", File(path))
