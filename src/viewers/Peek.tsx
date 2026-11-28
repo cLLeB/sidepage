@@ -12,11 +12,14 @@ type Shown =
   | { kind: 'acronym'; acronym: Acronym }
 type Peeked = Shown & { x: number; y: number; key: string }
 
-export function usePeek({ container, doc, file, go }: {
+export function usePeek({ container, doc, file, go, textAt }: {
   container: RefObject<HTMLDivElement | null>
   doc: PDFDocumentProxy | null
   file: string
   go(page: number): void
+  // Where the page's text is not in the page itself (EmbedPDF draws it): the line under a point, where in it the
+  // point falls, and its page.
+  textAt?(x: number, y: number): { text: string; at: number; page: number } | null
 }) {
   const known = useRef<{ references: Reference[]; captions: Map<string, Caption>; acronyms: Map<string, Acronym> } | null>(null)
   useEffect(() => {
@@ -42,16 +45,18 @@ export function usePeek({ container, doc, file, go }: {
   const under = (x: number, y: number): (Shown & { key: string }) | null => {
     const facts = known.current
     if (!facts) return null
+    const given = textAt?.(x, y)
+    if (textAt && !given) return null
     const caret = (document as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null }).caretPositionFromPoint?.(x, y)
     const range = caret ? null : document.caretRangeFromPoint?.(x, y)
     const node = caret?.offsetNode ?? range?.startContainer
     const offset = caret?.offset ?? range?.startOffset ?? 0
     const span = node?.parentElement
-    if (!node || !span?.closest('.textLayer') || !container.current?.contains(span)) return null
+    if (!given && (!node || !span?.closest('.textLayer') || !container.current?.contains(span))) return null
     // A citation is often split over two pieces of text: the piece and its neighbours are read as one.
-    const before = span.previousElementSibling?.textContent ?? ''
-    const text = before + (span.textContent ?? '') + (span.nextElementSibling?.textContent ?? '')
-    const at = before.length + offset
+    const before = given ? '' : span?.previousElementSibling?.textContent ?? ''
+    const text = given ? given.text : before + (span?.textContent ?? '') + (span?.nextElementSibling?.textContent ?? '')
+    const at = given ? given.at : before.length + offset
     for (const citation of citationsIn(text)) {
       if (at < citation.from - 1 || at > citation.to) continue
       const entries = citation.keys.map(key => findReference(facts.references, key)).filter((entry): entry is Reference => !!entry)
@@ -61,7 +66,7 @@ export function usePeek({ container, doc, file, go }: {
       if (at < mention.from - 1 || at > mention.to) continue
       // "Fig. 1a" is a part of Figure 1.
       const caption = facts.captions.get(mention.key) ?? facts.captions.get(mention.key.replace(/[a-z]$/, ''))
-      const page = Number(span.closest<HTMLElement>('.page')?.dataset.pageNumber)
+      const page = given ? given.page : Number(span?.closest<HTMLElement>('.page')?.dataset.pageNumber)
       // The caption itself is not a mention of the figure.
       if (caption && !(caption.page === page && text.slice(mention.from).startsWith(caption.text.slice(0, 8)))) return { kind: 'figure', caption, key: mention.key }
     }

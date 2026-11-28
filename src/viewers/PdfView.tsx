@@ -1,188 +1,350 @@
-import { onPinch, stretch, unstretch } from '../lib/pinch'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as pdfjs from 'pdfjs-dist'
-import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
-import 'pdfjs-dist/web/pdf_viewer.css'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { PDFViewer, ToolbarItem, type Layout, type Viewer, type CommandDefinition } from '@embedpdf/viewer-react'
+import { BookOpen, ChevronsDown, Ellipsis, Gauge, ListTree, Pause, Play, Pointer, ScanText, Square, TextQuote, Volume2, WrapText, Crop, Table2, SquareDashed } from 'lucide-react'
 import FlipBook from './FlipBook'
-import SearchBox from './SearchBox'
-import PageGrid from './PageGrid'
-import { Pointer, BookA, Languages, CircleHelp, MessageCircleQuestion, Link2, Files, WrapText, Gauge, ListTree, SearchCode, Sigma, Ruler, SquareStack, Table2, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote, ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis, Pause, Play } from 'lucide-react'
+import Reflow from './Reflow'
+import PageMap from './PageMap'
+import LectureChip from './LectureChip'
+import { usePeek } from './Peek'
+import { PacerBar, usePacer, type PacerHost } from './Pacer'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
+import { KNOWN, QuestionsMenu, RecapCard, StudySheet, usePageMarks, type Sheet } from './PageStudy'
+import { SelectionSheet, type Selected } from './SelectionTools'
+import { BookmarksMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
 import { openReader, readText } from '../lib/ocr'
 import { readableText } from '../lib/insight'
-import { planToday } from '../lib/reading'
+import { planToday, loadHighlights, saveHighlights, setProgress, useBookmarks, saveCover, type Highlight } from '../lib/reading'
 import { keepFacts, openCite } from './Cite'
-import PageMap from './PageMap'
-import { usePeek } from './Peek'
-import LectureChip from './LectureChip'
-import { KNOWN, QuestionsMenu, RecapCard, StudySheet, usePageMarks, type Sheet } from './PageStudy'
 import { hardnessOf, markKnown, noteVisit } from '../lib/pages'
 import { asMarkdownTable, headingsOf, layoutOf, tableIn } from '../lib/paper'
-import { SelectionSheet, type Selected } from './SelectionTools'
-import { PageTools } from './PageTools'
-import { PacerBar, usePacer } from './Pacer'
-import Reflow from './Reflow'
-import SelectionBar from './SelectionBar'
-import { askAi, placeNow } from '../lib/platform'
-import { TextMenu } from './ReaderMenus'
-import { usePref } from '../lib/prefs'
-import { lookUp, translate } from '../Extras'
-import { Menu, Tool } from '../ui'
-import { BookmarksMenu, ContentsMenu, HIGHLIGHT_COLOURS, HighlightsMenu } from './ReaderMenus'
-import { loadHighlights, saveCover, saveHighlights, setProgress, useBookmarks, type Highlight } from '../lib/reading'
 import { canSpeak, useReadAloud } from '../lib/speech'
 import { hasWords, keepWords, lettersKept, type Stretch } from '../lib/library'
 import { pageFilter, useTheme } from '../lib/theme'
-import { tellContents, type ContentsItem, baseName, debounce, loadNoteFile, onGoToPlace, prefersFlip, rememberFlip, saveFileAs, saveNoteFile, sendClip, sendQuote, tellPlace } from '../lib/platform'
+import { usePref } from '../lib/prefs'
+import { uiLanguage } from '../lib/language'
+import { lookUp, translate } from '../Extras'
+import { Menu, Tool } from '../ui'
+import { picturesOf, stripsOf, wordsOf, wordsOfSentence, type Box, type Word } from '../lib/pdfWords'
+import { askAi, baseName, debounce, loadNoteFile, onGoToPlace, placeNow, prefersFlip, rememberFlip, saveNoteFile, sendClip, sendQuote, tellContents, tellPlace, type ContentsItem } from '../lib/platform'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
+// The PDF reader: EmbedPDF's complete viewer, as it comes (its scrolling, zoom, touch, search, thumbnails, outline,
+// highlights, drawing, pages and snapshots). Sidepage only adds what is its own: the notes beside the book (quotes,
+// clips, tables, picture cards, questions), study marks, the pacer, read aloud, Peek, page flip, flowing text, dark
+// and sepia pages, and keeping the place. Those that need the page's words or pictures read them from the file
+// with PDF.js (lib/pdfWords.ts) and lay their marks over the viewer where EmbedPDF says the page stands.
 const FLIP_CHUNK = 80
 
-// The pictures of a page, cut out of the finished page exactly along their own outlines.
-// PDF.js draws the page a second time doing nothing but its pictures, on a clear sheet; that gives the precise
-// shape of every picture, soft edges and see-through parts included. The finished page is then kept only where
-// that shape is. Laid over a page shaded for the dark theme, the result puts each picture back in its real
-// colours and leaves everything else, including whatever shows through a picture's clear parts, dark.
-async function picturesOf(page: pdfjs.PDFPageProxy, viewport: pdfjs.PageViewport, finished: HTMLCanvasElement) {
-  const { OPS } = pdfjs
-  const isPicture = (fn: number) => fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject || fn === OPS.paintImageXObjectRepeat
-  // Everything that puts ink on the page without being a picture: text, lines, fills, shadings, stencils.
-  const ink = new Set<number>([
-    OPS.stroke, OPS.closeStroke, OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke,
-    OPS.closeEOFillStroke, OPS.shadingFill, OPS.showText, OPS.showSpacedText, OPS.nextLineShowText,
-    OPS.nextLineSetSpacingShowText, OPS.paintImageMaskXObject, OPS.paintImageMaskXObjectGroup,
-    OPS.paintImageMaskXObjectRepeat, OPS.paintSolidColorImageMask,
-  ])
-  const list = await page.getOperatorList()
-  if (!list.fnArray.some(isPicture)) return null
-  const cut = document.createElement('canvas')
-  cut.width = finished.width
-  cut.height = finished.height
-  await page.render({
-    canvas: cut,
-    canvasContext: cut.getContext('2d')!,
-    viewport,
-    background: 'rgba(0,0,0,0)',
-    // A path is kept only when it is there to clip (it ends without painting); state and clipping always stay.
-    operationsFilter: (i, ops) => (ops.fnArray[i] === OPS.constructPath ? ops.argsArray[i]?.[0] === OPS.endPath : !ink.has(ops.fnArray[i])),
-  }).promise
-  const ctx = cut.getContext('2d')!
-  ctx.globalCompositeOperation = 'source-in'
-  ctx.drawImage(finished, 0, 0, cut.width, cut.height)
-  return cut
+const ICONS = {
+  quote: ['M17 5H3', 'M21 12H8', 'M21 19H8', 'M3 12v7'],
+  translate: ['m5 8 6 6', 'm4 14 6-6 2-3', 'M2 5h12', 'M7 2h1', 'm22 22-5-10-5 10', 'M14 18h6'],
+  table: ['M12 3v18', 'M3 3h18v18H3z', 'M3 9h18', 'M3 15h18'],
 }
 
-// The page made as wide as its column, less a sliver at each side: PDF.js's own fit to the width keeps some forty
-// points free for a scrollbar, which shows as a wide empty margin beside the page. In Focus there is no sliver:
-// the page meets the edges of the screen.
-function fillWidth(viewer: PDFViewer, column: HTMLElement, room = column.closest('.app.focus') ? 0 : 6) {
-  const view = viewer.getPageView(Math.max(0, viewer.currentPageNumber - 1))
-  const width = column.clientWidth - room * 2
-  if (!view || width <= 0) return void (viewer.currentScaleValue = 'page-width')
-  const widthAtOne = view.viewport.width / viewer.currentScale
-  if (widthAtOne) viewer.currentScale = width / widthAtOne
+type Actions = {
+  quote(): void; lookUp(): void; translate(): void; ask(): void; more(kind: string): void
+  clip(kind: 'picture' | 'words' | 'table' | 'cards'): void
+}
+
+const commandsFor = (act: { current: Actions }): CommandDefinition[] => [
+  { id: 'sidepage:quote', label: 'Quote', icon: 'quote', run: () => act.current.quote() },
+  { id: 'sidepage:look-up', label: 'Look up', icon: 'book', run: () => act.current.lookUp() },
+  { id: 'sidepage:translate', label: 'Translate', icon: 'translate', run: () => act.current.translate() },
+  { id: 'sidepage:ask', label: 'Ask AI', icon: 'message', run: () => act.current.ask() },
+  { id: 'sidepage:text-more', label: 'More', icon: 'dots', menu: 'sidepage-text' },
+  { id: 'sidepage:explained', label: 'Where is this explained?', run: () => act.current.more('explained') },
+  { id: 'sidepage:uses', label: 'Every use in this book', run: () => act.current.more('uses') },
+  { id: 'sidepage:question', label: 'A question about this', run: () => act.current.more('question') },
+  { id: 'sidepage:cloze', label: 'Gap cards from this passage', run: () => act.current.more('cloze') },
+  { id: 'sidepage:plot', label: 'Plot this formula', run: () => act.current.more('plot') },
+  { id: 'sidepage:units', label: 'Convert units', run: () => act.current.more('units') },
+  { id: 'sidepage:cite', label: 'Cite this passage', run: () => act.current.more('cite') },
+  { id: 'sidepage:clip', label: 'Into my notes', icon: 'send', run: () => act.current.clip('picture') },
+  { id: 'sidepage:clip-words', label: 'Its words into my notes', icon: 'text', run: () => act.current.clip('words') },
+  { id: 'sidepage:clip-table', label: 'Table into my notes', icon: 'table', run: () => act.current.clip('table') },
+  { id: 'sidepage:clip-cards', label: 'Picture cards', icon: 'squares', run: () => act.current.clip('cards') },
+] as CommandDefinition[]
+
+const layoutOfViewer = (layout: Layout) => {
+  layout.add({ custom: 'sidepage-start' }, { to: 'main', section: 'start' }).add({ custom: 'sidepage' }, { to: 'main', section: 'end' })
+  for (const id of ['sidepage:quote', 'sidepage:look-up', 'sidepage:translate', 'sidepage:ask', 'sidepage:text-more']) layout.add(id, { to: 'selection' })
+  layout.addMenu('sidepage-text', [['sidepage:explained', 'sidepage:uses', 'sidepage:question'], ['sidepage:cloze', 'sidepage:plot', 'sidepage:units', 'sidepage:cite']])
+  for (const id of ['sidepage:clip', 'sidepage:clip-words', 'sidepage:clip-table', 'sidepage:clip-cards']) layout.add(id, { to: 'snapshot' })
+  return layout
+}
+
+// The viewer's colours, from Sidepage's own theme variables.
+function themeOf(theme: string) {
+  const css = getComputedStyle(document.documentElement)
+  const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback
+  const tokens = { accent: v('--accent', '#4b5563'), background: v('--bg', '#f3f4f6'), surface: v('--panel', '#ffffff'), 'surface-raised': v('--panel', '#ffffff'), text: v('--text', '#111827'), 'text-muted': v('--muted', '#6b7280'), border: v('--border', '#d1d5db'), hover: v('--hover', '#f3f4f6'), canvas: v('--bg', '#f3f4f6') }
+  return { preference: theme === 'dark' ? 'dark' as const : 'light' as const, accent: tokens.accent, tokens }
 }
 
 export default function PdfView({ file }: { file: File }) {
   const theme = useTheme()
-  const container = useRef<HTMLDivElement>(null)
-  const viewerRef = useRef<PDFViewer | null>(null)
-  const toolUsed = useRef(false)
-  const keepDrawings = useRef<() => void>(() => {})
-  const [overview, setOverview] = useState(false)
-  const bus = useRef<EventBus | null>(null)
-  const [matches, setMatches] = useState('')
+  const viewerRef = useRef<Viewer | null>(null)
+  const wrap = useRef<HTMLDivElement>(null)
+  const [src, setSrc] = useState<File | null>(null)
   const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy | null>(null)
   const [page, setPage] = useState(() => Number(localStorage.getItem(`sidepage:place:${file.name}`)) || 1)
-  const [mode, setMode] = useState<'scroll' | 'flip'>(() => (prefersFlip() ? 'flip' : 'scroll'))
-  const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
-  const [error, setError] = useState('')
-  // A PDF locked with a password: PDF.js asks, the reader types it (again if it was wrong).
-  const [locked, setLocked] = useState<{ wrong: boolean; give(password: string): void } | null>(null)
-  const [tool, setTool] = useState<'none' | 'highlight' | 'draw'>('none')
+  const [pages, setPages] = useState(0)
+  const [camera, setCamera] = useState(0)
+  const [busy, setBusyNow] = useState('')
+  const setBusy = (text: string, ms = 0) => { setBusyNow(text); if (ms) setTimeout(() => setBusyNow(now => (now === text ? '' : now)), ms) }
   const bookmarks = useBookmarks(file.name)
+  const notebook = baseName(file.name)
+  const placeKey = `sidepage:place:${file.name}`
 
-  // The reader's highlights. Each is drawn over its page as coloured strips, under the text so the text can
-  // still be selected. The list is kept twice: in a ref for the viewer's own events, and in state for showing.
-  const marks = useRef<Highlight[]>([])
-  const [highlights, setHighlights] = useState<Highlight[]>([])
-  const pageOf = (place: string) => Number(place.match(/page=(\d+)/)?.[1]) || 1
-  const paint = (pageDiv: HTMLElement) => {
-    const wrapper = pageDiv.querySelector('.canvasWrapper')
-    if (!wrapper) return
-    wrapper.querySelectorAll('.pdf-mark').forEach(old => old.remove())
-    for (const mark of marks.current) {
-      if (mark.index !== Number(pageDiv.dataset.pageNumber)) continue
-      for (const [x, y, w, h] of mark.rects ?? []) {
-        const strip = document.createElement('div')
-        strip.className = 'pdf-mark'
-        strip.style.cssText = `left:${x * 100}%;top:${y * 100}%;width:${w * 100}%;height:${h * 100}%;background:${mark.color ?? HIGHLIGHT_COLOURS.Yellow}`
-        wrapper.append(strip)
-      }
-    }
-  }
-  const saveMarks = (next: Highlight[]) => {
-    marks.current = next
-    setHighlights(next)
-    void saveHighlights(baseName(file.name), 'pdf', next)
-    container.current?.querySelectorAll<HTMLElement>('.page').forEach(paint)
-  }
+  // The book opens with its drawings and highlights when a copy with them was kept (drawings.pdf, beside the notes).
+  const madeFrom = `sidepage:drawings:${file.name}`
   useEffect(() => {
     let cancelled = false
-    void loadHighlights(baseName(file.name), 'pdf').then(saved => {
-      if (cancelled) return
-      marks.current = saved
-      setHighlights(saved)
-      container.current?.querySelectorAll<HTMLElement>('.page').forEach(paint)
-    })
+    setSrc(null)
+    setDoc(null)
+    const withDrawings = Number(localStorage.getItem(madeFrom)) === file.size ? loadNoteFile(notebook, 'drawings.pdf') : Promise.resolve(null)
+    void withDrawings.then(kept => { if (!cancelled) setSrc(kept ? new File([kept], file.name, { type: 'application/pdf' }) : file) })
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The same file, read by PDF.js for what runs beside the viewer: the book's words for search across books and the
+  // study guide, its contents, its cover, and the words and pictures the pacer, Peek and dark pages need.
+  const [scanned, setScanned] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    const task = pdfjs.getDocument({ data: new Uint8Array(0) })
+    void task.destroy()
+    let loading: pdfjs.PDFDocumentLoadingTask | undefined
+    void file.arrayBuffer().then(data => {
+      if (cancelled) return
+      loading = pdfjs.getDocument({ data })
+      loading.onPassword = () => {}
+      return loading.promise.then(pdf => {
+        if (cancelled) return
+        setDoc(pdf)
+        void learnBook(file, pdf, () => cancelled, setScanned)
+      })
+    }).catch(() => {})
+    return () => { cancelled = true; void loading?.destroy() }
   }, [file])
 
-  // The selected passage: its words, its page, and where on the page each line of it lies.
-  const selectedPassage = () => {
-    const selection = window.getSelection()
-    const text = selection?.toString().trim()
-    if (!selection || !text || !selection.rangeCount) return null
-    const range = selection.getRangeAt(0)
-    const pageDiv = range.startContainer.parentElement?.closest<HTMLElement>('.page')
-    const box = pageDiv?.querySelector('.canvasWrapper')?.getBoundingClientRect()
-    if (!pageDiv || !box || !container.current?.contains(pageDiv)) return null
-    const rects: number[][] = []
-    for (const r of range.getClientRects()) {
-      if (r.width < 2 || r.height < 2 || r.bottom < box.top || r.top > box.bottom) continue
-      const next = [(r.left - box.left) / box.width, (r.top - box.top) / box.height, r.width / box.width, r.height / box.height]
-      // The text layer reports some lines twice; one strip per stretch of text is enough.
-      const repeat = rects.some(([x, y, w, h]) => Math.abs(y - next[1]) < h / 2 && next[0] >= x - 0.002 && next[0] + next[2] <= x + w + 0.002)
-      if (!repeat) rects.push(next)
-    }
-    selection.removeAllRanges()
-    const number = Number(pageDiv.dataset.pageNumber)
-    return { text, page: number, rects, place: `page=${number}&id=${Date.now().toString(36)}` }
-  }
-  const highlight = (color?: string) => {
-    const passage = selectedPassage()
-    if (passage?.rects.length) saveMarks([...marks.current, { cfi: passage.place, index: passage.page, text: passage.text, rects: passage.rects, color }])
-    return passage
-  }
-  const changeHighlight = (place: string, change: Partial<Highlight>) => saveMarks(marks.current.map(mark => (mark.cfi === place ? { ...mark, ...change } : mark)))
-  const removeHighlight = (place: string) => saveMarks(marks.current.filter(mark => mark.cfi !== place))
+  // ── The viewer ──
+  const goTo = useCallback((number: number) => {
+    const stage = viewerRef.current?.tryGet('stage')
+    stage?.goToPage(Math.max(0, number - 1))
+  }, [])
+  const [cameFrom, setCameFrom] = useState(0)
+  const go = (number: number) => { if (Math.abs(number - page) > 1) setCameFrom(page); goTo(number) }
 
-  // Clip: drag a box over part of a page and it goes to the notes as a picture, linked back to its page.
-  const [clipping, setClipping] = useState(false)
-  // Read text: the same box, but what comes out is the words in it, not a picture of it.
-  const [reading, setReading] = useState(false)
-  // Picture cards: the same box again, and what comes out is a picture to cover labels on.
-  const [carding, setCarding] = useState(false)
+  const onReady = useCallback((viewer: Viewer) => {
+    viewerRef.current = viewer
+    viewer.documents.onOpened(() => {
+      const stage = viewer.get('stage')
+      setPages(stage.getPageCount())
+      const saved = Number(localStorage.getItem(placeKey))
+      if (saved > 1) stage.goToPage(saved - 1)
+      stage.onPageChanged(() => {
+        const number = stage.getCurrentPageIndex() + 1
+        setPage(number)
+        noteVisit(file.name, number)
+        tellPlace({ book: file.name, place: `page=${number}` })
+        localStorage.setItem(placeKey, String(number))
+        const count = stage.getPageCount()
+        setProgress(file.name, count > 1 ? (number - 1) / (count - 1) : 1)
+      })
+      stage.onCameraChanged(() => setCamera(n => n + 1))
+      stage.onViewportChanged(() => setCamera(n => n + 1))
+      tellPlace({ book: file.name, place: `page=${stage.getCurrentPageIndex() + 1}` })
+      // Highlights, drawings and notes made on the pages are kept in a copy of the PDF, beside the notes.
+      const annotations = viewer.get('annotation')
+      const keep = debounce(async () => {
+        try {
+          const id = viewer.documents.getActiveId?.() ?? undefined
+          const bytes = await viewer.documents.download(id as string)
+          await saveNoteFile(notebook, 'drawings.pdf', new Blob([bytes as BlobPart], { type: 'application/pdf' }))
+          localStorage.setItem(madeFrom, String(file.size))
+        } catch { /* kept at the next change */ }
+      }, 2000)
+      annotations.onCreated(event => {
+        keep()
+        void mirrorHighlight(event as unknown as { annotation: { id?: string; type?: string; subtype?: string; color?: string; pageIndex?: number } })
+      })
+      annotations.onUpdated(() => keep())
+      annotations.onDeleted(() => keep())
+    })
+  }, [file]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A link in a note brings the reader to its page.
+  useEffect(() => onGoToPlace(({ book, place }) => {
+    if (book !== file.name) return
+    setMode('scroll')
+    goTo(Number(place.match(/page=(\d+)/)?.[1]) || 1)
+  }), [file]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Where things stand on screen: the viewer's own stage, inside its shadow root, gives the page boxes in its own
+  // coordinates; its corner on screen turns them into client pixels for what Sidepage lays over it.
+  const stageCorner = useRef<{ el: Element | null }>({ el: null })
+  const stageRect = (): DOMRect | null => {
+    const stage = viewerRef.current?.tryGet('stage')
+    const host = wrap.current?.querySelector('[data-epdf-wrapped]') as HTMLElement | null
+    const root = host?.shadowRoot
+    if (!stage || !root) return null
+    const size = stage.getViewportSize()
+    const known = stageCorner.current.el
+    if (known?.isConnected && Math.abs(known.clientWidth - size.width) < 2 && Math.abs(known.clientHeight - size.height) < 2) return known.getBoundingClientRect()
+    for (const el of root.querySelectorAll('*')) {
+      if (Math.abs(el.clientWidth - size.width) < 2 && Math.abs(el.clientHeight - size.height) < 2 && el.clientWidth > 50) {
+        stageCorner.current.el = el
+        return el.getBoundingClientRect()
+      }
+    }
+    return null
+  }
+  const toScreen = (number: number, box: Box): DOMRect | null => {
+    const stage = viewerRef.current?.tryGet('stage')
+    const corner = stageRect()
+    if (!stage || !corner) return null
+    const r = stage.pageRectToViewport(number - 1, { x: box.x, y: box.y, width: box.w, height: box.h })
+    if (!r) return null
+    return new DOMRect(corner.left + r.x, corner.top + r.y, r.width, r.height)
+  }
+  const pageAt = (x: number, y: number) => {
+    const stage = viewerRef.current?.tryGet('stage')
+    const corner = stageRect()
+    if (!stage || !corner) return null
+    const hit = stage.getPageAt({ x: x - corner.left, y: y - corner.top })
+    const box = hit && stage.getPageBox(hit.ref)
+    return hit && box ? { page: box.pageIndex + 1, x: hit.point.x, y: hit.point.y } : null
+  }
+  const visiblePages = (): number[] => {
+    const stage = viewerRef.current?.tryGet('stage')
+    return stage ? stage.listVisiblePages().map(p => stage.getPageBox(p.ref)?.pageIndex ?? -1).filter(i => i >= 0).map(i => i + 1) : []
+  }
+
+  // The words and pictures of the pages in view, read once each, for what is laid over the pages.
+  const wordsNow = useRef(new Map<number, Word[]>())
+  const picturesNow = useRef(new Map<number, Box[]>())
+  const sizes = useRef(new Map<number, { w: number; h: number }>())
+  useEffect(() => {
+    if (!doc) return
+    for (const number of visiblePages()) {
+      if (!sizes.current.has(number)) void doc.getPage(number).then(p => { sizes.current.set(number, { w: p.view[2] - p.view[0], h: p.view[3] - p.view[1] }); setCamera(n => n + 1) })
+      if (!wordsNow.current.has(number)) void wordsOf(doc, number).then(words => { wordsNow.current.set(number, words); setCamera(n => n + 1) })
+      if (theme !== 'light' && !picturesNow.current.has(number)) void picturesOf(doc, number).then(boxes => { picturesNow.current.set(number, boxes); setCamera(n => n + 1) }).catch(() => {})
+    }
+  }, [camera, doc, theme]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Highlights: those made in the viewer are mirrored into Sidepage's list (flashcards, the highlights view, the
+  // page map); those made before EmbedPDF are still shown, laid over their pages. ──
+  const [highlights, setHighlights] = useState<Highlight[]>([])
+  const marks = useRef<Highlight[]>([])
+  const saveMarks = (next: Highlight[]) => { marks.current = next; setHighlights(next); void saveHighlights(notebook, 'pdf', next) }
+  useEffect(() => { void loadHighlights(notebook, 'pdf').then(saved => { marks.current = saved; setHighlights(saved) }) }, [notebook])
+  const lastSelection = useRef<{ text: string; page: number } | null>(null)
+  const mirrorHighlight = async ({ annotation }: { annotation: { id?: string; type?: string; subtype?: string; color?: string; pageIndex?: number } }) => {
+    const kind = String(annotation.type ?? annotation.subtype ?? '').toLowerCase()
+    if (!/highlight|underline|squiggly|strike/.test(kind)) return
+    const passage = lastSelection.current
+    if (!passage?.text) return
+    saveMarks([...marks.current, { cfi: `page=${passage.page}&id=${annotation.id ?? Date.now().toString(36)}`, index: passage.page, text: passage.text, color: annotation.color ?? HIGHLIGHT_COLOURS.Yellow }])
+  }
+  const pageOf = (place: string) => Number(place.match(/page=(\d+)/)?.[1]) || 1
+
+  // The selected passage, read from the viewer.
+  const selected = async (): Promise<{ text: string; page: number } | null> => {
+    const selection = viewerRef.current?.tryGet('selection')
+    if (!selection?.hasSelection()) return null
+    const text = (await selection.readText()).trim().replace(/\s+/g, ' ')
+    const first = selection.listSelectedPages()[0]
+    const box = first && viewerRef.current?.tryGet('stage')?.getPageBox(first)
+    const found = { text, page: box ? box.pageIndex + 1 : page }
+    lastSelection.current = found
+    return text ? found : null
+  }
+  useEffect(() => {
+    const selection = viewerRef.current?.tryGet('selection')
+    if (!selection) return
+    return selection.onCommitted(() => { void selected() })
+  }, [pages]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── What the bars over selected text and over a snapshot do ──
+  const [sheet, setSheet] = useState<Sheet | null>(null)
+  const [picked, setPicked] = useState<Selected | null>(null)
   const [cardImage, setCardImage] = useState<{ image: string; page: number } | null>(null)
-  // Table: the same box, and what comes out is the table in it, as a table in the notes.
-  const [tabling, setTabling] = useState(false)
-  const [busy, setBusy] = useState('')
-  // A scanned book made searchable: every page's words read once, in the background, and kept with the book's
-  // words, so search, the study guide and its questions work on it as on any other.
-  const [scanned, setScanned] = useState(false)
+  const act = useRef<Actions>(null as unknown as Actions)
+  act.current = {
+    quote: () => void selected().then(found => {
+      if (!found) return
+      void viewerRef.current?.commands.execute('selection:highlight')
+      sendQuote({ text: found.text, source: `${notebook}, p. ${found.page}`, book: file.name, place: `page=${found.page}` })
+    }),
+    lookUp: () => void selected().then(found => found && lookUp(found.text)),
+    translate: () => void selected().then(found => found && translate(found.text)),
+    ask: () => void selected().then(found => found && askAi(`Explain this passage (p. ${found.page}): “${found.text}”`)),
+    more: kind => void selected().then(found => {
+      if (!found) return
+      if (kind === 'explained') setSheet({ kind: 'explained', words: found.text })
+      else if (kind === 'uses') setSheet({ kind: 'uses', words: found.text })
+      else if (kind === 'question') setSheet({ kind: 'question', passage: found.text, place: `page=${found.page}` })
+      else if (kind === 'cite') openCite({ book: file.name, place: `page=${found.page}`, passage: found.text })
+      else setPicked({ kind: kind as Selected['kind'], text: found.text, place: `page=${found.page}` })
+    }),
+    clip: kind => {
+      const render = viewerRef.current?.tryGet('render')
+      const shot = render?.getSnapshot()
+      const box = shot && viewerRef.current?.tryGet('stage')?.getPageBox(shot.page)
+      if (!shot || !box || !doc) return
+      const number = box.pageIndex + 1
+      const part = { x: shot.rect.x / box.width, y: shot.rect.y / box.height, w: shot.rect.width / box.width, h: shot.rect.height / box.height }
+      render?.clearSnapshot()
+      if (kind === 'table') {
+        void doc.getPage(number).then(pdfPage => {
+          const [, , w, h] = [0, 0, pdfPage.view[2] - pdfPage.view[0], pdfPage.view[3] - pdfPage.view[1]]
+          return tableIn(pdfPage, { x: shot.rect.x / w, y: shot.rect.y / h, w: shot.rect.width / w, h: shot.rect.height / h })
+        }).then(rows => {
+          if (rows.length < 2) return setBusy('No table found there. Draw the box round the whole table.', 5000)
+          sendQuote({ text: asMarkdownTable(rows), source: '', book: file.name, place: `page=${number}`, table: true })
+          setBusy(`A table of ${rows.length} rows is in your notes`, 5000)
+        })
+        return
+      }
+      void sharpCanvas(doc, number).then(sharp => {
+        const pdfW = sharp.width, pdfH = sharp.height
+        void pdfW
+        void pdfH
+        return doc.getPage(number).then(pdfPage => {
+          const w = pdfPage.view[2] - pdfPage.view[0], h = pdfPage.view[3] - pdfPage.view[1]
+          const cut = document.createElement('canvas')
+          const sx = shot.rect.x / w * sharp.width, sy = shot.rect.y / h * sharp.height, sw = shot.rect.width / w * sharp.width, sh = shot.rect.height / h * sharp.height
+          const shrink = kind === 'words' ? 1 : Math.min(1, (kind === 'cards' ? 1600 : 1100) / sw)
+          cut.width = Math.max(1, Math.round(sw * shrink))
+          cut.height = Math.max(1, Math.round(sh * shrink))
+          cut.getContext('2d')!.drawImage(sharp, sx, sy, sw, sh, 0, 0, cut.width, cut.height)
+          if (kind === 'words') return void wordsFrom(cut, number)
+          if (kind === 'cards') return setCardImage({ image: cut.toDataURL('image/jpeg', 0.9), page: number })
+          sendClip({ image: cut.toDataURL('image/jpeg', 0.88), source: `${notebook}, p. ${number}`, book: file.name, place: `page=${number}` })
+        })
+      })
+      void part
+    },
+  }
+  const commands = useMemo(() => commandsFor(act), [])
+
+  // ── Reading the words of pictures (scanned pages) ──
+  const wordsFrom = async (picture: HTMLCanvasElement, number: number) => {
+    setBusy('Reading the text…')
+    try {
+      const text = await readText(picture, share => setBusy(`Reading the text… ${Math.round(share * 100)}%`))
+      if (text) sendQuote({ text, source: `${notebook}, p. ${number}`, book: file.name, place: `page=${number}` })
+      setBusy(text ? '' : 'No words found there', 6000)
+    } catch {
+      setBusy('The text reader could not be fetched. It needs the internet the first time.', 6000)
+    }
+  }
+  const readWholePage = () => { if (doc) void sharpCanvas(doc, page).then(sharp => wordsFrom(sharp, page)) }
   const [scanning, setScanning] = useState<{ done: number; total: number } | null>(null)
   const stopScan = useRef(false)
   const readScan = async () => {
@@ -193,408 +355,96 @@ export default function PdfView({ file }: { file: File }) {
     let reader: Awaited<ReturnType<typeof openReader>> | undefined
     try {
       reader = await openReader()
-      const pages: Stretch[] = []
+      const found: Stretch[] = []
       for (let number = 1; number <= doc.numPages && !stopScan.current; number++) {
-        pages.push({ place: `page=${number}`, text: await reader.read(await sharpCanvas(number)) })
+        found.push({ place: `page=${number}`, text: await reader.read(await sharpCanvas(doc, number)) })
         setScanning({ done: number, total: doc.numPages })
-        // Kept as it goes, so what is read already can be searched while the rest is read.
-        if (number % 5 === 0 || number === doc.numPages) await keepWords(file.name, pages)
+        if (number % 5 === 0 || number === doc.numPages) await keepWords(file.name, found)
       }
       if (!stopScan.current) localStorage.setItem(`sidepage:read-scan:${file.name}`, '1')
-      setBusy(stopScan.current ? 'Stopped. Pages read so far can be searched.' : 'Every page has been read: the book can now be searched.')
+      setBusy(stopScan.current ? 'Stopped. Pages read so far can be searched.' : 'Every page has been read: the book can now be searched.', 6000)
     } catch {
-      setBusy('The text reader could not be fetched. It needs the internet the first time.')
+      setBusy('The text reader could not be fetched. It needs the internet the first time.', 6000)
     }
     await reader?.close()
     setScanning(null)
-    setTimeout(() => setBusy(''), 6000)
   }
-  const wordsFrom = async (picture: HTMLCanvasElement, pageNumber: number) => {
-    setBusy('Reading the text…')
-    try {
-      const text = await readText(picture, share => setBusy(`Reading the text… ${Math.round(share * 100)}%`))
-      if (text) sendQuote({ text, source: `${baseName(file.name)}, p. ${pageNumber}`, book: file.name, place: `page=${pageNumber}` })
-      setBusy(text ? '' : 'No words found there')
-    } catch {
-      setBusy('The text reader could not be fetched. It needs the internet the first time.')
-    }
-    setTimeout(() => setBusy(''), 6000)
-  }
-  // Small print on screen is too coarse to read reliably, so the page is drawn again, large, for the reader.
-  // `part` is the share of the page wanted (0 to 1 each way); without it, the whole page.
-  const sharpCanvas = async (pageNumber: number) => {
-    const pdfPage = await doc!.getPage(pageNumber)
-    const base = pdfPage.getViewport({ scale: 1 })
-    const viewport = pdfPage.getViewport({ scale: Math.min(3, 2600 / Math.max(base.width, base.height)) })
-    const sharp = document.createElement('canvas')
-    sharp.width = viewport.width
-    sharp.height = viewport.height
-    await pdfPage.render({ canvas: sharp, canvasContext: sharp.getContext('2d')!, viewport }).promise
-    return sharp
-  }
-  const readPage = async (pageNumber: number, part = { x: 0, y: 0, w: 1, h: 1 }) => {
-    if (!doc) return
-    setBusy('Reading the text…')
-    const sharp = await sharpCanvas(pageNumber)
-    const cut = document.createElement('canvas')
-    cut.width = Math.max(1, Math.round(sharp.width * part.w))
-    cut.height = Math.max(1, Math.round(sharp.height * part.h))
-    cut.getContext('2d')!.drawImage(sharp, sharp.width * part.x, sharp.height * part.y, cut.width, cut.height, 0, 0, cut.width, cut.height)
-    await wordsFrom(cut, pageNumber)
-  }
-  const readWholePage = () => void readPage(page)
-  const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
-  const clipLayer = useRef<HTMLDivElement>(null)
-  const clip = (area: { x0: number; y0: number; x1: number; y1: number }) => {
-    const [left, right, top, bottom] = [Math.min(area.x0, area.x1), Math.max(area.x0, area.x1), Math.min(area.y0, area.y1), Math.max(area.y0, area.y1)]
-    if (right - left < 12 || bottom - top < 12) return
-    // The page the box mostly lies on.
-    let best: { canvas: HTMLCanvasElement; page: number; overlap: number } | null = null
-    for (const pageDiv of container.current?.querySelectorAll<HTMLElement>('.page') ?? []) {
-      const canvas = pageDiv.querySelector<HTMLCanvasElement>('.canvasWrapper canvas:not(.picture-keep)')
-      if (!canvas) continue
-      const r = canvas.getBoundingClientRect()
-      const overlap = Math.max(0, Math.min(right, r.right) - Math.max(left, r.left)) * Math.max(0, Math.min(bottom, r.bottom) - Math.max(top, r.top))
-      if (overlap > (best?.overlap ?? 0)) best = { canvas, page: Number(pageDiv.dataset.pageNumber), overlap }
-    }
-    if (!best) return
-    const r = best.canvas.getBoundingClientRect()
-    const scale = best.canvas.width / r.width
-    const [sx, sy] = [Math.max(0, left - r.left) * scale, Math.max(0, top - r.top) * scale]
-    const [sw, sh] = [(Math.min(right, r.right) - Math.max(left, r.left)) * scale, (Math.min(bottom, r.bottom) - Math.max(top, r.top)) * scale]
-    // Kept to a sensible size: it is stored inside the note.
-    const shrink = reading ? 1 : Math.min(1, (carding ? 1600 : 1100) / sw)
-    const cut = document.createElement('canvas')
-    cut.width = Math.round(sw * shrink)
-    cut.height = Math.round(sh * shrink)
-    cut.getContext('2d')!.drawImage(best.canvas, sx, sy, sw, sh, 0, 0, cut.width, cut.height)
-    if (carding) return setCardImage({ image: cut.toDataURL('image/jpeg', 0.9), page: best.page })
-    if (tabling) {
-      const page = best.page
-      void doc!.getPage(page).then(pdfPage => tableIn(pdfPage, { x: Math.max(0, left - r.left) / r.width, y: Math.max(0, top - r.top) / r.height, w: sw / scale / r.width, h: sh / scale / r.height })).then(rows => {
-        if (rows.length < 2) { setBusy('No table found there. Draw the box round the whole table.'); setTimeout(() => setBusy(''), 5000); return }
-        sendQuote({ text: asMarkdownTable(rows), source: '', book: file.name, place: `page=${page}`, table: true })
-        setBusy(`A table of ${rows.length} rows is in your notes`)
-        setTimeout(() => setBusy(''), 5000)
-      })
-      return
-    }
-    if (reading) return void readPage(best.page, { x: Math.max(0, left - r.left) / r.width, y: Math.max(0, top - r.top) / r.height, w: sw / scale / r.width, h: sh / scale / r.height })
-    sendClip({ image: cut.toDataURL('image/jpeg', 0.88), source: `${baseName(file.name)}, p. ${best.page}`, book: file.name, place: `page=${best.page}` })
-  }
-  // The pacer: a soft shade going word to word over the page at a steady pace (see Pacer.tsx).
-  const pacer = usePacer(container, viewerRef, bus)
-  // Read aloud: the page that is open, then the next, and so on to the end.
+
+  // ── Read aloud, the sentence lit as it is read ──
   const voice = useReadAloud()
+  const [speaking, setSpeaking] = useState<{ page: number; strips: Box[] } | null>(null)
   const readAloud = () => {
-    if (voice.speaking || !doc) return voice.stop()
+    if (voice.speaking || !doc) { setSpeaking(null); return voice.stop() }
     let number = page
     let first = true
     void voice.start(async () => {
       if (!first) {
         if (number >= doc.numPages) return null
         number++
-        if (viewerRef.current) viewerRef.current.currentPageNumber = number
+        goTo(number)
       }
       first = false
       const content = await (await doc.getPage(number)).getTextContent()
-      // The copyright line, course title or date that stands on every page is not read out each time.
       return readableText(file.name, content.items.map(item => ('str' in item ? item.str : '')).join(' '))
-    }, sentence => light(number, sentence))
-  }
-  // Read along: the words of the page's text layer are matched against the sentence being spoken, letters only,
-  // and the pieces of text it covers are lit.
-  const light = (pageNumber: number, sentence: string | null) => {
-    container.current?.querySelectorAll('.speaking').forEach(span => span.classList.remove('speaking'))
-    if (!sentence) return
-    const spans = [...(container.current?.querySelectorAll<HTMLElement>(`.page[data-page-number="${pageNumber}"] .textLayer span`) ?? [])]
-    const squash = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
-    let joined = ''
-    const starts = spans.map(span => { const at = joined.length; joined += squash(span.textContent ?? ''); return at })
-    const wanted = squash(sentence)
-    if (wanted.length < 4) return
-    // The whole sentence, or failing that (a line broken differently) its first forty letters.
-    let from = joined.indexOf(wanted), length = wanted.length
-    if (from < 0) { from = joined.indexOf(wanted.slice(0, 40)); length = Math.min(wanted.length, joined.length - from) }
-    if (from < 0) return
-    const lit = spans.filter((span, i) => starts[i] < from + length && starts[i] + squash(span.textContent ?? '').length > from)
-    lit.forEach(span => span.classList.add('speaking'))
-    lit[0]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }
-  const links = useRef<PDFLinkService | null>(null)
-  const [contents, setContents] = useState<{ label: string; depth: number; go(): void }[]>([])
-  const [contentsFound, setContentsFound] = useState(false)
-  // Zoom: the page fills the panel's width until the reader zooms; after that their zoom is kept.
-  const fitted = useRef(true)
-  const [zoom, setZoom] = useState(100)
-  const zoomBy = (factor: number) => {
-    const viewer = viewerRef.current
-    if (!viewer?.pdfDocument) return
-    fitted.current = false
-    viewer.currentScale = Math.max(0.3, Math.min(5, viewer.currentScale * factor))
-  }
-  const fitWidth = () => {
-    fitted.current = true
-    if (viewerRef.current?.pdfDocument && container.current) fillWidth(viewerRef.current, container.current)
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    const eventBus = new EventBus()
-    const linkService = new PDFLinkService({ eventBus })
-    const findController = new PDFFindController({ eventBus, linkService })
-    const viewer = new PDFViewer({
-      container: container.current!,
-      eventBus,
-      linkService,
-      findController,
-      // PDF.js's own annotation editor: highlights and pen strokes drawn on the page.
-      annotationEditorMode: pdfjs.AnnotationEditorType.NONE,
-      annotationEditorHighlightColors: 'yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F',
-    })
-    linkService.setViewer(viewer)
-    links.current = linkService
-    bus.current = eventBus
-    eventBus.on('scalechanging', (e: { scale: number }) => setZoom(Math.round(e.scale * 100)))
-    eventBus.on('updatefindmatchescount', (e: { matchesCount: { current: number; total: number } }) => {
-      setMatches(e.matchesCount.total ? `${e.matchesCount.current} / ${e.matchesCount.total}` : 'No matches')
-    })
-    eventBus.on('updatefindcontrolstate', (e: { state: number; matchesCount: { total: number } }) => {
-      if (e.state === 1) setMatches('No matches')
-    })
-    viewerRef.current = viewer
-    const placeKey = `sidepage:place:${file.name}`
-    // Keep each page's pictures aside, so a dark theme can show them in their real colours (see index.css).
-    type RenderedPage = { div: HTMLElement; canvas?: HTMLCanvasElement; pdfPage?: pdfjs.PDFPageProxy; viewport: pdfjs.PageViewport }
-    eventBus.on('pagerendered', async (e: { source: RenderedPage }) => {
-      const { div, canvas, pdfPage, viewport } = e.source
-      const wrapper = div.querySelector('.canvasWrapper')
-      if (!wrapper || !canvas || !pdfPage) return
-      // Drawn at the page canvas's own pixel size, which is finer than the page's size on screen.
-      const exact = pdfPage.getViewport({ scale: viewport.scale * (canvas.width / viewport.width), rotation: viewport.rotation })
-      paint(div)
-      const pictures = await picturesOf(pdfPage, exact, canvas).catch(() => null)
-      wrapper.querySelectorAll('.picture-keep').forEach(old => old.remove())
-      if (!pictures || !canvas.isConnected) return
-      pictures.className = 'picture-keep'
-      wrapper.append(pictures)
-    })
-    eventBus.on('pagesinit', () => {
-      fillWidth(viewer, container.current!)
-      // Reopen where the reader left off.
-      const saved = Number(localStorage.getItem(placeKey))
-      if (saved > 1 && saved <= viewer.pagesCount) viewer.currentPageNumber = saved
-    })
-    eventBus.on('pagechanging', (e: { pageNumber: number }) => {
-      setPage(e.pageNumber)
-      noteVisit(file.name, e.pageNumber)
-      tellPlace({ book: file.name, place: `page=${e.pageNumber}` })
-      localStorage.setItem(placeKey, String(e.pageNumber))
-      setProgress(file.name, viewer.pagesCount > 1 ? (e.pageNumber - 1) / (viewer.pagesCount - 1) : 1)
-    })
-
-    // When the panel changes size (the screen turned, Focus, the divider dragged), the page is fitted to the new
-    // width if it was fitted before, or if it no longer fits at all and would be cut off at the edge.
-    let lastWidth = 0
-    // Reading side by side, the page fills its column edge to edge (PDF.js's own fit keeps room for a scrollbar).
-    const reading = () => !!container.current?.closest('.app.reading')
-    const fillColumn = () => {
-      const width = container.current?.clientWidth ?? 0
-      const view = viewer.pdfDocument && viewer.getPageView(Math.max(0, viewer.currentPageNumber - 1))
-      if (!view || !width) return
-      const widthAtOne = view.viewport.width / viewer.currentScale
-      if (widthAtOne) viewer.currentScale = width / widthAtOne
-    }
-    const onReading = () => {
-      if (!viewer.pdfDocument) return
-      if (reading()) fillColumn()
-      else if (fitted.current) fillWidth(viewer, container.current!)
-    }
-    window.addEventListener('sidepage:reading', onReading)
-    // While the divider is dragged the pages are only stretched to the new width (smooth, nothing drawn again);
-    // they are drawn again at their new size once the dragging stops.
-    const pages = () => container.current?.querySelector<HTMLElement>('.pdfViewer')
-    let settled = 0, widthDrawn = 0
-    // A page that fills the width keeps filling it as the panel changes; a zoom the reader chose is kept, as in
-    // other readers. Only when the book first opens does a page too wide for its panel shrink to fit.
-    const refit = (opening = false) => {
-      const width = container.current?.clientWidth ?? 0
-      const page = container.current?.querySelector<HTMLElement>('.page')
-      const held = pages()
-      if (held) unstretch(held)
-      if (!opening && !fitted.current) { widthDrawn = 0; return }
-      if (reading()) return fillColumn()
-      if (fitted.current || (page && page.offsetWidth > width - 8)) {
-        fitted.current = true
-        fillWidth(viewer, container.current!)
-      }
-      widthDrawn = 0
-    }
-    const resize = new ResizeObserver(() => {
-      const width = container.current?.clientWidth ?? 0
-      if (!viewer.pdfDocument || !width || Math.abs(width - lastWidth) < 2) return
-      if (!lastWidth) { lastWidth = width; return refit(true) }
-      if (!widthDrawn) widthDrawn = lastWidth
-      lastWidth = width
-      const held = pages()
-      if (held && (fitted.current || reading())) {
-        const box = container.current!.getBoundingClientRect()
-        stretch(held, width / widthDrawn, { x: box.left, y: box.top })
-      }
-      clearTimeout(settled)
-      settled = window.setTimeout(() => refit(), 160)
-    })
-    resize.observe(container.current!)
-    const stopReading = () => window.removeEventListener('sidepage:reading', onReading)
-
-    // Pinching the page zooms it: two fingers on the screen or the touchpad, or Ctrl and the wheel. The pages grow
-    // and shrink for real as the fingers move, toward the spot between them (PDF.js only resizes what is drawn,
-    // and draws it again, sharp, once the fingers rest), so nothing jumps when they lift.
-    const surface = container.current!
-    let pinchFrom = 0, pinchFitted = false, pinchFrame = 0
-    let pinchNext: { scale: number; at: { x: number; y: number } } | null = null, panned = { x: 0, y: 0 }
-    const zoomTo = () => {
-      pinchFrame = 0
-      const pan: [number, number] = [panned.x, panned.y]
-      panned = { x: 0, y: 0 }
-      if (!viewer.pdfDocument) return
-      if (!pinchNext) { if (pan[0] || pan[1]) viewer.panBy(pan[0], pan[1]); return }
-      const { scale, at } = pinchNext
-      pinchNext = null
-      const target = Math.max(0.3, Math.min(5, pinchFrom * scale))
-      const factor = target / viewer.currentScale
-      if (Math.abs(factor - 1) < 0.004) { if (pan[0] || pan[1]) viewer.panBy(pan[0], pan[1]); return }
-      // PDF.js measures the spot from the scroller's offset corner; the fingers are measured on the screen.
-      const box = surface.getBoundingClientRect()
-      const [top, left] = viewer.containerTopLeft
-      viewer.updateScale({ scaleFactor: factor, origin: [at.x - box.left + left, at.y - box.top + top], pan, drawingDelay: 250 })
-    }
-    const soon = () => { if (!pinchFrame) pinchFrame = requestAnimationFrame(zoomTo) }
-    const stopPinch = onPinch(surface, {
-      move: (scale, at, pan) => {
-        if (!viewer.pdfDocument) return
-        if (!pinchFrom) { pinchFrom = viewer.currentScale; pinchFitted = fitted.current; fitted.current = false }
-        pinchNext = { scale, at }
-        panned = { x: panned.x + pan.x, y: panned.y + pan.y }
-        soon()
-      },
-      pan: by => { panned = { x: panned.x + by.x, y: panned.y + by.y }; soon() },
-      end: (scale, at) => {
-        // A pinch given up (the fingers back where they began) leaves the page as it was.
-        if (pinchFrom) { cancelAnimationFrame(pinchFrame); pinchNext = { scale, at }; zoomTo() }
-        if (scale === 1) fitted.current = pinchFitted
-        pinchFrom = 0
-      },
-    })
-
-    let task: pdfjs.PDFDocumentLoadingTask | undefined
-    // Drawings made on the pages are kept as a copy of the PDF with them in it (drawings.pdf, beside the
-    // notes), and that copy is what opens next time. It is only trusted for the very file it was made from.
-    const notebook = baseName(file.name)
-    const madeFrom = `sidepage:drawings:${file.name}`
-    const withDrawings = Number(localStorage.getItem(madeFrom)) === file.size ? loadNoteFile(notebook, 'drawings.pdf') : Promise.resolve(null)
-    withDrawings.then(kept => (kept ?? file).arrayBuffer()).then(data => {
-      if (cancelled) return
-      task = pdfjs.getDocument({ data })
-      task.onPassword = (give: (password: string) => void, reason: number) => {
-        if (!cancelled) setLocked({ wrong: reason === pdfjs.PasswordResponses.INCORRECT_PASSWORD, give: password => { setLocked(null); give(password) } })
-      }
-      return task.promise.then(pdf => {
-        if (cancelled) return
-        const keep = debounce(async () => {
-          try {
-            const copy = await pdf.saveDocument()
-            pdf.annotationStorage.resetModified()
-            await saveNoteFile(notebook, 'drawings.pdf', new Blob([copy as BlobPart], { type: 'application/pdf' }))
-            localStorage.setItem(madeFrom, String(file.size))
-          } catch {
-            // The drawing stays on screen; it will be kept at the next change.
-          }
-        }, 2000)
-        ;(pdf.annotationStorage as unknown as { onSetModified: (() => void) | null }).onSetModified = keep
-        keepDrawings.current = keep
-        viewer.setDocument(pdf)
-        linkService.setDocument(pdf)
-        setDoc(pdf)
-        // The PDF's own table of contents, where it has one.
-        type Entry = { title: string; dest: string | unknown[] | null; items: Entry[] }
-        const flat = (items: Entry[], depth = 0): { label: string; depth: number; go(): void }[] => items.flatMap(item => [
-          { label: item.title, depth, go: () => { if (item.dest) void linkService.goToDestination(item.dest as string) } },
-          ...flat(item.items ?? [], depth + 1),
-        ])
-        // Without one, a table of contents is worked out from the headings: the short lines set larger than the text.
-        const fromHeadings = () => layoutOf(pdf).then(layout => {
-          if (cancelled) return
-          const headings = headingsOf(layout)
-          tellContents(file.name, headings.map(heading => ({ label: heading.label, depth: heading.depth, place: `page=${heading.page}` })))
-          setContents(headings.map(heading => ({
-            label: heading.label, depth: heading.depth,
-            go: () => viewer.scrollPageIntoView({ pageNumber: heading.page, destArray: [null, { name: 'XYZ' }, 0, layout.heights[heading.page - 1] * (1 - heading.top) + 12, null] }),
-          })))
-          setContentsFound(true)
-        })
-        void pdf.getOutline().then(outline => {
-          if (cancelled) return
-          if (outline?.length) {
-            setContents(flat(outline as Entry[]))
-            // The page of each entry, for the study methods that go chapter by chapter.
-            const pageOf = async (dest: Entry['dest']) => {
-              try {
-                const target = typeof dest === 'string' ? await pdf.getDestination(dest) : dest
-                const ref = target?.[0]
-                return ref && typeof ref === 'object' ? (await pdf.getPageIndex(ref as never)) + 1 : typeof ref === 'number' ? ref + 1 : undefined
-              } catch { return undefined }
-            }
-            const listed = async (items: Entry[], depth = 0): Promise<ContentsItem[]> => (await Promise.all(items.map(async item => {
-              const page = await pageOf(item.dest)
-              return [{ label: item.title, depth, place: page ? `page=${page}` : undefined }, ...await listed(item.items ?? [], depth + 1)]
-            }))).flat()
-            void listed(outline as Entry[]).then(items => { if (!cancelled) tellContents(file.name, items) })
-          }
-          else return fromHeadings()
-        }).catch(() => {})
-        // The book's words, page by page, so it can be found by them later. Done once, a little at a time.
-        void hasWords(file.name).then(async known => {
-          if (known) return
-          const pages: Stretch[] = []
-          for (let number = 1; number <= Math.min(pdf.numPages, 2000) && !cancelled; number++) {
-            const content = await (await pdf.getPage(number)).getTextContent()
-            pages.push({ place: `page=${number}`, text: content.items.map(item => ('str' in item ? item.str : '')).join(' ') })
-            if (number % 10 === 0) await new Promise(resolve => setTimeout(resolve, 30))
-          }
-          if (!cancelled) await keepWords(file.name, pages)
-        }).then(async () => {
-          // Next to no words on many pages: a scanned book. Offer to read its pages so it can be searched.
-          if (!cancelled && (await lettersKept(file.name)) < pdf.numPages * 40 && !localStorage.getItem(`sidepage:read-scan:${file.name}`)) setScanned(true)
-        }).catch(() => {})
-        // What the file says about itself, for citing it.
-        void pdf.getMetadata().then(({ info }) => {
-          const facts = info as { Title?: string; Author?: string; CreationDate?: string; Producer?: string }
-          return keepFacts(file.name, { title: facts.Title, authors: (facts.Author ?? '').split(/;|\band\b|&/).map(name => name.trim()).filter(Boolean), year: (facts.CreationDate ?? '').replace(/^D:/, ''), pages: pdf.numPages, kind: 'document' })
-        }).catch(() => {})
-        // The first page, small, as the book's cover on the home screen.
-        void pdf.getPage(1).then(async first => {
-          const viewport = first.getViewport({ scale: 320 / first.getViewport({ scale: 1 }).width })
-          const cover = document.createElement('canvas')
-          cover.width = viewport.width
-          cover.height = viewport.height
-          await first.render({ canvas: cover, canvasContext: cover.getContext('2d')!, viewport }).promise
-          await saveCover(file.name, cover)
-        }).catch(() => {})
+    }, sentence => {
+      if (!sentence) return setSpeaking(null)
+      void wordsOf(doc, number).then(words => {
+        const lit = wordsOfSentence(words, sentence)
+        setSpeaking(lit.length ? { page: number, strips: stripsOf(lit) } : null)
+        const shown = lit[0] && toScreen(number, lit[0])
+        const view = stageRect()
+        if (shown && view && (shown.top < view.top || shown.bottom > view.bottom)) viewerRef.current?.tryGet('stage')?.scrollBy({ top: shown.top - view.top - view.height * 0.35, behavior: 'smooth' })
       })
-    }).catch(e => setError(String(e?.message ?? e)))
+    })
+  }
 
-    return () => {
-      cancelled = true
-      resize.disconnect()
-      stopReading()
-      stopPinch(); cancelAnimationFrame(pinchFrame)
-      task?.destroy()
+  // ── The pacer ──
+  const host: PacerHost = {
+    words: async number => (doc && number <= doc.numPages ? wordsOf(doc, number) : null),
+    currentPage: () => page,
+    toScreen,
+    view: stageRect,
+    goTo,
+    scrollBy: dy => viewerRef.current?.tryGet('stage')?.scrollBy({ top: dy, behavior: 'smooth' }),
+    pageAt,
+  }
+  const pacer = usePacer(host)
+
+  // ── Peek: the line under the pointer, from the page's words ──
+  const textAt = (x: number, y: number) => {
+    const at = pageAt(x, y)
+    const words = at && wordsNow.current.get(at.page)
+    if (!at || !words) return null
+    const hit = words.find(w => at.x >= w.x - 1 && at.x <= w.x + w.w + 1 && at.y >= w.y - 1 && at.y <= w.y + w.h + 1)
+    if (!hit) return null
+    const line = words.filter(w => w.line === hit.line)
+    let text = '', offset = 0
+    for (const w of line) {
+      if (w === hit) offset = text.length + Math.round(((at.x - w.x) / Math.max(1, w.w)) * w.text.length)
+      text += (text ? ' ' : '') + w.text
+      if (w === hit) offset += text.length - w.text.length - offset > 0 ? 0 : 0
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file])
+    return { text, at: offset, page: at.page }
+  }
+  const peek = usePeek({ container: wrap, doc, file: file.name, go: number => go(number), textAt })
 
-  // Flip mode shows rendered page images, a chunk at a time so long books stay light.
+  // ── Hands-free reading: the page drifts upward by itself ──
+  const [drift, setDrift] = useState(0)
+  useEffect(() => {
+    if (!drift) return
+    let carried = 0
+    const timer = setInterval(() => {
+      carried += drift * 0.32
+      const whole = Math.floor(carried)
+      if (whole) { viewerRef.current?.tryGet('stage')?.scrollBy({ top: whole, behavior: 'instant' }); carried -= whole }
+    }, 16)
+    return () => clearInterval(timer)
+  }, [drift])
+
+  // ── Page flip and flowing text ──
+  const [mode, setMode] = useState<'scroll' | 'flip'>(() => (prefersFlip() ? 'flip' : 'scroll'))
+  const [flowing, setFlowing] = usePref(`reflow:${file.name}`, false)
+  const [flip, setFlip] = useState<{ pages: string[]; ratio: number; first: number } | null>(null)
   useEffect(() => {
     if (mode !== 'flip' || !doc) return
     let cancelled = false
@@ -613,7 +463,6 @@ export default function PdfView({ file }: { file: File }) {
         canvas.width = viewport.width
         canvas.height = viewport.height
         await pdfPage.render({ canvas, canvasContext: canvas.getContext('2d')!, viewport }).promise
-        // Shade the page for the theme, then put its pictures back as they were.
         const shaded = document.createElement('canvas')
         shaded.width = canvas.width
         shaded.height = canvas.height
@@ -622,128 +471,28 @@ export default function PdfView({ file }: { file: File }) {
         ink.drawImage(canvas, 0, 0)
         ink.filter = 'none'
         if (theme === 'dark') {
-          const pictures = await picturesOf(pdfPage, viewport, canvas).catch(() => null)
-          if (pictures) ink.drawImage(pictures, 0, 0)
+          const scale = viewport.width / natural.width
+          for (const box of await picturesOf(doc, n).catch(() => [] as Box[])) {
+            ink.drawImage(canvas, box.x * scale, box.y * scale, box.w * scale, box.h * scale, box.x * scale, box.y * scale, box.w * scale, box.h * scale)
+          }
         }
         const blob = await new Promise<Blob | null>(resolve => shaded.toBlob(resolve, 'image/jpeg', 0.92))
         if (blob) urls.push(URL.createObjectURL(blob))
       }
       if (!cancelled) setFlip({ pages: urls, ratio, first })
     })()
-    return () => {
-      cancelled = true
-      setFlip(null)
-      urls.forEach(url => URL.revokeObjectURL(url))
-    }
-    // The chunk is chosen when flip mode is entered; flipping inside it must not re-render it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, doc, theme])
+    return () => { cancelled = true; setFlip(null); urls.forEach(url => URL.revokeObjectURL(url)) }
+  }, [mode, doc, theme]) // eslint-disable-line react-hooks/exhaustive-deps
+  const leaveFlip = () => { rememberFlip(false); setMode('scroll'); requestAnimationFrame(() => goTo(page)) }
 
-  useEffect(() => {
-    const viewer = viewerRef.current
-    if (!doc || !viewer) return
-    const { HIGHLIGHT, INK, NONE } = pdfjs.AnnotationEditorType
-    // PDF.js sets its editor up a moment after the document loads, and not at all for some files.
-    // So it is only touched once the reader picks a tool.
-    if (tool === 'none' && !toolUsed.current) return
-    try {
-      viewer.annotationEditorMode = { mode: tool === 'highlight' ? HIGHLIGHT : tool === 'draw' ? INK : NONE }
-      // Putting the pen down is a good moment to keep what was drawn.
-      if (tool === 'none') keepDrawings.current()
-      toolUsed.current = true
-    } catch {
-      setTool('none')
-    }
-  }, [tool, doc])
-
-  // Highlights and drawings are written into a copy of the PDF itself.
-  const saveCopy = async () => {
-    if (doc) await saveFileAs(`${baseName(file.name)} (annotated).pdf`, await doc.saveDocument())
-  }
-
-  // A link in a note brings the reader to its page.
-  useEffect(() => onGoToPlace(({ book, place }) => {
-    if (book !== file.name || !viewerRef.current) return
-    setMode('scroll')
-    viewerRef.current.currentPageNumber = Number(place.match(/page=(\d+)/)?.[1]) || 1
-  }), [file])
-
-  // Find in the PDF with PDF.js's own find controller: every match is highlighted, Enter steps through them.
-  const find = (query: string, again: boolean) => {
-    bus.current?.dispatch('find', {
-      source: null, type: again ? 'again' : '', query, caseSensitive: false, entireWord: false, highlightAll: true, findPrevious: false,
-    })
-  }
-  const clearFind = () => {
-    setMatches('')
-    bus.current?.dispatch('findbarclose', { source: null })
-  }
-
-  const leaveFlip = () => {
-    rememberFlip(false)
-    setMode('scroll')
-    requestAnimationFrame(() => { if (viewerRef.current) viewerRef.current.currentPageNumber = page })
-  }
-
-  // Quote: highlight the passage and send it to the notes with a link back to its page.
-  const quote = () => {
-    const passage = highlight()
-    if (passage) sendQuote({ text: passage.text, source: `${baseName(file.name)}, p. ${passage.page}`, book: file.name, place: `page=${passage.page}` })
-  }
-
-  // Hands-free reading: the page drifts upward by itself, slowly or faster, until it is touched off.
-  const [drift, setDrift] = useState(0)
-  useEffect(() => {
-    if (!drift || mode !== 'scroll') return
-    // Timed rather than tied to the screen's refresh, so the pace is the same on every device.
-    let carried = 0
-    const timer = setInterval(() => {
-      const pages = container.current
-      if (!pages) return
-      carried += drift * 0.32
-      const whole = Math.floor(carried)
-      if (whole) { pages.scrollTop += whole; carried -= whole }
-      if (pages.scrollTop + pages.clientHeight >= pages.scrollHeight - 2) setDrift(0)
-    }, 16)
-    return () => clearInterval(timer)
-  }, [drift, mode])
-
-  // Two pages side by side like an open book, and pages turned on their side.
-  const [spread, setSpread] = useState(false)
-  const toggleSpread = () => {
-    const viewer = viewerRef.current
-    if (!viewer?.pdfDocument) return
-    viewer.spreadMode = spread ? 0 : 1
-    setSpread(!spread)
-    viewer.currentScaleValue = 'page-fit'
-  }
-  const rotate = () => { const viewer = viewerRef.current; if (viewer?.pdfDocument) viewer.pagesRotation = (viewer.pagesRotation + 90) % 360 }
-  const fitPage = () => { fitted.current = false; if (viewerRef.current?.pdfDocument) viewerRef.current.currentScaleValue = 'page-fit' }
-  // Typing a page number into the counter goes there.
-  const [jumping, setJumping] = useState(false)
-
-  // After a jump (a search hit, a bookmark, a typed page), one tap returns to the page you left.
-  const [cameFrom, setCameFrom] = useState(0)
-  // A reading plan: the page to reach today.
-  usePref('plans', {})
-  const plan = doc ? planToday(file.name) : null
-  const goalPage = plan && doc ? Math.min(doc.numPages, Math.ceil(plan.target * (doc.numPages - 1)) + 1) : 0
-  const go = (delta: number) => {
-    const viewer = viewerRef.current
-    if (Math.abs(delta) > 1) setCameFrom(page)
-    if (viewer) viewer.currentPageNumber = Math.min(Math.max(1, page + delta), doc?.numPages ?? 1)
-  }
-
-  // Study marks: how well you know each page, the questions passages left you with, and pages hard to read.
+  // ── Study marks ──
   const studied = usePageMarks(file.name)
-  const [sheet, setSheet] = useState<Sheet | null>(null)
   const [showHard, setShowHard] = usePref('map-hard', false)
   const [hard, setHard] = useState<number[]>([])
   useEffect(() => {
     if (!showHard || !doc) return setHard([])
     let cancelled = false
     void hardnessOf(file.name, doc.numPages).then(grades => {
-      // Hard: well above the book's own usual grade, not a fixed school level (a physics text is hard throughout).
       const read = grades.filter(Boolean).sort((a, b) => a - b)
       const usual = read[Math.floor(read.length / 2)] ?? 0
       const spread = read[Math.floor(read.length * 0.85)] ?? usual
@@ -751,38 +500,33 @@ export default function PdfView({ file }: { file: File }) {
     })
     return () => { cancelled = true }
   }, [showHard, doc, file.name])
-  const selected = () => window.getSelection()?.toString().trim().replace(/\s+/g, ' ') ?? ''
-  // Plot, convert, make gap cards: on the selected words (see SelectionTools.tsx).
-  const [picked, setPicked] = useState<Selected | null>(null)
-  const [making, setMaking] = useState(false)
-  // Reading as flowing text (phones): the pages' words set at the width of the screen (see Reflow.tsx).
-  const [flowing, setFlowing] = usePref(`reflow:${file.name}`, false)
-  const pickFor = (kind: Selected['kind']) => {
-    const text = selected()
-    const pageDiv = window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>('.page')
-    if (text) setPicked({ kind, text, place: `page=${Number(pageDiv?.dataset.pageNumber) || page}` })
-  }
   const knownHere = studied.known[`page=${page}`]
   const nextUnknown = () => {
-    if (!doc) return
-    for (let step = 1; step <= doc.numPages; step++) {
-      const number = ((page - 1 + step) % doc.numPages) + 1
+    const count = pages || doc?.numPages || 0
+    for (let step = 1; step <= count; step++) {
+      const number = ((page - 1 + step) % count) + 1
       const known = studied.known[`page=${number}`]
-      if (known && known < 3) return go(number - page)
+      if (known && known < 3) return go(number)
     }
-    setBusy('No page marked “Not yet” or “Partly”.')
-    setTimeout(() => setBusy(''), 4000)
+    setBusy('No page marked “Not yet” or “Partly”.', 4000)
   }
+  usePref('plans', {})
+  const count = pages || doc?.numPages || 0
+  const plan = count ? planToday(file.name) : null
+  const goalPage = plan && count ? Math.min(count, Math.ceil(plan.target * (count - 1)) + 1) : 0
 
-  // The PDF tools by name, from the palette (Ctrl K): the PDF last touched answers.
+  // ── The PDF tools by name, from the palette (Ctrl K) ──
+  const startSnapshot = () => void viewerRef.current?.commands.execute('tool:snapshot')
   const toolsByName = useRef<Record<string, () => void>>({})
   toolsByName.current = {
-    'fit-width': fitWidth, 'whole-page': fitPage, 'two-pages': toggleSpread, turn: rotate, 'all-pages': () => setOverview(!overview), flowing: () => setFlowing(!flowing),
+    'fit-width': () => void viewerRef.current?.commands.execute('zoom:fit-width'), 'whole-page': () => void viewerRef.current?.commands.execute('zoom:fit-page'),
+    'two-pages': () => void viewerRef.current?.commands.execute('view:two-pages'), turn: () => void viewerRef.current?.commands.execute('view:rotate-clockwise'),
+    'all-pages': () => void viewerRef.current?.commands.execute('panel:thumbnails'), flowing: () => setFlowing(!flowing),
     paper: () => { rememberFlip(true); setMode('flip') }, 'read-aloud': readAloud, pacer: () => void pacer.start(),
-    clip: () => { setReading(false); setCarding(false); setTabling(false); setClipping(true) }, 'text-box': () => { setCarding(false); setTabling(false); setReading(true); setClipping(true) },
-    table: () => { setReading(false); setCarding(false); setTabling(true); setClipping(true) }, 'picture-cards': () => { setReading(false); setTabling(false); setCarding(true); setClipping(true) },
-    draw: () => setTool('draw'), 'page-text': readWholePage, 'next-to-learn': nextUnknown, 'hard-pages': () => setShowHard(!showHard),
-    cite: () => openCite({ book: file.name, place: `page=${page}` }), 'new-pdf': () => setMaking(true), 'with-marks': () => void saveCopy(), searchable: () => void readScan(),
+    clip: startSnapshot, 'text-box': startSnapshot, table: startSnapshot, 'picture-cards': startSnapshot,
+    draw: () => void viewerRef.current?.commands.execute('tool:ink'), 'page-text': readWholePage, 'next-to-learn': nextUnknown, 'hard-pages': () => setShowHard(!showHard),
+    cite: () => openCite({ book: file.name, place: `page=${page}` }), 'new-pdf': () => void viewerRef.current?.commands.execute('panel:thumbnails'),
+    'with-marks': () => void viewerRef.current?.commands.execute('document:download'), searchable: () => void readScan(),
   }
   useEffect(() => {
     const run = (e: Event) => { if (placeNow()?.book === file.name) toolsByName.current[(e as CustomEvent<string>).detail]?.() }
@@ -790,216 +534,245 @@ export default function PdfView({ file }: { file: File }) {
     return () => window.removeEventListener('sidepage:pdf-tool', run)
   }, [file.name])
 
-  // Rest the pointer on a citation, a figure's number or an acronym to see what it points to.
-  const peek = usePeek({ container, doc, file: file.name, go: number => go(number - page) })
-
   // The guide and the notes follow whichever book was last opened or touched.
   useEffect(() => { if (doc) tellPlace({ book: file.name, place: `page=${page}` }) }, [doc]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) return <div className="viewer-message">Could not open this PDF: {error}</div>
+  // ── What Sidepage lays over the pages: old highlights, the lit sentence, the pacer's shade, dark and sepia pages ──
+  void camera
+  const overlay = () => {
+    const view = stageRect()
+    const outer = wrap.current?.getBoundingClientRect()
+    if (!view || !outer) return null
+    const place = (r: DOMRect) => ({ left: r.left - outer.left, top: r.top - outer.top, width: r.width, height: r.height })
+    const parts: React.ReactNode[] = []
+    const stage = viewerRef.current?.tryGet('stage')
+    if (theme !== 'light' && stage) {
+      for (const number of visiblePages()) {
+        const size = sizes.current.get(number)
+        const whole = size && toScreen(number, { x: 0, y: 0, w: size.w, h: size.h })
+        if (!whole) continue
+        // The pictures are left out of the shading, so they keep their colours.
+        const holes = (picturesNow.current.get(number) ?? []).map(p => toScreen(number, p)).filter((r): r is DOMRect => !!r)
+        const path = [`M0 0H${whole.width}V${whole.height}H0Z`, ...holes.map(h => `M${h.left - whole.left} ${h.top - whole.top}h${h.width}v${h.height}h${-h.width}Z`)].join(' ')
+        parts.push(<div key={`t${number}`} className="pdf-tint" style={{ ...place(whole), backdropFilter: pageFilter(theme), WebkitBackdropFilter: pageFilter(theme), clipPath: `path(evenodd, '${path}')` }} />)
+      }
+    }
+    for (const mark of highlights) {
+      if (!mark.rects?.length || !visiblePages().includes(mark.index)) continue
+      const size = sizes.current.get(mark.index)
+      if (!size) continue
+      const { w, h } = size
+      mark.rects.forEach(([x, y, rw, rh], i) => {
+        const r = toScreen(mark.index, { x: x * w, y: y * h, w: rw * w, h: rh * h })
+        if (r) parts.push(<div key={`h${mark.cfi}${i}`} className="pdf-mark-over" style={{ ...place(r), background: mark.color ?? HIGHLIGHT_COLOURS.Yellow }} />)
+      })
+    }
+    if (speaking) speaking.strips.forEach((s, i) => { const r = toScreen(speaking.page, s); if (r) parts.push(<div key={`s${i}`} className="pdf-speaking" style={place(r)} />) })
+    if (pacer.word) { const r = toScreen(pacer.word.page, { x: pacer.word.x - 2, y: pacer.word.y - 2, w: pacer.word.w + 4, h: pacer.word.h + 4 }); if (r) parts.push(<div key="pacer" className="pacer-mark" style={place(r)} />) }
+    const clip = place(view)
+    return <div className="pdf-over" style={{ clipPath: `inset(${clip.top}px ${outer.width - clip.left - clip.width}px ${outer.height - clip.top - clip.height}px ${clip.left}px)` }}>{parts}</div>
+  }
+
+  const viewerTheme = useMemo(() => themeOf(theme), [theme])
 
   return (
-    <div className="viewer" onPointerDownCapture={() => tellPlace({ book: file.name, place: `page=${page}` })}>
-      <div className="viewer-bar">
-        {mode === 'scroll' && <>
-          <Tool quiet icon={ChevronLeft} label="Previous page" onClick={() => go(-1)} />
-          <Tool quiet icon={ChevronRight} label="Next page" onClick={() => go(1)} />
-        </>}
-        {mode === 'scroll' && <ContentsMenu items={contents} onGo={() => {}} found={contentsFound} />}
-        {jumping
-          ? <input
-              className="page-jump" type="number" autoFocus min={1} max={doc?.numPages} defaultValue={page} aria-label="Go to page"
-              onBlur={() => setJumping(false)}
-              onKeyDown={e => {
-                if (e.key === 'Escape') setJumping(false)
-                if (e.key !== 'Enter') return
-                go(Number(e.currentTarget.value) - page)
-                setJumping(false)
-              }}
-            />
-          : <button className="viewer-pos" title="Go to a page" onClick={() => mode === 'scroll' && setJumping(true)}>{page} / {doc?.numPages ?? '…'}</button>}
-        {scanned && !scanning && <button className="viewer-pos plan-pill" title="Its pages are pictures. Read their words once so the book can be searched, summed up and quizzed on." onClick={() => void readScan()}>Scanned: make it searchable</button>}
-        {scanning && <button className="viewer-pos" title="Stop reading the pages" onClick={() => { stopScan.current = true }}>Reading pages {scanning.done} / {scanning.total} · stop</button>}
-        {mode === 'scroll' && <LectureChip book={file.name} place={`page=${page}`} />}
-        {plan && <span className={page >= goalPage ? 'viewer-pos plan-pill done' : 'viewer-pos plan-pill'} title="Today's mark in your reading plan">{page >= goalPage ? 'Today’s reading done' : `Today: to p. ${goalPage}`}</span>}
-        <span className="spacer" />
-        {mode === 'scroll' && <>
-          <Tool quiet icon={ZoomOut} label="Zoom out" onClick={() => zoomBy(1 / 1.2)} />
-          <button className="zoom-level" title="Fit the page to the panel's width" onClick={fitWidth}>{zoom}%</button>
-          <Tool quiet icon={ZoomIn} label="Zoom in" onClick={() => zoomBy(1.2)} />
-          {cameFrom > 0 && cameFrom !== page && <button className="viewer-pos" title="Return to the page you were on" onClick={() => go(cameFrom - page)}>↩ p. {cameFrom}</button>}
-          {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
-          {busy && <span className="viewer-pos">{busy}</span>}
-          {/* What is in use shows on the bar, so it can be turned off where it was turned on. */}
-          {clipping && <Tool quiet icon={reading ? ScanText : carding ? SquareDashed : tabling ? Table2 : Crop} label="Stop drawing boxes" on onClick={() => setClipping(false)} />}
-          {tool === 'draw' && <Tool quiet icon={Pencil} label="Stop drawing" on onClick={() => setTool('none')} />}
-          {voice.speaking && <Tool quiet icon={voice.paused ? Play : Pause} label={voice.paused ? 'Resume reading' : 'Pause reading'} on={voice.paused} onClick={voice.paused ? voice.resume : voice.pause} />}
-          {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
-          <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(Number(place.replace('page=', '')) - page)} />
-          <SearchBox onSearch={find} onClear={clearFind} status={matches} />
-          <HighlightsMenu marks={highlights} notebook={baseName(file.name)} onHighlight={color => void highlight(color)} onGo={place => go(pageOf(place) - page)} onChange={changeHighlight} onRemove={removeHighlight} />
-          <QuestionsMenu book={file.name} marks={studied} onGo={place => go(pageOf(place) - page)} />
-          {flowing && <TextMenu />}
-        </>}
-        <Menu quiet icon={Ellipsis} label="Tools" hint="Page layout, clipping, study marks, this book" on={mode === 'flip'} wide>
-          {mode === 'scroll' && <>
-            <p className="menu-head">View</p>
-            <div className="menu-tiles">
-              <Tool icon={MoveHorizontal} label="Fit width" hint="Fit the page to the panel's width" onClick={fitWidth} />
-              <Tool icon={Maximize} label="Whole page" hint="Fit the whole page in the panel" onClick={fitPage} />
-              <Tool icon={BookCopy} label={spread ? 'One page' : 'Two pages'} hint={spread ? 'One page at a time' : 'Two pages side by side'} on={spread} onClick={toggleSpread} />
-              <Tool icon={RotateCw} label="Turn" hint="Turn the pages a quarter" onClick={rotate} />
-              <Tool icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />
-              <Tool icon={WrapText} label="Flowing text" hint="The words of the pages set at the width of the screen, in your text size and typeface: easier on a phone" on={flowing} onClick={() => setFlowing(!flowing)} />
-              <Tool icon={BookOpen} label="Like paper" hint="Turn pages like paper" onClick={() => { rememberFlip(true); setMode('flip') }} />
-              <Tool icon={Pointer} label={pacer.on ? 'Stop pacer' : 'Pacer'} hint="A soft shade moves from word to word at a steady reading pace, to keep your place. Tap a word to move it there" on={pacer.on} onClick={() => void pacer.start()} />
-              {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} hint="Read the book aloud from this page" on={voice.speaking} onClick={readAloud} />}
-            </div>
-            <div className="menu-line">
-              <span className="menu-note">Scroll by itself</span>
-              {[['Off', 0], ['Slow', 1], ['Steady', 2], ['Fast', 4]].map(([name, speed]) => (
-                <button key={name} className={drift === speed ? 'menu-item on' : 'menu-item'} onClick={() => setDrift(speed as number)}>{name}</button>
-              ))}
-            </div>
-            <p className="menu-head">Take from the page</p>
-            <div className="menu-tiles">
-              <Tool icon={Crop} label="Clip a picture" hint="Drag a box over part of a page to put it in your notes as a picture" on={clipping && !reading && !carding && !tabling} onClick={() => { setReading(false); setCarding(false); setTabling(false); setClipping(!clipping) }} />
-              <Tool icon={ScanText} label="Text in a box" hint="Drag a box over a scanned page or a picture to put the words in it into your notes" on={clipping && reading} onClick={() => { setCarding(false); setTabling(false); setReading(true); setClipping(!(clipping && reading)) }} />
-              <Tool icon={Table2} label="A table" hint="Drag a box round a table on the page: it goes into your notes as a table you can edit" on={clipping && tabling} onClick={() => { setReading(false); setCarding(false); setTabling(true); setClipping(!(clipping && tabling)) }} />
-              <Tool icon={SquareDashed} label="Picture cards" hint="Drag a box over a diagram, then cover its labels: each one becomes a flashcard" on={clipping && carding} onClick={() => { setReading(false); setTabling(false); setCarding(true); setClipping(!(clipping && carding)) }} />
-              <Tool icon={Pencil} label="Draw" hint="Draw on the page" on={tool === 'draw'} onClick={() => setTool(t => (t === 'draw' ? 'none' : 'draw'))} />
-              <Tool icon={ScanText} label="Page's text" hint="For a scanned page: put the words of the whole page into your notes" onClick={readWholePage} />
-            </div>
-            <p className="menu-head">This page</p>
-            <div className="known-row" title="Mark how well you know this page: it shows on the page map, and you can come back to the pages you do not know yet">
-              <span className="menu-note">I know it</span>
-              {([1, 2, 3] as const).map(level => (
-                <button key={level} className={knownHere === level ? 'stay on' : 'stay'} style={knownHere === level ? { background: KNOWN[level].colour } : undefined}
-                  onClick={() => void markKnown(file.name, `page=${page}`, knownHere === level ? null : level)}>{KNOWN[level].name}</button>
-              ))}
-            </div>
-            <div className="menu-tiles">
-              <Tool icon={Gauge} label="Next to learn" hint="The next page marked Not yet or Partly" onClick={nextUnknown} />
-              <Tool icon={ListTree} label="Hard pages" hint="Shade the pages much harder to read than the rest of the book on the page map" on={showHard} onClick={() => setShowHard(!showHard)} />
-            </div>
-            <p className="menu-head">This book</p>
-            <div className="menu-tiles">
-              <Tool icon={TextQuote} label="Cite it" hint="As a reference, in your text with this page, or the selected passage with its source" onClick={() => openCite({ book: file.name, place: `page=${page}`, passage: window.getSelection()?.toString() })} />
-              <Tool icon={Files} label="New PDF" hint="Save some of its pages as a PDF of their own, or join another PDF after it" onClick={() => setMaking(true)} />
-              <Tool icon={Download} label="With my marks" hint="Save a copy of the PDF with your highlights and drawings" onClick={() => void saveCopy()} />
-              <Tool icon={ScanText} label="Searchable" hint="For a scanned book: read every page's words once, so it can be searched and studied" onClick={() => void readScan()} />
-            </div>
-            <p className="menu-note small">Select words on the page for more: look up, translate, plot, convert, gap cards and more.</p>
-          </>}
-          {mode === 'flip' && <Tool icon={BookOpen} label="Back to scrolling" on onClick={leaveFlip} />}
-        </Menu>
-      </div>
-      <div className="viewer-body">
-        {locked && (
-          <div className="pdf-locked">
-            <form className="pdf-password" onSubmit={e => { e.preventDefault(); locked.give(new FormData(e.currentTarget).get('password') as string) }}>
-              <b>This PDF is locked</b>
-              <span>{locked.wrong ? 'That password is not right. Try again.' : 'Type its password to open it.'}</span>
-              <input name="password" type="password" autoFocus autoComplete="off" aria-label="Password" />
-              <button className="primary">Open</button>
-            </form>
-          </div>
-        )}
-        <div
-          ref={container}
-          className="pdf-container"
-          style={{ visibility: mode === 'scroll' && !flowing ? undefined : 'hidden' }}
-          {...peek.handlers}
-          // A stylus touching the page means writing on it: switch to Draw without being asked.
-          onPointerDownCapture={e => { if (e.pointerType === 'pen' && tool === 'none') setTool('draw') }}
+    <div className="viewer embed-viewer" ref={wrap}
+      onPointerDownCapture={e => {
+        tellPlace({ book: file.name, place: `page=${page}` })
+        pacer.touched(e.clientX, e.clientY)
+        // A stylus touching the page means writing on it: switch to the pen without being asked.
+        if (e.pointerType === 'pen') void viewerRef.current?.commands.execute('tool:ink')
+      }}
+      onWheelCapture={() => pacer.scrolledByHand()}
+      onTouchMoveCapture={() => pacer.scrolledByHand()}
+      {...peek.handlers}
+    >
+      {src && (
+        <PDFViewer
+          src={src}
+          theme={viewerTheme}
+          commands={commands}
+          icons={ICONS}
+          layout={layoutOfViewer}
+          features={{ snapshots: true }}
+          locale={uiLanguage()}
+          onReady={onReady}
+          style={{ height: '100%', width: '100%' }}
         >
-          <div className="pdfViewer" />
+          <ToolbarItem id="sidepage-start">
+            <span className="embed-chips">
+              {cameFrom > 0 && cameFrom !== page && <button className="viewer-pos" title="Return to the page you were on" onClick={() => go(cameFrom)}>↩ p. {cameFrom}</button>}
+              {scanned && !scanning && <button className="viewer-pos plan-pill" title="Its pages are pictures. Read their words once so the book can be searched, summed up and quizzed on." onClick={() => void readScan()}>Scanned: make it searchable</button>}
+              {scanning && <button className="viewer-pos" title="Stop reading the pages" onClick={() => { stopScan.current = true }}>Reading pages {scanning.done} / {scanning.total} · stop</button>}
+              <LectureChip book={file.name} place={`page=${page}`} />
+              {plan && <span className={page >= goalPage ? 'viewer-pos plan-pill done' : 'viewer-pos plan-pill'} title="Today's mark in your reading plan">{page >= goalPage ? 'Today’s reading done' : `Today: to p. ${goalPage}`}</span>}
+              {busy && <span className="viewer-pos">{busy}</span>}
+            </span>
+          </ToolbarItem>
+          <ToolbarItem id="sidepage">
+            <span className="embed-tools">
+              {drift > 0 && <Tool quiet icon={ChevronsDown} label="Stop scrolling" on onClick={() => setDrift(0)} />}
+              {voice.speaking && <Tool quiet icon={voice.paused ? Play : Pause} label={voice.paused ? 'Resume reading' : 'Pause reading'} on={voice.paused} onClick={voice.paused ? voice.resume : voice.pause} />}
+              {voice.speaking && <Tool quiet icon={Square} label="Stop reading" on onClick={readAloud} />}
+              <BookmarksMenu marks={bookmarks} here={{ place: `page=${page}`, label: `Page ${page}` }} onGo={place => go(pageOf(place))} />
+              <HighlightsMenu marks={highlights} notebook={notebook} onHighlight={() => void viewerRef.current?.commands.execute('selection:highlight')} onGo={place => go(pageOf(place))}
+                onChange={(place, change) => saveMarks(marks.current.map(mark => (mark.cfi === place ? { ...mark, ...change } : mark)))}
+                onRemove={place => saveMarks(marks.current.filter(mark => mark.cfi !== place))} />
+              <QuestionsMenu book={file.name} marks={studied} onGo={place => go(pageOf(place))} />
+              <Menu quiet icon={Ellipsis} label="Sidepage" hint="Reading aids, taking from the page, study marks" wide>
+                <p className="menu-head">Reading</p>
+                <div className="menu-tiles">
+                  <Tool icon={BookOpen} label="Like paper" hint="Turn pages like paper" onClick={() => { rememberFlip(true); setMode('flip') }} />
+                  <Tool icon={WrapText} label="Flowing text" hint="The words of the pages set at the width of the screen, in your text size and typeface: easier on a phone" on={flowing} onClick={() => setFlowing(!flowing)} />
+                  <Tool icon={Pointer} label={pacer.on ? 'Stop pacer' : 'Pacer'} hint="A soft shade moves from word to word at a steady reading pace, to keep your place. Tap a word to move it there" on={pacer.on} onClick={() => void pacer.start()} />
+                  {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} hint="Read the book aloud from this page" on={voice.speaking} onClick={readAloud} />}
+                </div>
+                <div className="menu-line">
+                  <span className="menu-note">Scroll by itself</span>
+                  {[['Off', 0], ['Slow', 1], ['Steady', 2], ['Fast', 4]].map(([name, speed]) => (
+                    <button key={name} className={drift === speed ? 'menu-item on' : 'menu-item'} onClick={() => setDrift(speed as number)}>{name}</button>
+                  ))}
+                </div>
+                <p className="menu-head">Take from the page</p>
+                <div className="menu-tiles">
+                  <Tool icon={Crop} label="Clip a picture" hint="Draw a box over part of a page, then put it in your notes" onClick={startSnapshot} />
+                  <Tool icon={ScanText} label="Text in a box" hint="Draw a box over a scanned page or a picture, then put the words in it into your notes" onClick={startSnapshot} />
+                  <Tool icon={Table2} label="A table" hint="Draw a box round a table, then put it in your notes as a table you can edit" onClick={startSnapshot} />
+                  <Tool icon={SquareDashed} label="Picture cards" hint="Draw a box over a diagram, then cover its labels: each one becomes a flashcard" onClick={startSnapshot} />
+                  <Tool icon={ScanText} label="Page's text" hint="For a scanned page: put the words of the whole page into your notes" onClick={readWholePage} />
+                </div>
+                <p className="menu-head">This page</p>
+                <div className="known-row" title="Mark how well you know this page: it shows on the page map, and you can come back to the pages you do not know yet">
+                  <span className="menu-note">I know it</span>
+                  {([1, 2, 3] as const).map(level => (
+                    <button key={level} className={knownHere === level ? 'stay on' : 'stay'} style={knownHere === level ? { background: KNOWN[level].colour } : undefined}
+                      onClick={() => void markKnown(file.name, `page=${page}`, knownHere === level ? null : level)}>{KNOWN[level].name}</button>
+                  ))}
+                </div>
+                <div className="menu-tiles">
+                  <Tool icon={Gauge} label="Next to learn" hint="The next page marked Not yet or Partly" onClick={nextUnknown} />
+                  <Tool icon={ListTree} label="Hard pages" hint="Shade the pages much harder to read than the rest of the book on the page map" on={showHard} onClick={() => setShowHard(!showHard)} />
+                </div>
+                <p className="menu-head">This book</p>
+                <div className="menu-tiles">
+                  <Tool icon={TextQuote} label="Cite it" hint="As a reference, in your text with this page" onClick={() => openCite({ book: file.name, place: `page=${page}` })} />
+                  <Tool icon={ScanText} label="Searchable" hint="For a scanned book: read every page's words once, so it can be searched and studied" onClick={() => void readScan()} />
+                </div>
+                <p className="menu-note small">Select words on the page for more: quote, look up, translate, ask AI, and more under ⋯.</p>
+              </Menu>
+            </span>
+          </ToolbarItem>
+        </PDFViewer>
+      )}
+      {overlay()}
+      {peek.view}
+      <PacerBar pacer={pacer} />
+      {count > 0 && !flowing && mode === 'scroll' && (
+        <PageMap
+          file={file.name} pages={count} current={page} goal={plan ? goalPage : undefined}
+          highlights={highlights.map(mark => ({ page: pageOf(mark.cfi), colour: mark.color ?? '#ffd84d' }))}
+          bookmarks={bookmarks.list.map(mark => pageOf(mark.place))}
+          known={Object.fromEntries(Object.entries(studied.known).map(([place, level]) => [pageOf(place), KNOWN[level].colour]))}
+          questions={studied.questions.filter(q => !q.answered).map(q => pageOf(q.place))}
+          hard={hard}
+          onGo={number => go(number)}
+        />
+      )}
+      {sheet && <StudySheet book={file.name} sheet={sheet} onGo={place => { setSheet(null); go(pageOf(place)) }} onClose={() => setSheet(null)} />}
+      {picked && <SelectionSheet book={file.name} selected={picked} onClose={() => setPicked(null)} />}
+      {doc && <RecapCard book={file.name} onGo={number => go(number)} />}
+      {cardImage && (
+        <PictureCardMaker
+          image={cardImage.image}
+          onCancel={() => setCardImage(null)}
+          onSave={boxes => {
+            const { image, page: from } = cardImage
+            setCardImage(null)
+            void fetch(image).then(answer => answer.blob()).then(blob => addPictureCards(notebook, blob, { source: `${notebook}, p. ${from}`, place: `page=${from}`, boxes }))
+            setBusy(`${boxes.length} picture card${boxes.length === 1 ? '' : 's'} made: they come up in Review`, 5000)
+          }}
+        />
+      )}
+      {flowing && doc && mode === 'scroll' && (
+        <div className="embed-cover">
+          <Reflow doc={doc} page={page} onPage={number => { setPage(number); tellPlace({ book: file.name, place: `page=${number}` }); localStorage.setItem(placeKey, String(number)) }} />
+          <button className="viewer-pos embed-leave" onClick={() => { setFlowing(false); goTo(page) }}>Back to the pages</button>
         </div>
-        {mode === 'scroll' && flowing && doc && <Reflow doc={doc} page={page} onPage={number => { setPage(number); tellPlace({ book: file.name, place: `page=${number}` }); localStorage.setItem(`sidepage:place:${file.name}`, String(number)) }} />}
-        {mode === 'scroll' && peek.view}
-        {/* What can be done with selected words, beside them (see SelectionBar.tsx). */}
-        {mode === 'scroll' && !flowing && (
-          <SelectionBar
-            host={container}
-            onHighlight={color => void highlight(color)}
-            actions={[
-              { icon: TextQuote, label: 'Quote', hint: 'Copy the selected text into your notes', run: () => quote() },
-              { icon: BookA, label: 'Look up', hint: 'What the selected word means', run: words => lookUp(words) },
-              { icon: Languages, label: 'Translate', hint: 'Translate the selected passage (sent to a free online service)', run: words => translate(words) },
-              { icon: MessageCircleQuestion, label: 'Ask AI', hint: 'Ask the AI about the selected passage', run: words => askAi(`Explain this passage (p. ${page}): “${words}”`) },
-            ]}
-            more={[
-              { icon: BookA, label: 'Where is this explained?', hint: 'The sentence of the book that says what the selected words are', run: words => setSheet({ kind: 'explained', words }) },
-              { icon: SearchCode, label: 'Every use in this book', hint: 'Each place the selected words come, with the words around them, lined up', run: words => setSheet({ kind: 'uses', words }) },
-              { icon: CircleHelp, label: 'A question about this', hint: 'Note a question on the selected passage, to answer later or ask the AI', run: words => {
-                const pageDiv = window.getSelection()?.anchorNode?.parentElement?.closest<HTMLElement>('.page')
-                setSheet({ kind: 'question', passage: words, place: `page=${Number(pageDiv?.dataset.pageNumber) || page}` })
-              } },
-              { icon: SquareStack, label: 'Gap cards from this passage', hint: "Flashcards from the selected passage, each with one of the book's terms hidden", run: () => pickFor('cloze') },
-              { icon: Sigma, label: 'Plot this formula', hint: 'Draw the selected formula as a graph, with a slider for each constant', run: () => pickFor('plot') },
-              { icon: Ruler, label: 'Convert units', hint: 'The selected measurement (such as 25 psi) in other units', run: () => pickFor('units') },
-              { icon: Link2, label: 'Cite this passage', hint: 'The selected passage with its source', run: words => openCite({ book: file.name, place: `page=${page}`, passage: words }) },
-            ]}
-          />
-        )}
-        {mode === 'scroll' && making && doc && <PageTools file={file} pages={doc.numPages} current={page} onClose={() => setMaking(false)} />}
-        {mode === 'scroll' && picked && <SelectionSheet book={file.name} selected={picked} onClose={() => setPicked(null)} />}
-        {mode === 'scroll' && <PacerBar pacer={pacer} />}
-        {mode === 'scroll' && sheet && <StudySheet book={file.name} sheet={sheet} onGo={place => { setSheet(null); go(pageOf(place) - page) }} onClose={() => setSheet(null)} />}
-        {mode === 'scroll' && doc && <RecapCard book={file.name} onGo={number => go(number - page)} />}
-        {mode === 'scroll' && doc && !flowing && (
-          <PageMap
-            file={file.name} pages={doc.numPages} current={page} goal={plan ? goalPage : undefined}
-            highlights={highlights.map(mark => ({ page: pageOf(mark.cfi), colour: mark.color ?? '#ffd84d' }))}
-            bookmarks={bookmarks.list.map(mark => pageOf(mark.place))}
-            known={Object.fromEntries(Object.entries(studied.known).map(([place, level]) => [pageOf(place), KNOWN[level].colour]))}
-            questions={studied.questions.filter(q => !q.answered).map(q => pageOf(q.place))}
-            hard={hard}
-            onGo={number => go(number - page)}
-          />
-        )}
-        {overview && mode === 'scroll' && doc && <PageGrid doc={doc} current={page} onPick={number => { setOverview(false); go(number - page) }} />}
-        {clipping && mode === 'scroll' && (
-          <div
-            className="clip-layer"
-            ref={clipLayer}
-            onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); setBox({ x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY }) }}
-            onPointerMove={e => { if (box) setBox({ ...box, x1: e.clientX, y1: e.clientY }) }}
-            onPointerUp={() => {
-              if (box) clip(box)
-              setBox(null)
-              setClipping(false)
-            }}
-          >
-            {box && clipLayer.current && (() => {
-              // The box is kept in screen coordinates (what the page's position is measured in) and drawn inside the
-              // layer, so it is placed from the layer's own corner.
-              const origin = clipLayer.current.getBoundingClientRect()
-              return <div className="clip-box" style={{ left: Math.min(box.x0, box.x1) - origin.left, top: Math.min(box.y0, box.y1) - origin.top, width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0) }} />
-            })()}
-          </div>
-        )}
-        {cardImage && (
-          <PictureCardMaker
-            image={cardImage.image}
-            onCancel={() => setCardImage(null)}
-            onSave={boxes => {
-              const { image, page: from } = cardImage
-              setCardImage(null)
-              void fetch(image).then(answer => answer.blob()).then(blob => addPictureCards(baseName(file.name), blob, { source: `${baseName(file.name)}, p. ${from}`, place: `page=${from}`, boxes }))
-              setBusy(`${boxes.length} picture card${boxes.length === 1 ? '' : 's'} made: they come up in Review`)
-              setTimeout(() => setBusy(''), 5000)
-            }}
-          />
-        )}
-        {mode === 'flip' && (flip
-          ? <FlipBook pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {
-              setPage(flip.first + i)
-              tellPlace({ book: file.name, place: `page=${flip.first + i}` })
-              localStorage.setItem(`sidepage:place:${file.name}`, String(flip.first + i))
-            }} />
-          : <div className="viewer-message">Preparing pages…</div>)}
-      </div>
+      )}
+      {mode === 'flip' && (
+        <div className="embed-cover">
+          {flip
+            ? <FlipBook pages={flip.pages} ratio={flip.ratio} startPage={page - flip.first} onFlip={i => {
+                setPage(flip.first + i)
+                tellPlace({ book: file.name, place: `page=${flip.first + i}` })
+                localStorage.setItem(placeKey, String(flip.first + i))
+              }} />
+            : <div className="viewer-message">Preparing pages…</div>}
+          <button className="viewer-pos embed-leave" onClick={leaveFlip}>Back to scrolling</button>
+        </div>
+      )}
     </div>
   )
+}
+
+// A page drawn large, for reading the words of a picture or cutting a sharp clip from it.
+async function sharpCanvas(doc: pdfjs.PDFDocumentProxy, number: number) {
+  const pdfPage = await doc.getPage(number)
+  const base = pdfPage.getViewport({ scale: 1 })
+  const viewport = pdfPage.getViewport({ scale: Math.min(3, 2600 / Math.max(base.width, base.height)) })
+  const sharp = document.createElement('canvas')
+  sharp.width = viewport.width
+  sharp.height = viewport.height
+  await pdfPage.render({ canvas: sharp, canvasContext: sharp.getContext('2d')!, viewport }).promise
+  return sharp
+}
+
+// What Sidepage learns of a book once, in the background: its contents (from its outline, or from its headings),
+// its words (for search across books and the study guide), whether it is scanned, its facts for citing, its cover.
+async function learnBook(file: File, pdf: pdfjs.PDFDocumentProxy, cancelled: () => boolean, onScanned: (scanned: boolean) => void) {
+  type Entry = { title: string; dest: string | unknown[] | null; items: Entry[] }
+  void pdf.getOutline().then(async outline => {
+    if (cancelled()) return
+    if (outline?.length) {
+      const pageOf = async (dest: Entry['dest']) => {
+        try {
+          const target = typeof dest === 'string' ? await pdf.getDestination(dest) : dest
+          const ref = target?.[0]
+          return ref && typeof ref === 'object' ? (await pdf.getPageIndex(ref as never)) + 1 : typeof ref === 'number' ? ref + 1 : undefined
+        } catch { return undefined }
+      }
+      const listed = async (items: Entry[], depth = 0): Promise<ContentsItem[]> => (await Promise.all(items.map(async item => {
+        const page = await pageOf(item.dest)
+        return [{ label: item.title, depth, place: page ? `page=${page}` : undefined }, ...await listed(item.items ?? [], depth + 1)]
+      }))).flat()
+      tellContents(file.name, await listed(outline as Entry[]))
+    } else {
+      const layout = await layoutOf(pdf)
+      if (!cancelled()) tellContents(file.name, headingsOf(layout).map(heading => ({ label: heading.label, depth: heading.depth, place: `page=${heading.page}` })))
+    }
+  }).catch(() => {})
+  void hasWords(file.name).then(async known => {
+    if (known) return
+    const pages: Stretch[] = []
+    for (let number = 1; number <= Math.min(pdf.numPages, 2000) && !cancelled(); number++) {
+      const content = await (await pdf.getPage(number)).getTextContent()
+      pages.push({ place: `page=${number}`, text: content.items.map(item => ('str' in item ? item.str : '')).join(' ') })
+      if (number % 10 === 0) await new Promise(resolve => setTimeout(resolve, 30))
+    }
+    if (!cancelled()) await keepWords(file.name, pages)
+  }).then(async () => {
+    if (!cancelled() && (await lettersKept(file.name)) < pdf.numPages * 40 && !localStorage.getItem(`sidepage:read-scan:${file.name}`)) onScanned(true)
+  }).catch(() => {})
+  void pdf.getMetadata().then(({ info }) => {
+    const facts = info as { Title?: string; Author?: string; CreationDate?: string }
+    return keepFacts(file.name, { title: facts.Title, authors: (facts.Author ?? '').split(/;|\band\b|&/).map(name => name.trim()).filter(Boolean), year: (facts.CreationDate ?? '').replace(/^D:/, ''), pages: pdf.numPages, kind: 'document' })
+  }).catch(() => {})
+  void pdf.getPage(1).then(async first => {
+    const viewport = first.getViewport({ scale: 320 / first.getViewport({ scale: 1 }).width })
+    const cover = document.createElement('canvas')
+    cover.width = viewport.width
+    cover.height = viewport.height
+    await first.render({ canvas: cover, canvasContext: cover.getContext('2d')!, viewport }).promise
+    await saveCover(file.name, cover)
+  }).catch(() => {})
 }

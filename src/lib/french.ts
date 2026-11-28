@@ -1265,6 +1265,14 @@ export const FRENCH: Record<string, string> = {
   "Words a minute": "Mots par minute",
   "Stop the pacer": "Arrêter le guide",
   "Stop (Escape)": "Arrêter (Échap)",
+  // ── PDF reader ──
+  "Its words into my notes": "Ses mots dans mes notes",
+  "Reading aids, taking from the page, study marks": "Aides à la lecture, prendre de la page, repères d’étude",
+  "Draw a box over part of a page, then put it in your notes": "Tracez un cadre sur une partie de la page, puis mettez-la dans vos notes",
+  "Draw a box over a scanned page or a picture, then put the words in it into your notes": "Tracez un cadre sur une page numérisée ou une image, puis mettez ses mots dans vos notes",
+  "Draw a box round a table, then put it in your notes as a table you can edit": "Tracez un cadre autour d’un tableau, puis mettez-le dans vos notes, modifiable",
+  "As a reference, in your text with this page": "Comme référence, dans votre texte avec cette page",
+  "Select words on the page for more: quote, look up, translate, ask AI, and more under ⋯.": "Sélectionnez des mots sur la page pour plus : citer, chercher, traduire, demander à l’IA, et plus sous ⋯.",
 }
 
 // Text with a number or a name in it, by pattern.
