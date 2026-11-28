@@ -177,6 +177,27 @@ pub fn run() {
                 let _ = settings.SetIsPinchZoomEnabled(false);
               }
             }
+            // The web view's own right-click menu offers to Share the page: what it shares is the app's inner
+            // address (http://tauri.localhost/), of no use to anyone. That item is taken out; More, Share sends the
+            // book itself.
+            if let Ok(core) = core.cast::<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2_11>() {
+              let handler = webview2_com::ContextMenuRequestedEventHandler::create(Box::new(|_sender, args| {
+                let Some(args) = args else { return Ok(()) };
+                let items = args.MenuItems()?;
+                let mut count = 0u32;
+                items.Count(&mut count)?;
+                for index in (0..count).rev() {
+                  let item = items.GetValueAtIndex(index)?;
+                  let mut name = windows::core::PWSTR::null();
+                  item.Name(&mut name)?;
+                  let name = webview2_com::take_pwstr(name);
+                  if name == "share" || name == "webCapture" { items.RemoveValueAtIndex(index)?; }
+                }
+                Ok(())
+              }));
+              let mut token = 0i64;
+              let _ = core.add_ContextMenuRequested(&handler, &mut token);
+            }
           }
         });
       }
