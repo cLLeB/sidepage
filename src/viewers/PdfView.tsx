@@ -7,7 +7,7 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import FlipBook from './FlipBook'
 import SearchBox from './SearchBox'
 import PageGrid from './PageGrid'
-import { BookA, Languages, CircleHelp, MessageCircleQuestion, Link2, Files, WrapText, Gauge, ListTree, SearchCode, Sigma, Ruler, SquareStack, Table2, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote, ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis, Pause, Play } from 'lucide-react'
+import { Pointer, BookA, Languages, CircleHelp, MessageCircleQuestion, Link2, Files, WrapText, Gauge, ListTree, SearchCode, Sigma, Ruler, SquareStack, Table2, BookCopy, BookOpen, ChevronLeft, ChevronRight, ChevronsDown, Crop, Download, LayoutGrid, Maximize, MoveHorizontal, Pencil, RotateCw, Square, TextQuote, ScanText, SquareDashed, Volume2, ZoomIn, ZoomOut, Ellipsis, Pause, Play } from 'lucide-react'
 import { PictureCardMaker, addPictureCards } from '../notes/PictureCards'
 import { openReader, readText } from '../lib/ocr'
 import { readableText } from '../lib/insight'
@@ -21,6 +21,7 @@ import { hardnessOf, markKnown, noteVisit } from '../lib/pages'
 import { asMarkdownTable, headingsOf, layoutOf, tableIn } from '../lib/paper'
 import { SelectionSheet, type Selected } from './SelectionTools'
 import { PageTools } from './PageTools'
+import { PacerBar, usePacer } from './Pacer'
 import Reflow from './Reflow'
 import SelectionBar from './SelectionBar'
 import { askAi, placeNow } from '../lib/platform'
@@ -281,6 +282,8 @@ export default function PdfView({ file }: { file: File }) {
     if (reading) return void readPage(best.page, { x: Math.max(0, left - r.left) / r.width, y: Math.max(0, top - r.top) / r.height, w: sw / scale / r.width, h: sh / scale / r.height })
     sendClip({ image: cut.toDataURL('image/jpeg', 0.88), source: `${baseName(file.name)}, p. ${best.page}`, book: file.name, place: `page=${best.page}` })
   }
+  // The pacer: a soft shade going word to word over the page at a steady pace (see Pacer.tsx).
+  const pacer = usePacer(container, viewerRef, bus)
   // Read aloud: the page that is open, then the next, and so on to the end.
   const voice = useReadAloud()
   const readAloud = () => {
@@ -775,7 +778,7 @@ export default function PdfView({ file }: { file: File }) {
   const toolsByName = useRef<Record<string, () => void>>({})
   toolsByName.current = {
     'fit-width': fitWidth, 'whole-page': fitPage, 'two-pages': toggleSpread, turn: rotate, 'all-pages': () => setOverview(!overview), flowing: () => setFlowing(!flowing),
-    paper: () => { rememberFlip(true); setMode('flip') }, 'read-aloud': readAloud,
+    paper: () => { rememberFlip(true); setMode('flip') }, 'read-aloud': readAloud, pacer: () => void pacer.start(),
     clip: () => { setReading(false); setCarding(false); setTabling(false); setClipping(true) }, 'text-box': () => { setCarding(false); setTabling(false); setReading(true); setClipping(true) },
     table: () => { setReading(false); setCarding(false); setTabling(true); setClipping(true) }, 'picture-cards': () => { setReading(false); setTabling(false); setCarding(true); setClipping(true) },
     draw: () => setTool('draw'), 'page-text': readWholePage, 'next-to-learn': nextUnknown, 'hard-pages': () => setShowHard(!showHard),
@@ -849,6 +852,7 @@ export default function PdfView({ file }: { file: File }) {
               <Tool icon={LayoutGrid} label="All pages" hint="See every page at a glance" on={overview} onClick={() => setOverview(!overview)} />
               <Tool icon={WrapText} label="Flowing text" hint="The words of the pages set at the width of the screen, in your text size and typeface: easier on a phone" on={flowing} onClick={() => setFlowing(!flowing)} />
               <Tool icon={BookOpen} label="Like paper" hint="Turn pages like paper" onClick={() => { rememberFlip(true); setMode('flip') }} />
+              <Tool icon={Pointer} label={pacer.on ? 'Stop pacer' : 'Pacer'} hint="A soft shade moves from word to word at a steady reading pace, to keep your place. Tap a word to move it there" on={pacer.on} onClick={() => void pacer.start()} />
               {canSpeak && <Tool icon={voice.speaking ? Square : Volume2} label={voice.speaking ? 'Stop reading' : 'Read aloud'} hint="Read the book aloud from this page" on={voice.speaking} onClick={readAloud} />}
             </div>
             <div className="menu-line">
@@ -940,6 +944,7 @@ export default function PdfView({ file }: { file: File }) {
         )}
         {mode === 'scroll' && making && doc && <PageTools file={file} pages={doc.numPages} current={page} onClose={() => setMaking(false)} />}
         {mode === 'scroll' && picked && <SelectionSheet book={file.name} selected={picked} onClose={() => setPicked(null)} />}
+        {mode === 'scroll' && <PacerBar pacer={pacer} />}
         {mode === 'scroll' && sheet && <StudySheet book={file.name} sheet={sheet} onGo={place => { setSheet(null); go(pageOf(place) - page) }} onClose={() => setSheet(null)} />}
         {mode === 'scroll' && doc && <RecapCard book={file.name} onGo={number => go(number - page)} />}
         {mode === 'scroll' && doc && !flowing && (

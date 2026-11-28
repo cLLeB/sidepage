@@ -936,6 +936,7 @@ export default function App() {
     { group: 'PDF', name: 'Read as flowing text', icon: FileText, run: () => window.dispatchEvent(new CustomEvent('sidepage:pdf-tool', { detail: 'flowing' })) },
     { group: 'PDF', name: 'Turn pages like paper', icon: FileText, run: () => window.dispatchEvent(new CustomEvent('sidepage:pdf-tool', { detail: 'paper' })) },
     { group: 'PDF', name: 'Read aloud from this page', icon: FileText, run: () => window.dispatchEvent(new CustomEvent('sidepage:pdf-tool', { detail: 'read-aloud' })) },
+    { group: 'PDF', name: 'Pacer: a soft shade moves word to word', icon: FileText, run: () => window.dispatchEvent(new CustomEvent('sidepage:pdf-tool', { detail: 'pacer' })) },
     { group: 'PDF', name: 'Clip a picture into my notes', icon: FileText, run: () => window.dispatchEvent(new CustomEvent('sidepage:pdf-tool', { detail: 'clip' })) },
     { group: 'PDF', name: 'Read the text in a box', icon: FileText, run: () => window.dispatchEvent(new CustomEvent('sidepage:pdf-tool', { detail: 'text-box' })) },
     { group: 'PDF', name: 'A table into my notes', icon: FileText, run: () => window.dispatchEvent(new CustomEvent('sidepage:pdf-tool', { detail: 'table' })) },

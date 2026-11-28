@@ -1254,6 +1254,17 @@ export const FRENCH: Record<string, string> = {
   "Open the book first: Share sends the book in front.": "Ouvrez d’abord le livre : Partager envoie le livre affiché.",
   "The book is saved in your downloads: attach it from there.": "Le livre est enregistré dans vos téléchargements : joignez-le depuis là.",
   "The book could not be shared. Save as one file, then send that file instead.": "Le livre n’a pas pu être partagé. Enregistrez-le en un seul fichier, puis envoyez ce fichier.",
+  // ── Pacer ──
+  "Pacer": "Guide de lecture",
+  "Stop pacer": "Arrêter le guide",
+  "A soft shade moves from word to word at a steady reading pace, to keep your place. Tap a word to move it there": "Un léger surlignage avance de mot en mot à un rythme de lecture régulier, pour garder votre place. Touchez un mot pour l’y amener",
+  "Pacer: a soft shade moves word to word": "Guide de lecture : un léger surlignage avance de mot en mot",
+  "Pause (Space)": "Pause (Espace)",
+  "Go on (Space)": "Continuer (Espace)",
+  "Faster": "Plus vite",
+  "Words a minute": "Mots par minute",
+  "Stop the pacer": "Arrêter le guide",
+  "Stop (Escape)": "Arrêter (Échap)",
 }
 
 // Text with a number or a name in it, by pattern.

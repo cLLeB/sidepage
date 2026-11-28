@@ -50,6 +50,7 @@ Every command can be run from **Go to…**: press <kbd>Ctrl</kbd> <kbd>K</kbd> (
 
 | Command | Also in |
 | --- | --- |
+| Share this book: WhatsApp, email, another app | **More**, Share |
 | Save the book and its notes as one file | **More**, Save as one file |
 | Export this book's notes | **More**, Export notes |
 | Cite this book… | PDF, ⋯ Tools |

@@ -19,6 +19,7 @@ Click **⋯** in the note's bar, then:
 1. Open the book.
 2. Open **More** (⋯ at the top right).
 3. Choose:
+   - **Share**: sends the book itself to WhatsApp, an email or any other app. On a phone or tablet, Android's share sheet opens: pick the app. On a computer, the file is copied: paste it (Ctrl+V, or ⌘V on a Mac) into WhatsApp, an email or a chat.
    - **Export notes**: the book's notes, highlights and bookmarks as one Markdown file
    - **Make a study pack**: notes, highlights, glossary and questions for the book, as one document to read or print
    - **Save as one file**: the book together with all its notes, as a `.sidepage` file. Open it in Sidepage on any device to get the book and its notes back. Good for sending a book with your notes to a friend.
