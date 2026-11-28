@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Sidepage",
-  "version": "0.41.14",
+  "version": "0.41.15",
   "identifier": "io.github.clleb.sidepage",
   "build": {
     "frontendDist": "../dist",
