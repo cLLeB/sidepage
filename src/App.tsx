@@ -44,6 +44,7 @@ const PANELS_READING: DockviewTheme = { ...PANELS, name: 'sidepage-reading', gap
 const isTauriApp = '__TAURI_INTERNALS__' in window
 
 const PdfView = lazy(() => import('./viewers/PdfView'))
+const EmbedPdfView = lazy(() => import('./viewers/EmbedPdfView'))
 const BookView = lazy(() => import('./viewers/BookView'))
 const OfficeView = lazy(() => import('./viewers/OfficeView'))
 const DjvuView = lazy(() => import('./viewers/DjvuView'))
@@ -70,7 +71,7 @@ type NoteKind = keyof typeof NOTE_KINDS
 
 function viewerFor(name: string) {
   const ext = extensionOf(name)
-  if (ext === 'pdf') return PdfView
+  if (ext === 'pdf') return getPref('pdf-engine-embed', false) ? EmbedPdfView : PdfView
   if (PICTURE_EXTENSIONS.includes(ext)) return ImageView
   if (['epub', 'mobi', 'azw', 'azw3', 'kf8', 'fb2', 'fbz', 'cbz', 'cbr', 'cb7', 'cbt'].includes(ext)) return BookView
   if (['docx', 'doc', 'rtf', 'odt'].includes(ext)) return OfficeView
@@ -383,6 +384,7 @@ export default function App() {
   const [reading, setReading] = useState(false)
   const [autoUpdate, setAutoUpdate] = usePref('auto-update', true)
   const [notesWithBook, setNotesWithBook] = usePref('notes-with-book', true)
+  const [newEngine, setNewEngine] = usePref('pdf-engine-embed', false)
   useEffect(() => { if (!focus) setReading(false) }, [focus])
   // The books refit themselves once the room has settled, on the way in and on the way out.
   useEffect(() => {
@@ -1188,6 +1190,9 @@ export default function App() {
                 </label>
               </>}
               {settingsTab === 'reading' && <>
+                <label className="menu-row stay" title="Trial: PDFs drawn by EmbedPDF, with its own scrolling, zoom and touch. Reopen a PDF to see it">Try the new PDF engine
+                  <input type="checkbox" checked={newEngine} onChange={e => setNewEngine(e.target.checked)} />
+                </label>
                 <label className="menu-row">Text in pictures
                   <select value={ocrLanguage} onChange={e => setOcrLanguage(e.target.value)} title="The language “Read text” looks for in scans and pictures">
                     {Object.entries(OCR_LANGUAGES).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
